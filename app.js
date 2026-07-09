@@ -43,10 +43,10 @@ const STORAGE_KEYS = {
 };
 
 const APP_UPDATE_NOTE = {
-  id: 'release-atlasnest-v1',
+  id: 'release-atlasnest-v2',
   type: 'text',
-  title: 'AtlasNest Update #release',
-  text: '# AtlasNest is live\n\n1. Branded board-style note cards by note type\n2. Folder view from the hamburger menu\n3. Bookmark notes with richer shared-link previews\n4. Voice notes, emoji themes, and stronger note metadata\n5. Bullet, numbered, and checklist authoring support\n\nOpen the menu to browse folders and try creating a bookmark note.',
+  title: 'AtlasNest Update #mobile',
+  text: '# AtlasNest mobile refresh\n\n1. Tablet and phone layouts now come first with a cleaner stacked header and easier spacing\n2. Per-note actions moved into the new ellipsis menu for pin, theme, and delete\n3. Folders and groups now live in the sidebar for faster browsing\n4. Voice notes have a live recording animation and visible save flow\n5. Global themes were simplified into a clean light and dark mode switch\n\nOpen AtlasNest on mobile, swipe through note-type filters, and try the new card menus.',
   color: 'orange',
   theme: 'summer',
   folder: 'Product Updates',
@@ -166,13 +166,13 @@ const searchInput = document.getElementById('search-input');
 const searchClear = document.getElementById('search-clear');
 const viewToggle = document.getElementById('view-toggle');
 const themeBtn = document.getElementById('theme-btn');
-const themeDropdown = document.getElementById('theme-dropdown');
 
 const noteCreator = document.getElementById('note-creator');
 const creatorCollapsed = document.getElementById('creator-collapsed');
 const creatorExpanded = document.getElementById('creator-expanded');
 const creatorTitle = document.getElementById('creator-title');
 const creatorText = document.getElementById('creator-text');
+const creatorSave = document.getElementById('creator-save');
 const creatorClose = document.getElementById('creator-close');
 const creatorPin = document.getElementById('creator-pin');
 const creatorColorPicker = document.getElementById('creator-color-picker');
@@ -319,24 +319,7 @@ function enhanceShell() {
     feedFilterRow = document.getElementById('feed-filter-row');
   }
 
-  if (!document.getElementById('menu-panel')) {
-    menuPanel = document.createElement('div');
-    menuPanel.className = 'menu-panel';
-    menuPanel.id = 'menu-panel';
-    menuPanel.innerHTML = `
-      <button class="menu-panel-item" id="menu-open-folders">
-        <span class="menu-panel-item-icon">▣</span>
-        <span>Folder View</span>
-      </button>
-      <button class="menu-panel-item" id="menu-toggle-sidebar">
-        <span class="menu-panel-item-icon">≡</span>
-        <span>Toggle Sidebar</span>
-      </button>
-    `;
-    document.body.appendChild(menuPanel);
-  } else {
-    menuPanel = document.getElementById('menu-panel');
-  }
+  menuPanel = document.getElementById('menu-panel');
 
   if (!document.getElementById('folder-drawer')) {
     folderDrawer = document.createElement('div');
@@ -382,21 +365,16 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initTheme() {
-  const savedTheme = localStorage.getItem(STORAGE_KEYS.theme) || 'light';
+  const savedTheme = localStorage.getItem(STORAGE_KEYS.theme) === 'dark' ? 'dark' : 'light';
   setTheme(savedTheme);
 }
 
 function setTheme(theme) {
-  // Clear all theme classes
-  document.body.classList.remove(
-    'theme-light', 'theme-dark', 'theme-nebula', 
-    'theme-sunset', 'theme-cyber', 'theme-solarized'
-  );
-  
-  document.body.classList.add(`theme-${theme}`);
-  
-  // Tag as light/dark accessibility class for general widgets
-  const isDark = ['dark', 'nebula', 'sunset', 'cyber'].includes(theme);
+  const normalizedTheme = theme === 'dark' ? 'dark' : 'light';
+  document.body.classList.remove('theme-light', 'theme-dark');
+  document.body.classList.add(`theme-${normalizedTheme}`);
+
+  const isDark = normalizedTheme === 'dark';
   if (isDark) {
     document.body.classList.add('dark-theme');
     document.body.classList.remove('light-theme');
@@ -404,17 +382,16 @@ function setTheme(theme) {
     document.body.classList.add('light-theme');
     document.body.classList.remove('dark-theme');
   }
-  
-  localStorage.setItem(STORAGE_KEYS.theme, theme);
-  
-  // Highlight active theme circle in dropdown
-  document.querySelectorAll('.theme-dropdown-item').forEach(el => {
-    if (el.getAttribute('data-theme') === theme) {
-      el.classList.add('active');
-    } else {
-      el.classList.remove('active');
-    }
-  });
+
+  if (themeBtn) {
+    themeBtn.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+    themeBtn.setAttribute('title', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+    themeBtn.innerHTML = isDark
+      ? '<svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 0 1 11.21 3c0-.34.02-.68.06-1.01A1 1 0 0 0 9.8.93a10 10 0 1 0 13.27 13.27 1 1 0 0 0-.06-1.41c-.33.04-.67.06-1.01.06z"/></svg>'
+      : '<svg viewBox="0 0 24 24"><path d="M12 18a6 6 0 1 1 0-12 6 6 0 0 1 0 12zm0-16h1v3h-1V2zm0 17h1v3h-1v-3zM2 11h3v1H2v-1zm17 0h3v1h-3v-1zM4.93 4.22l.71-.71 2.12 2.12-.71.71-2.12-2.12zm11.31 11.31l.71-.71 2.12 2.12-.71.71-2.12-2.12zM4.93 19.07l2.12-2.12.71.71-2.12 2.12-.71-.71zm11.31-11.31l2.12-2.12.71.71-2.12 2.12-.71-.71z"/></svg>';
+  }
+
+  localStorage.setItem(STORAGE_KEYS.theme, normalizedTheme);
 }
 
 function initViewLayout() {
@@ -483,57 +460,34 @@ function setupEventHandlers() {
   if (menuBtn && sidebar) {
     menuBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      menuPanel?.classList.toggle('visible');
+      if (window.innerWidth < 600) {
+        sidebar.classList.toggle('sidebar-open');
+      } else {
+        document.body.classList.toggle('sidebar-pinned');
+      }
+      closeAllNoteCardMenus();
     });
   }
-
-  document.getElementById('menu-open-folders')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    menuPanel?.classList.remove('visible');
-    openFolderDrawer();
-  });
-
-  document.getElementById('menu-toggle-sidebar')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    menuPanel?.classList.remove('visible');
-    if (window.innerWidth < 600) {
-      sidebar.classList.toggle('sidebar-open');
-    } else {
-      document.body.classList.toggle('sidebar-pinned');
-    }
-  });
 
   document.getElementById('folder-drawer-close')?.addEventListener('click', closeFolderDrawer);
   folderDrawer?.querySelector('.folder-drawer-backdrop')?.addEventListener('click', closeFolderDrawer);
 
   // Close sidebar drawer on mobile when clicking outside
   document.addEventListener('click', (e) => {
-    if (menuPanel?.classList.contains('visible')) {
-      if (!menuPanel.contains(e.target) && e.target !== menuBtn && !menuBtn.contains(e.target)) {
-        menuPanel.classList.remove('visible');
-      }
-    }
     if (sidebar && sidebar.classList.contains('sidebar-open')) {
       if (!sidebar.contains(e.target) && e.target !== menuBtn && !menuBtn.contains(e.target)) {
         sidebar.classList.remove('sidebar-open');
       }
     }
+    if (!e.target.closest('.note-card-menu')) {
+      closeAllNoteCardMenus();
+    }
   });
 
-  // Theme dropdown trigger
   themeBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    themeDropdown.classList.toggle('visible');
-  });
-
-  // Select theme click handlers
-  document.querySelectorAll('.theme-dropdown-item').forEach(item => {
-    item.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const theme = item.getAttribute('data-theme');
-      setTheme(theme);
-      themeDropdown.classList.remove('visible');
-    });
+    const isDark = document.body.classList.contains('dark-theme');
+    setTheme(isDark ? 'light' : 'dark');
   });
 
   // View toggle (Grid / List)
@@ -682,6 +636,12 @@ function setupEventHandlers() {
   });
 
   // Close / Save Note Creator
+  creatorSave.addEventListener('click', (e) => {
+    e.stopPropagation();
+    saveCreatorNote();
+    collapseCreator();
+  });
+
   creatorClose.addEventListener('click', (e) => {
     e.stopPropagation();
     saveCreatorNote();
@@ -691,7 +651,7 @@ function setupEventHandlers() {
   // Click outside Note Creator auto-saves
   document.addEventListener('click', (e) => {
     if (creatorExpanded.style.display !== 'none' && !noteCreator.contains(e.target)) {
-      if (!e.target.closest('.color-picker-bubble') && !e.target.closest('.reminder-trigger-wrapper') && !e.target.closest('.edit-modal-overlay') && !e.target.closest('.theme-menu-wrapper')) {
+      if (!e.target.closest('.color-picker-bubble') && !e.target.closest('.reminder-trigger-wrapper') && !e.target.closest('.edit-modal-overlay')) {
         saveCreatorNote();
         collapseCreator();
       }
@@ -707,10 +667,6 @@ function setupEventHandlers() {
       document.querySelectorAll('.reminder-picker-bubble').forEach(el => el.classList.remove('visible'));
     }
 
-    // Close theme dropdown picker
-    if (!e.target.closest('.theme-menu-wrapper')) {
-      themeDropdown.classList.remove('visible');
-    }
   });
 
   // Edit Modal Event Handlers
@@ -1139,6 +1095,15 @@ function renderFolderSuggestions() {
   });
 }
 
+function closeAllNoteCardMenus() {
+  document.querySelectorAll('.note-card-menu.open').forEach(menu => {
+    menu.classList.remove('open');
+  });
+  document.querySelectorAll('.note-card-menu-panel .color-picker-bubble.visible').forEach(picker => {
+    picker.classList.remove('visible');
+  });
+}
+
 function scanUniqueTags() {
   const tagsSet = new Set();
   notes.forEach(note => {
@@ -1470,22 +1435,23 @@ function renderGrid(gridContainer, notesArray) {
       surface.appendChild(banner);
     }
 
-    // 2. Pin Button
-    const pinBtn = document.createElement('button');
-    pinBtn.className = `icon-btn pin-btn ${note.pinned ? 'pinned' : ''}`;
-    pinBtn.setAttribute('aria-label', note.pinned ? 'Unpin note' : 'Pin note');
-    pinBtn.innerHTML = `
+    const cardMenu = document.createElement('div');
+    cardMenu.className = 'note-card-menu';
+
+    const menuToggle = document.createElement('button');
+    menuToggle.className = 'icon-btn note-card-menu-toggle';
+    menuToggle.setAttribute('aria-label', 'More note actions');
+    menuToggle.innerHTML = `
       <svg viewBox="0 0 24 24">
-        <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zM9.8 4h4.4v8H9.8V4z" />
+        <path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
       </svg>
     `;
-    pinBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      note.pinned = !note.pinned;
-      saveToLocalStorage();
-      renderNotes();
-    });
-    card.appendChild(pinBtn);
+    cardMenu.appendChild(menuToggle);
+
+    const menuPanelEl = document.createElement('div');
+    menuPanelEl.className = 'note-card-menu-panel';
+    cardMenu.appendChild(menuPanelEl);
+    card.appendChild(cardMenu);
 
     // 3. Title (if not empty)
     const titleVal = note.title || '';
@@ -1687,23 +1653,20 @@ function renderGrid(gridContainer, notesArray) {
       surface.appendChild(previewBox);
     }
 
-    // 6. Actions Toolbar
-    const actionsEl = document.createElement('div');
-    actionsEl.className = 'note-actions';
-    
-    // Color Palette Selector
+    // 6. Overflow Actions Menu
     const colorBtnWrapper = document.createElement('div');
-    colorBtnWrapper.className = 'color-palette-trigger-wrapper';
+    colorBtnWrapper.className = 'color-palette-trigger-wrapper note-card-menu-item note-card-menu-theme';
     
     const colorBtn = document.createElement('button');
-    colorBtn.className = 'icon-btn';
-    colorBtn.setAttribute('aria-label', 'Change note color');
+    colorBtn.className = 'note-card-menu-action';
+    colorBtn.setAttribute('aria-label', 'Change note theme');
     colorBtn.innerHTML = `
       <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01l-.23-.25a.3.3 0 0 1-.03-.17c0-.09.06-.15.15-.15H15a6 6 0 0 0 6-6c0-4.97-4.03-9-9-9zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm4.5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>
+      <span>Theme</span>
     `;
     
     const picker = document.createElement('div');
-    picker.className = 'color-picker-bubble';
+    picker.className = 'color-picker-bubble note-card-theme-picker';
     
     colorBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1742,22 +1705,48 @@ function renderGrid(gridContainer, notesArray) {
 
     colorBtnWrapper.appendChild(colorBtn);
     colorBtnWrapper.appendChild(picker);
-    actionsEl.appendChild(colorBtnWrapper);
+    menuPanelEl.appendChild(colorBtnWrapper);
+
+    const pinBtn = document.createElement('button');
+    pinBtn.className = 'note-card-menu-action';
+    pinBtn.setAttribute('aria-label', note.pinned ? 'Unpin note' : 'Pin note');
+    pinBtn.innerHTML = `
+      <svg viewBox="0 0 24 24">
+        <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zM9.8 4h4.4v8H9.8V4z" />
+      </svg>
+      <span>${note.pinned ? 'Unpin' : 'Pin'}</span>
+    `;
+    pinBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      note.pinned = !note.pinned;
+      saveToLocalStorage();
+      closeAllNoteCardMenus();
+      renderNotes();
+    });
+    menuPanelEl.appendChild(pinBtn);
 
     // Delete Button
     const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'icon-btn';
+    deleteBtn.className = 'note-card-menu-action danger';
     deleteBtn.setAttribute('aria-label', 'Delete note');
     deleteBtn.innerHTML = `
       <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+      <span>Delete</span>
     `;
     deleteBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       deleteNote(note.id);
     });
-    actionsEl.appendChild(deleteBtn);
+    menuPanelEl.appendChild(deleteBtn);
 
-    surface.appendChild(actionsEl);
+    menuToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = cardMenu.classList.contains('open');
+      closeAllNoteCardMenus();
+      if (!isOpen) {
+        cardMenu.classList.add('open');
+      }
+    });
 
     const stamp = document.createElement('div');
     stamp.className = 'note-stamp';
@@ -1766,7 +1755,7 @@ function renderGrid(gridContainer, notesArray) {
 
     // Open Edit Modal on Click
     card.addEventListener('click', (e) => {
-      if (!e.target.closest('.icon-btn') && !e.target.closest('.color-picker-bubble') && !e.target.closest('.checklist-checkbox')) {
+      if (!e.target.closest('.icon-btn') && !e.target.closest('.note-card-menu-action') && !e.target.closest('.color-picker-bubble') && !e.target.closest('.checklist-checkbox')) {
         openEditModal(note);
       }
     });
@@ -2711,6 +2700,57 @@ let voiceRecordingStartTime = null;
 let voiceRecordingElapsedSeconds = 0;
 let voiceRecordingTimer = null;
 
+function ensureVoiceRecordingIndicators() {
+  const configs = [
+    { hostId: 'creator-chips-container', indicatorId: 'creator-recording-indicator', target: 'creator' },
+    { hostId: 'modal-tags-container', indicatorId: 'modal-recording-indicator', target: 'modal' }
+  ];
+
+  configs.forEach(({ hostId, indicatorId, target }) => {
+    const host = document.getElementById(hostId);
+    if (!host || document.getElementById(indicatorId)) return;
+
+    const indicator = document.createElement('div');
+    indicator.id = indicatorId;
+    indicator.className = 'voice-recording-indicator';
+    indicator.setAttribute('aria-live', 'polite');
+    indicator.innerHTML = `
+      <span class="voice-recording-dot" aria-hidden="true"></span>
+      <span class="voice-recording-copy">
+        <strong>${target === 'creator' ? 'Recording voice note' : 'Recording update'}</strong>
+        <span class="voice-recording-timer">0:00</span>
+      </span>
+      <span class="voice-recording-bars" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+      </span>
+    `;
+    host.appendChild(indicator);
+  });
+}
+
+function updateVoiceRecordingIndicators() {
+  ensureVoiceRecordingIndicators();
+  const formattedTime = `${Math.floor(voiceRecordingElapsedSeconds / 60)}:${(voiceRecordingElapsedSeconds % 60).toString().padStart(2, '0')}`;
+  const indicators = [
+    { id: 'creator-recording-indicator', target: 'creator' },
+    { id: 'modal-recording-indicator', target: 'modal' }
+  ];
+
+  indicators.forEach(({ id, target }) => {
+    const indicator = document.getElementById(id);
+    if (!indicator) return;
+    const active = isRecordingVoice && activeVoiceTarget === target;
+    indicator.classList.toggle('visible', active);
+    const timer = indicator.querySelector('.voice-recording-timer');
+    if (timer) {
+      timer.textContent = active ? formattedTime : '0:00';
+    }
+  });
+}
+
 function toggleVoiceRecording(target) {
   if (isRecordingVoice) {
     stopVoiceRecording();
@@ -2723,6 +2763,7 @@ function startVoiceRecording(target) {
   activeVoiceTarget = target;
   audioChunks = [];
   voiceRecordingElapsedSeconds = 0;
+  updateVoiceRecordingIndicators();
   
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   
@@ -2761,6 +2802,7 @@ function startVoiceRecording(target) {
       isRecordingVoice = true;
       voiceRecordingStartTime = Date.now();
       updateVoiceButtonsVisuals(true);
+      updateVoiceRecordingIndicators();
       
       // Real-time elapsed counter displayed on buttons
       voiceRecordingTimer = setInterval(() => {
@@ -2771,6 +2813,7 @@ function startVoiceRecording(target) {
         btns.forEach(btn => {
           if (btn) btn.setAttribute('title', `Recording ${m}:${s} — Click to stop`);
         });
+        updateVoiceRecordingIndicators();
       }, 1000);
       
       if (SpeechRecognition) {
@@ -2831,19 +2874,34 @@ function stopVoiceRecording() {
   }
   isRecordingVoice = false;
   updateVoiceButtonsVisuals(false);
+  updateVoiceRecordingIndicators();
 }
 
 function updateVoiceButtonsVisuals(active) {
-  const btns = [document.getElementById('creator-voice-btn'), document.getElementById('modal-voice-btn')];
-  btns.forEach(btn => {
-    if (btn) {
-      if (active) {
-        btn.style.color = '#ea4335';
-        btn.style.animation = 'bellWobble 1s infinite ease-in-out';
-      } else {
-        btn.style.color = '';
-        btn.style.animation = '';
-      }
+  const btns = [
+    { el: document.getElementById('creator-voice-btn'), target: 'creator' },
+    { el: document.getElementById('modal-voice-btn'), target: 'modal' }
+  ];
+  btns.forEach(({ el, target }) => {
+    const btn = el;
+    if (!btn) return;
+
+    const isActiveTarget = active && activeVoiceTarget === target;
+    btn.classList.toggle('voice-recording-active', isActiveTarget);
+    btn.classList.toggle('voice-recording-idle', active && !isActiveTarget);
+
+    if (isActiveTarget) {
+      btn.style.color = '#ea4335';
+      btn.style.animation = 'bellWobble 1s infinite ease-in-out';
+      btn.setAttribute('aria-pressed', 'true');
+      return;
+    }
+
+    btn.style.color = '';
+    btn.style.animation = '';
+    btn.setAttribute('aria-pressed', 'false');
+    if (!active) {
+      btn.setAttribute('title', 'Record Voice');
     }
   });
 }
@@ -2877,7 +2935,7 @@ function renderCreatorAudioPreview() {
     chip.style.marginTop = '0';
     chip.style.padding = '4px 8px';
     chip.innerHTML = `
-      <span style="font-size: 11px; font-weight: bold; color: var(--accent-color);">🎙️ Voice Clip (0:05)</span>
+      <span style="font-size: 11px; font-weight: bold; color: var(--accent-color);">🎙️ Voice Clip (${creatorAudioDuration || '0:05'})</span>
       <span class="reminder-chip-delete" id="delete-creator-audio" title="Delete voice clip" style="margin-left: 6px; font-size: 12px; cursor: pointer; opacity: 0.6;">✕</span>
     `;
     chip.querySelector('#delete-creator-audio').addEventListener('click', (e) => {
