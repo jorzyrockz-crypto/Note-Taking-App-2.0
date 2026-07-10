@@ -1,5 +1,7 @@
 import {
+  applyChecklistInlineReminder,
   checklistToPlain,
+  extractChecklistInlineReminder,
   getNoteType,
   isChecklistFormat,
   normalizeNoteType,
@@ -256,6 +258,10 @@ const modalListBtn = document.getElementById('modal-list-btn');
 const modalDrawBtn = document.getElementById('modal-draw-btn');
 const modalTagsContainer = document.getElementById('modal-tags-container');
 let modalFolderInput = null;
+let modalFolderField = null;
+let modalFolderTrigger = null;
+let modalFolderOptions = null;
+let modalFolderCustomInput = null;
 
 // Canvas Sketch Overlay elements
 const sketchModal = document.getElementById('sketch-modal');
@@ -379,11 +385,7 @@ function enhanceShell() {
       const brand = document.createElement('span');
       brand.className = 'logo-title';
       brand.textContent = 'AtlasNest';
-      const sub = document.createElement('span');
-      sub.className = 'logo-subtitle';
-      sub.textContent = 'Visual bookmarking studio';
       lockup.appendChild(brand);
-      lockup.appendChild(sub);
     }
   }
 
@@ -510,6 +512,9 @@ function enhanceShell() {
           <div class="calendar-month-label" id="calendar-month-label"></div>
           <div class="calendar-weekdays" id="calendar-weekdays"></div>
           <div class="calendar-grid" id="calendar-grid"></div>
+        </section>
+
+        <section class="productivity-panel productivity-todo-panel">
           <div class="productivity-todo-widget" id="productivity-todo-widget"></div>
         </section>
 
@@ -563,7 +568,18 @@ function setActivePage(page) {
   } else {
     setActiveSidebarPage('notes');
   }
+  collapseSidebarAfterSelection();
   renderAppView();
+}
+
+function collapseSidebarAfterSelection() {
+  const sidebar = document.querySelector('.app-sidebar');
+  if (sidebar?.classList.contains('sidebar-open')) {
+    sidebar.classList.remove('sidebar-open');
+  }
+  if (window.innerWidth < 1024) {
+    document.body.classList.remove('sidebar-pinned');
+  }
 }
 
 function ensureCalendarSelection() {
@@ -582,6 +598,23 @@ function ensureCalendarSelection() {
     calendarCursorDate = new Date();
     return;
   }
+}
+
+function getActiveChecklistRowIndex(editorEl) {
+  const activeRow = editorEl?.querySelector('.checklist-editor-row.is-active');
+  if (!activeRow) return -1;
+  return Number(activeRow.dataset.index ?? -1);
+}
+
+function applyInlineReminderToChecklistText(rawText, rowIndex, reminderValue) {
+  const lines = `${rawText || ''}`.split('\n');
+  if (rowIndex < 0 || rowIndex >= lines.length) return rawText;
+  const line = lines[rowIndex];
+  if (!line.startsWith('- [ ] ') && !line.startsWith('- [x] ')) return rawText;
+  const prefix = line.startsWith('- [x] ') ? '- [x] ' : '- [ ] ';
+  const lineContent = line.substring(6);
+  lines[rowIndex] = prefix + applyChecklistInlineReminder(lineContent, reminderValue);
+  return lines.join('\n');
 }
 
 function renderAppView() {
@@ -900,15 +933,36 @@ function setupEventHandlers() {
     document.querySelectorAll('.color-picker-bubble, .reminder-picker-bubble').forEach(p => {
       if (p !== creatorReminderPicker) p.classList.remove('visible');
     });
-    
-    buildReminderPicker(creatorReminderPicker, creatorReminder, (dateTime) => {
-      creatorReminder = dateTime;
+
+    const creatorChecklistEditor = document.getElementById('creator-checklist-editor');
+    const activeChecklistIndex = creatorChecklistEditor?.style.display !== 'none'
+      ? getActiveChecklistRowIndex(creatorChecklistEditor)
+      : -1;
+    const activeChecklistLine = activeChecklistIndex >= 0
+      ? (creatorText.value.split('\n')[activeChecklistIndex] || '')
+      : '';
+    const activeChecklistReminder = activeChecklistIndex >= 0
+      ? extractChecklistInlineReminder(activeChecklistLine.substring(6))
+      : '';
+
+    buildReminderPicker(creatorReminderPicker, activeChecklistReminder || creatorReminder, (dateTime) => {
+      if (activeChecklistIndex >= 0) {
+        creatorText.value = applyInlineReminderToChecklistText(creatorText.value, activeChecklistIndex, dateTime);
+        syncCreatorInputs();
+      } else {
+        creatorReminder = dateTime;
+        renderCreatorReminderChip();
+      }
       creatorReminderPicker.classList.remove('visible');
-      renderCreatorReminderChip();
     }, () => {
-      creatorReminder = null;
+      if (activeChecklistIndex >= 0) {
+        creatorText.value = applyInlineReminderToChecklistText(creatorText.value, activeChecklistIndex, '');
+        syncCreatorInputs();
+      } else {
+        creatorReminder = null;
+        renderCreatorReminderChip();
+      }
       creatorReminderPicker.classList.remove('visible');
-      renderCreatorReminderChip();
     });
     creatorReminderPicker.classList.toggle('visible');
   });
@@ -981,6 +1035,10 @@ function setupEventHandlers() {
     // Close reminder pickers
     if (!e.target.closest('.reminder-trigger-wrapper')) {
       document.querySelectorAll('.reminder-picker-bubble').forEach(el => el.classList.remove('visible'));
+    }
+
+    if (!e.target.closest('.modal-folder-field')) {
+      closeModalFolderPicker();
     }
 
   });
@@ -1141,85 +1199,80 @@ function buildColorPickers() {
 function buildColorGrid(container, activeColor, activeTheme, onSelect) {
   container.innerHTML = '';
 
-  // Title
+  const clearSelection = () => {
+    container.querySelectorAll('.color-option, .picker-clear-button').forEach(el => el.classList.remove('selected'));
+  };
+
+  const header = document.createElement('div');
+  header.className = 'picker-header';
+
   const title = document.createElement('span');
   title.className = 'picker-section-title';
   title.textContent = 'Note Themes';
-  container.appendChild(title);
+  header.appendChild(title);
 
-  // Single unified row
-  const row = document.createElement('div');
-  row.className = 'picker-row';
+  const clearThemeButton = document.createElement('button');
+  clearThemeButton.type = 'button';
+  clearThemeButton.className = 'picker-clear-button';
+  clearThemeButton.textContent = 'No theme';
+  clearThemeButton.title = 'Remove the current theme';
+  if (!activeTheme) clearThemeButton.classList.add('selected');
+  clearThemeButton.addEventListener('click', (e) => {
+    e.stopPropagation();
+    clearSelection();
+    clearThemeButton.classList.add('selected');
+    onSelect('theme', 'none');
+  });
+  header.appendChild(clearThemeButton);
+  container.appendChild(header);
 
-  // 1. Color options
+  const colorRow = document.createElement('div');
+  colorRow.className = 'picker-row picker-row-colors';
+
   COLOR_PRESETS.forEach(color => {
-    const option = document.createElement('div');
+    const option = document.createElement('button');
+    option.type = 'button';
     option.className = 'color-option';
     option.setAttribute('data-color', color);
     option.title = color.charAt(0).toUpperCase() + color.slice(1);
-    
+
     const isSelected = !activeTheme && color === activeColor;
     if (isSelected) option.classList.add('selected');
 
     option.addEventListener('click', (e) => {
       e.stopPropagation();
-      container.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
+      clearSelection();
       option.classList.add('selected');
       onSelect('color', color);
     });
-    row.appendChild(option);
+    colorRow.appendChild(option);
   });
+  container.appendChild(colorRow);
 
-  // 2. Add "None" Reset Theme Option
-  const resetOption = document.createElement('div');
-  resetOption.className = 'color-option';
-  resetOption.setAttribute('data-theme-option', 'none');
-  resetOption.title = 'No Theme';
-  resetOption.style.display = 'flex';
-  resetOption.style.alignItems = 'center';
-  resetOption.style.justifyContent = 'center';
-  resetOption.style.fontSize = '12px';
-  resetOption.style.color = 'var(--text-secondary)';
-  resetOption.style.fontWeight = 'bold';
-  resetOption.style.backgroundColor = 'rgba(128,128,128,0.15)';
-  resetOption.textContent = '✕';
-  
-  const isResetSelected = !activeTheme;
-  if (isResetSelected) resetOption.classList.add('selected');
+  const themeRow = document.createElement('div');
+  themeRow.className = 'picker-row picker-row-themes';
 
-  resetOption.addEventListener('click', (e) => {
-    e.stopPropagation();
-    container.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
-    resetOption.classList.add('selected');
-    onSelect('theme', 'none');
-  });
-  row.appendChild(resetOption);
-
-  // 3. Theme options
   THEME_PRESETS.forEach(theme => {
-    const option = document.createElement('div');
-    option.className = 'color-option';
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'color-option theme-option';
     option.setAttribute('data-theme-option', theme.id);
     option.title = theme.title;
-    option.style.display = 'flex';
-    option.style.alignItems = 'center';
-    option.style.justifyContent = 'center';
-    option.style.fontSize = '14px';
     option.textContent = theme.emoji;
-    
+
     const isSelected = activeTheme ? theme.id === activeTheme : false;
     if (isSelected) option.classList.add('selected');
 
     option.addEventListener('click', (e) => {
       e.stopPropagation();
-      container.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
+      clearSelection();
       option.classList.add('selected');
       onSelect('theme', theme.id);
     });
-    row.appendChild(option);
+    themeRow.appendChild(option);
   });
 
-  container.appendChild(row);
+  container.appendChild(themeRow);
 }
 
 // ==========================================================================
@@ -1433,6 +1486,7 @@ function renderSidebarFolders() {
       selectedTagFilter = null;
       clearSidebarActiveStates();
       item.classList.add('active');
+      collapseSidebarAfterSelection();
       renderAppView();
     });
     sidebarFoldersList.appendChild(item);
@@ -1461,6 +1515,7 @@ function renderFolderDrawer() {
       selectedFolderFilter = folder;
       selectedTagFilter = null;
       clearSidebarActiveStates();
+      collapseSidebarAfterSelection();
       renderAppView();
       closeFolderDrawer();
     });
@@ -1484,6 +1539,58 @@ function renderFolderSuggestions() {
     const option = document.createElement('option');
     option.value = folder;
     folderSuggestions.appendChild(option);
+  });
+}
+
+function isInlineModalFolderPicker() {
+  return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
+}
+
+function closeModalFolderPicker() {
+  if (isInlineModalFolderPicker()) return;
+  modalFolderField?.classList.remove('is-open');
+  modalFolderTrigger?.setAttribute('aria-expanded', 'false');
+}
+
+function setModalFolderValue(folderName, options = {}) {
+  const normalizedFolder = sanitizeFolderName(folderName) || 'Inbox';
+  if (modalFolderInput) modalFolderInput.value = normalizedFolder;
+  if (modalFolderCustomInput && !options.preserveDraft) {
+    modalFolderCustomInput.value = '';
+  }
+  renderModalFolderPicker(normalizedFolder);
+}
+
+function renderModalFolderPicker(selectedFolder) {
+  if (!modalFolderField || !modalFolderTrigger || !modalFolderOptions) return;
+
+  const currentFolder = sanitizeFolderName(selectedFolder) || 'Inbox';
+  const folderMeta = getFolderMeta(currentFolder);
+
+  modalFolderTrigger.innerHTML = `
+    <span class="modal-folder-pill note-folder-pill" style="--folder-accent: ${folderMeta.accent}; --folder-soft: ${folderMeta.soft};">
+      <span class="modal-folder-pill-icon">${getFolderIconSvg(folderMeta.icon)}</span>
+      <span class="modal-folder-pill-text">${currentFolder}</span>
+    </span>
+    <span class="modal-folder-trigger-chevron" aria-hidden="true">&#9662;</span>
+  `;
+  modalFolderTrigger.setAttribute('aria-label', `Selected category: ${currentFolder}`);
+
+  modalFolderOptions.innerHTML = '';
+  getAllFolders().forEach(folder => {
+    const optionMeta = getFolderMeta(folder);
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = `modal-folder-option ${folder === currentFolder ? 'active' : ''}`;
+    option.innerHTML = `
+      <span class="modal-folder-option-icon" style="--folder-accent: ${optionMeta.accent}; --folder-soft: ${optionMeta.soft};">${getFolderIconSvg(optionMeta.icon)}</span>
+      <span class="modal-folder-option-label">${folder}</span>
+    `;
+    option.addEventListener('click', () => {
+      setModalFolderValue(folder);
+      closeModalFolderPicker();
+    });
+    modalFolderOptions.appendChild(option);
   });
 }
 
@@ -1568,6 +1675,7 @@ function renderSidebarTags() {
       selectedFolderFilter = null;
       clearSidebarActiveStates();
       item.classList.add('active');
+      collapseSidebarAfterSelection();
       renderAppView();
     });
     sidebarTagsList.appendChild(item);
@@ -2125,10 +2233,13 @@ function renderProductivityPage() {
     const year = calendarCursorDate.getFullYear();
     const month = calendarCursorDate.getMonth();
     const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0);
     const gridStart = new Date(monthStart);
     gridStart.setDate(monthStart.getDate() - monthStart.getDay());
+    const totalCalendarDays = monthStart.getDay() + monthEnd.getDate();
+    const totalCells = Math.ceil(totalCalendarDays / 7) * 7;
 
-    for (let index = 0; index < 42; index += 1) {
+    for (let index = 0; index < totalCells; index += 1) {
       const dayDate = new Date(gridStart);
       dayDate.setDate(gridStart.getDate() + index);
       const dateKey = getLocalDateKey(dayDate);
@@ -2764,16 +2875,54 @@ function openEditModal(note) {
     const folderField = document.createElement('div');
     folderField.className = 'modal-folder-field';
     folderField.innerHTML = `
-      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M10 4l2 2h8v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h4z"/></svg>
-      <input type="text" id="modal-folder" list="folder-suggestions" placeholder="Group">
+      <div class="modal-folder-label">Category</div>
+      <button type="button" class="modal-folder-trigger" id="modal-folder-trigger" aria-expanded="false"></button>
+      <div class="modal-folder-options" id="modal-folder-options"></div>
+      <label class="modal-folder-custom">
+        <span class="modal-folder-custom-icon">${getFolderIconSvg('folder')}</span>
+        <input type="text" id="modal-folder-custom" placeholder="New category" autocomplete="off">
+      </label>
+      <input type="hidden" id="modal-folder">
     `;
-    modalTitle.insertAdjacentElement('afterend', folderField);
+    editModalCard.querySelector('.modal-footer')?.insertAdjacentElement('beforebegin', folderField);
   }
+
+  modalFolderField = editModalCard.querySelector('.modal-folder-field');
   modalFolderInput = document.getElementById('modal-folder');
+  modalFolderTrigger = document.getElementById('modal-folder-trigger');
+  modalFolderOptions = document.getElementById('modal-folder-options');
+  modalFolderCustomInput = document.getElementById('modal-folder-custom');
+
+  if (modalFolderTrigger && !modalFolderTrigger.dataset.bound) {
+    modalFolderTrigger.addEventListener('click', () => {
+      if (isInlineModalFolderPicker()) return;
+      const willOpen = !modalFolderField?.classList.contains('is-open');
+      modalFolderField?.classList.toggle('is-open', willOpen);
+      modalFolderTrigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    });
+    modalFolderTrigger.dataset.bound = 'true';
+  }
+  if (modalFolderCustomInput && !modalFolderCustomInput.dataset.bound) {
+    modalFolderCustomInput.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      const customFolder = modalFolderCustomInput.value.trim();
+      if (!customFolder) return;
+      setModalFolderValue(customFolder, { preserveDraft: false });
+      closeModalFolderPicker();
+    });
+    modalFolderCustomInput.addEventListener('blur', () => {
+      const customFolder = modalFolderCustomInput.value.trim();
+      if (!customFolder) return;
+      setModalFolderValue(customFolder, { preserveDraft: false });
+    });
+    modalFolderCustomInput.dataset.bound = 'true';
+  }
   
   modalTitle.value = note.title;
   modalText.value = note.text;
-  if (modalFolderInput) modalFolderInput.value = note.folder || 'Inbox';
+  setModalFolderValue(note.folder || 'Inbox');
+  closeModalFolderPicker();
   
   syncModalInputs(note);
   renderModalAudioPreview(note);
@@ -2830,20 +2979,49 @@ function openEditModal(note) {
     document.querySelectorAll('.color-picker-bubble, .reminder-picker-bubble').forEach(p => {
       if (p !== modalReminderPicker) p.classList.remove('visible');
     });
-    
-    buildReminderPicker(modalReminderPicker, note.reminder, (dateTime) => {
-      note.reminder = dateTime;
-      note.reminderTriggered = false;
-      saveToLocalStorage();
-      renderNotes();
-      renderModalReminderChip(note);
+
+    const modalChecklistEditor = document.getElementById('modal-checklist-editor');
+    const activeChecklistIndex = modalChecklistEditor?.style.display !== 'none'
+      ? getActiveChecklistRowIndex(modalChecklistEditor)
+      : -1;
+    const activeChecklistLine = activeChecklistIndex >= 0
+      ? (note.text.split('\n')[activeChecklistIndex] || '')
+      : '';
+    const activeChecklistReminder = activeChecklistIndex >= 0
+      ? extractChecklistInlineReminder(activeChecklistLine.substring(6))
+      : '';
+
+    buildReminderPicker(modalReminderPicker, activeChecklistReminder || note.reminder, (dateTime) => {
+      if (activeChecklistIndex >= 0) {
+        note.text = applyInlineReminderToChecklistText(note.text, activeChecklistIndex, dateTime);
+        note.type = note.recipeData ? 'recipe' : getNoteType(note.text);
+        modalText.value = note.text;
+        saveToLocalStorage();
+        renderNotes();
+        syncModalInputs(note);
+      } else {
+        note.reminder = dateTime;
+        note.reminderTriggered = false;
+        saveToLocalStorage();
+        renderNotes();
+        renderModalReminderChip(note);
+      }
       modalReminderPicker.classList.remove('visible');
     }, () => {
-      note.reminder = null;
-      note.reminderTriggered = false;
-      saveToLocalStorage();
-      renderNotes();
-      renderModalReminderChip(note);
+      if (activeChecklistIndex >= 0) {
+        note.text = applyInlineReminderToChecklistText(note.text, activeChecklistIndex, '');
+        note.type = note.recipeData ? 'recipe' : getNoteType(note.text);
+        modalText.value = note.text;
+        saveToLocalStorage();
+        renderNotes();
+        syncModalInputs(note);
+      } else {
+        note.reminder = null;
+        note.reminderTriggered = false;
+        saveToLocalStorage();
+        renderNotes();
+        renderModalReminderChip(note);
+      }
       modalReminderPicker.classList.remove('visible');
     });
     modalReminderPicker.classList.toggle('visible');
@@ -3318,17 +3496,17 @@ function buildReminderPicker(pickerContainer, currentReminder, onSave, onDelete)
     actions.appendChild(spacer);
   }
 
-  const saveBtn = document.createElement('button');
-  saveBtn.className = 'text-btn save-btn';
-  saveBtn.textContent = 'Save';
-  saveBtn.addEventListener('click', (e) => {
+  const setBtn = document.createElement('button');
+  setBtn.className = 'text-btn save-btn';
+  setBtn.textContent = 'Set';
+  setBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     const val = input.value;
     if (val) {
       onSave(val);
     }
   });
-  actions.appendChild(saveBtn);
+  actions.appendChild(setBtn);
   pickerContainer.appendChild(actions);
 }
 

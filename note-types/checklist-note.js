@@ -1,4 +1,9 @@
-import { renderTextWithLinks } from './shared.js';
+import {
+  applyChecklistInlineReminder,
+  extractChecklistInlineReminder,
+  renderTextWithLinks,
+  stripChecklistInlineReminder
+} from './shared.js';
 
 let checklistFocusIndex = null;
 let checklistFocusIsNew = false;
@@ -17,6 +22,18 @@ function moveChecklistLine(lines, fromIndex, toIndex) {
   const [moved] = nextLines.splice(fromIndex, 1);
   nextLines.splice(toIndex, 0, moved);
   return nextLines;
+}
+
+function formatInlineReminder(reminder) {
+  if (!reminder) return '';
+  const date = new Date(reminder);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
 }
 
 export function renderChecklistNoteContent(note, options) {
@@ -39,7 +56,9 @@ export function renderChecklistNoteContent(note, options) {
   lines.forEach((line, index) => {
     if (line.startsWith('- [ ] ') || line.startsWith('- [x] ')) {
       const checked = line.startsWith('- [x] ');
-      const cleanText = line.substring(6);
+      const lineContent = line.substring(6);
+      const cleanText = stripChecklistInlineReminder(lineContent);
+      const inlineReminder = extractChecklistInlineReminder(lineContent);
 
       const row = document.createElement('div');
       row.className = 'checklist-row';
@@ -50,7 +69,7 @@ export function renderChecklistNoteContent(note, options) {
       checkbox.addEventListener('click', (e) => {
         e.stopPropagation();
         const newPrefix = checked ? '- [ ] ' : '- [x] ';
-        lines[index] = newPrefix + cleanText;
+        lines[index] = newPrefix + applyChecklistInlineReminder(cleanText, inlineReminder);
         note.text = lines.join('\n');
 
         saveToLocalStorage();
@@ -68,6 +87,12 @@ export function renderChecklistNoteContent(note, options) {
 
       row.appendChild(checkbox);
       row.appendChild(label);
+      if (inlineReminder) {
+        const reminderChip = document.createElement('span');
+        reminderChip.className = 'checklist-inline-reminder';
+        reminderChip.textContent = formatInlineReminder(inlineReminder);
+        row.appendChild(reminderChip);
+      }
 
       if (checked) {
         checkedRows.push(row);
@@ -143,11 +168,16 @@ export function syncChecklistEditor(container, rawText, onChange) {
 
   lines.forEach((line, index) => {
     const isChecked = line.startsWith('- [x] ');
-    const cleanText = line.substring(6);
+    const lineContent = line.substring(6);
+    const cleanText = stripChecklistInlineReminder(lineContent);
+    const inlineReminder = extractChecklistInlineReminder(lineContent);
 
     const row = document.createElement('div');
     row.className = 'checklist-editor-row';
     row.dataset.index = String(index);
+    if (checklistFocusIndex === index) {
+      row.classList.add('is-active');
+    }
 
     row.addEventListener('dragover', (event) => {
       event.preventDefault();
@@ -174,6 +204,12 @@ export function syncChecklistEditor(container, rawText, onChange) {
       container.querySelectorAll('.checklist-editor-row').forEach(item => item.classList.remove('is-drop-target', 'is-dragging'));
     });
 
+    const activateRow = () => {
+      checklistFocusIndex = index;
+      container.querySelectorAll('.checklist-editor-row').forEach(item => item.classList.remove('is-active'));
+      row.classList.add('is-active');
+    };
+
     const dragHandle = document.createElement('button');
     dragHandle.type = 'button';
     dragHandle.className = 'checklist-editor-drag-handle';
@@ -197,7 +233,7 @@ export function syncChecklistEditor(container, rawText, onChange) {
     checkbox.innerHTML = `<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
     checkbox.addEventListener('click', () => {
       const newPrefix = isChecked ? '- [ ] ' : '- [x] ';
-      lines[index] = newPrefix + cleanText;
+      lines[index] = newPrefix + applyChecklistInlineReminder(cleanText, inlineReminder);
       checklistFocusIndex = index;
       onChange(lines.join('\n'));
     });
@@ -207,6 +243,8 @@ export function syncChecklistEditor(container, rawText, onChange) {
     input.className = `checklist-editor-input ${isChecked ? 'checked' : ''}`;
     input.value = cleanText;
     input.placeholder = 'List item';
+    input.addEventListener('focus', activateRow);
+    input.addEventListener('click', activateRow);
 
     if (checklistFocusIndex === index) {
       setTimeout(() => {
@@ -219,7 +257,7 @@ export function syncChecklistEditor(container, rawText, onChange) {
 
     input.addEventListener('input', () => {
       const prefix = isChecked ? '- [x] ' : '- [ ] ';
-      lines[index] = prefix + input.value;
+      lines[index] = prefix + applyChecklistInlineReminder(input.value, inlineReminder);
       onChange(lines.join('\n'), true);
     });
 
@@ -251,6 +289,12 @@ export function syncChecklistEditor(container, rawText, onChange) {
     row.appendChild(dragHandle);
     row.appendChild(checkbox);
     row.appendChild(input);
+    if (inlineReminder) {
+      const reminderBadge = document.createElement('span');
+      reminderBadge.className = 'checklist-editor-reminder-badge';
+      reminderBadge.textContent = formatInlineReminder(inlineReminder);
+      row.appendChild(reminderBadge);
+    }
     row.appendChild(deleteBtn);
 
     if (isChecked) {

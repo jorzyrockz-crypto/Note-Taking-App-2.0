@@ -1,5 +1,11 @@
 import { renderChecklistNoteContent, renderTextWithLinks, syncChecklistEditor } from './checklist-note.js';
-import { checklistToPlain, isChecklistFormat, plainToChecklist } from './shared.js';
+import {
+  applyChecklistInlineReminder,
+  checklistToPlain,
+  extractChecklistInlineReminder,
+  isChecklistFormat,
+  plainToChecklist
+} from './shared.js';
 import { renderTextNoteContent } from './text-note.js';
 
 const NOTE_TYPES = {
@@ -40,7 +46,9 @@ export function syncNoteTypeEditor({ textareaEl, checklistEditorEl, rawText, onC
 }
 
 export {
+  applyChecklistInlineReminder,
   checklistToPlain,
+  extractChecklistInlineReminder,
   getNoteTypeFromText as getNoteType,
   isChecklistFormat,
   plainToChecklist,

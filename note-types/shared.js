@@ -1,3 +1,5 @@
+const CHECKLIST_INLINE_REMINDER_REGEX = /\s*\{\{reminder:([^}]+)\}\}\s*$/;
+
 export function isChecklistFormat(text = '') {
   return text.split('\n').some(line => line.startsWith('- [ ] ') || line.startsWith('- [x] '));
 }
@@ -17,6 +19,20 @@ export function checklistToPlain(text = '') {
     }
     return line;
   }).join('\n');
+}
+
+export function extractChecklistInlineReminder(text = '') {
+  const match = `${text}`.match(CHECKLIST_INLINE_REMINDER_REGEX);
+  return match ? match[1] : '';
+}
+
+export function stripChecklistInlineReminder(text = '') {
+  return `${text}`.replace(CHECKLIST_INLINE_REMINDER_REGEX, '').trimEnd();
+}
+
+export function applyChecklistInlineReminder(text = '', reminder = '') {
+  const cleanText = stripChecklistInlineReminder(text);
+  return reminder ? `${cleanText} {{reminder:${reminder}}}` : cleanText;
 }
 
 export function parseMarkdown(text) {
