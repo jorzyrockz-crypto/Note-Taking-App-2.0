@@ -19,7 +19,28 @@ const COLOR_PRESETS = [
   'purple', 'pink', 'brown', 'grey'
 ];
 
+const DEFAULT_FOLDERS = [
+  { name: 'Inbox', icon: 'inbox', accent: '#4f86ff', soft: 'rgba(79, 134, 255, 0.16)' },
+  { name: 'Product Updates', icon: 'sparkles', accent: '#f97316', soft: 'rgba(249, 115, 22, 0.16)' },
+  { name: 'Inspiration Wall', icon: 'bookmark', accent: '#0ea5e9', soft: 'rgba(14, 165, 233, 0.16)' },
+  { name: 'Voice Memos', icon: 'mic', accent: '#ec4899', soft: 'rgba(236, 72, 153, 0.16)' },
+  { name: 'Kitchen Board', icon: 'chef-hat', accent: '#22c55e', soft: 'rgba(34, 197, 94, 0.16)' },
+  { name: 'Action Lists', icon: 'check-square', accent: '#8b5cf6', soft: 'rgba(139, 92, 246, 0.16)' },
+  { name: 'Moodboard', icon: 'image', accent: '#14b8a6', soft: 'rgba(20, 184, 166, 0.16)' },
+  { name: 'Welcome', icon: 'star', accent: '#f59e0b', soft: 'rgba(245, 158, 11, 0.18)' }
+];
+
+const FOLDER_ICON_FALLBACKS = [
+  { accent: '#4f46e5', soft: 'rgba(79, 70, 229, 0.16)' },
+  { accent: '#0f766e', soft: 'rgba(15, 118, 110, 0.16)' },
+  { accent: '#be185d', soft: 'rgba(190, 24, 93, 0.16)' },
+  { accent: '#b45309', soft: 'rgba(180, 83, 9, 0.16)' },
+  { accent: '#2563eb', soft: 'rgba(37, 99, 235, 0.16)' },
+  { accent: '#7c3aed', soft: 'rgba(124, 58, 237, 0.16)' }
+];
+
 let notes = [];
+let customFolders = [];
 let currentEditingNoteId = null;
 let creatorColor = 'default';
 let creatorTheme = null; // Pattern theme preset
@@ -29,6 +50,12 @@ let creatorAudioDuration = null;
 let creatorPinned = false;
 let creatorImage = null; // Stores Base64 drawing/image upload
 let creatorFolder = '';
+let creatorAutoFolder = '';
+let recipeImportDraft = null;
+let recipeEditingNoteId = null;
+let recipeImportWarnings = [];
+let recipeImportMethod = null;
+let recipeImportPending = false;
 let selectedTagFilter = null; // Sidebar selected filter tag
 let selectedFolderFilter = null;
 let selectedTypeFilter = 'all';
@@ -36,6 +63,7 @@ let hasShownStorageWarning = false;
 
 const STORAGE_KEYS = {
   notes: 'keep_notes',
+  folders: 'keep_folders',
   theme: 'keep_theme',
   view: 'keep_view',
   starterSeeded: 'keep_starter_seeded',
@@ -43,10 +71,10 @@ const STORAGE_KEYS = {
 };
 
 const APP_UPDATE_NOTE = {
-  id: 'release-atlasnest-v3',
+  id: 'release-atlasnest-v4',
   type: 'text',
-  title: 'AtlasNest Update #pwa',
-  text: '# AtlasNest installable app update\n\n1. AtlasNest now ships as a Progressive Web App with install metadata and offline caching\n2. Mobile-first note cards stay compact by default and expand on hover for desktop previewing\n3. Per-note actions live in the cleaner ellipsis menu instead of floating buttons\n4. Sidebar navigation is simpler with groups only and a clearer All Notes entry\n5. Light and dark mode stay available through the compact header toggle\n\nInstall AtlasNest from the browser when hosted, then reopen it offline to keep browsing your note board.',
+  title: 'AtlasNest Update #recipe-import',
+  text: '# AtlasNest recipe importer update\n\n1. AtlasNest now includes a real Recipe Builder import flow backed by a local Node server\n2. Recipe URLs are fetched and parsed for Schema.org Recipe JSON-LD, with OpenAI fallback support when structured data is incomplete\n3. Imported recipes are saved with structured `recipeData` plus generated cookbook note text for the board view\n4. Phones and tablets now use tap-to-expand note previews, while desktop keeps hover expansion\n5. Shared-link cards fall back to a branded preview image when remote thumbnails fail\n\nRun AtlasNest from `http://localhost:3000` to use recipe import, then save imported dishes straight into Kitchen Board.',
   color: 'orange',
   theme: 'summer',
   folder: 'Product Updates',
@@ -252,6 +280,86 @@ function enhanceShell() {
     sidebarAllNotes.setAttribute('aria-label', 'All Notes');
   }
 
+  const creatorRecipeBtn = document.getElementById('creator-recipe-btn');
+  if (creatorRecipeBtn) {
+    creatorRecipeBtn.setAttribute('aria-label', 'Import recipe');
+    creatorRecipeBtn.setAttribute('title', 'Import Recipe');
+  }
+
+  const recipeModalHeader = document.querySelector('.recipe-modal-header h3');
+  if (recipeModalHeader) recipeModalHeader.textContent = 'Recipe Builder';
+  const recipeModalDesc = document.querySelector('.recipe-modal-desc');
+  if (recipeModalDesc) {
+    recipeModalDesc.textContent = 'Paste a recipe URL to import structured cooking data, review the parsed result, then save it to Kitchen Board.';
+  }
+  const recipeModalBody = document.querySelector('#recipe-modal .recipe-modal-body');
+  if (recipeModalBody) {
+    recipeModalBody.innerHTML = `
+      <div class="input-group">
+        <label for="recipe-url-input" class="recipe-field-label">Recipe URL</label>
+        <input type="text" id="recipe-url-input" class="recipe-field-input" placeholder="https://example.com/recipe/lemon-pasta">
+      </div>
+
+      <div class="recipe-import-status" id="recipe-import-status" aria-live="polite"></div>
+      <div class="recipe-import-error" id="recipe-import-error" role="alert" style="display: none;"></div>
+
+      <div class="recipe-builder-form" id="recipe-builder-form" style="display: none;">
+        <div class="input-group">
+          <label for="recipe-title-input" class="recipe-field-label">Recipe Title</label>
+          <input type="text" id="recipe-title-input" class="recipe-field-input" placeholder="Creamy Garlic Tuscan Salmon">
+        </div>
+
+        <div class="input-group">
+          <label for="recipe-description-input" class="recipe-field-label">Description</label>
+          <textarea id="recipe-description-input" class="recipe-field-input textarea-field" rows="2" placeholder="Short recipe summary"></textarea>
+        </div>
+
+        <div class="recipe-inline-grid">
+          <div class="input-group">
+            <label for="recipe-image-url-input" class="recipe-field-label">Image URL</label>
+            <input type="text" id="recipe-image-url-input" class="recipe-field-input" placeholder="https://images.example.com/dish.jpg">
+          </div>
+          <div class="input-group">
+            <label for="recipe-servings-input" class="recipe-field-label">Servings</label>
+            <input type="number" id="recipe-servings-input" class="recipe-field-input" min="1" step="1" placeholder="4">
+          </div>
+        </div>
+
+        <div class="recipe-inline-grid recipe-inline-grid--times">
+          <div class="input-group">
+            <label for="recipe-prep-time-input" class="recipe-field-label">Prep Minutes</label>
+            <input type="number" id="recipe-prep-time-input" class="recipe-field-input" min="0" step="1" placeholder="15">
+          </div>
+          <div class="input-group">
+            <label for="recipe-cook-time-input" class="recipe-field-label">Cook Minutes</label>
+            <input type="number" id="recipe-cook-time-input" class="recipe-field-input" min="0" step="1" placeholder="30">
+          </div>
+        </div>
+
+        <div class="form-divider"><span>INGREDIENTS</span></div>
+        <div class="input-group">
+          <label for="recipe-ingredients-input" class="recipe-field-label">Ingredients (one per line)</label>
+          <textarea id="recipe-ingredients-input" class="recipe-field-input textarea-field recipe-list-textarea" rows="7" placeholder="2 salmon fillets&#10;1 tbsp olive oil&#10;1 cup spinach"></textarea>
+        </div>
+
+        <div class="form-divider"><span>INSTRUCTIONS</span></div>
+        <div class="input-group">
+          <label for="recipe-instructions-input" class="recipe-field-label">Instructions (one step per line)</label>
+          <textarea id="recipe-instructions-input" class="recipe-field-input textarea-field recipe-list-textarea" rows="8" placeholder="Season the salmon.&#10;Sear each side for 4 minutes.&#10;Finish the sauce and serve."></textarea>
+        </div>
+      </div>
+    `;
+  }
+  const recipeModalFooter = document.querySelector('#recipe-modal .recipe-modal-footer');
+  if (recipeModalFooter) {
+    recipeModalFooter.innerHTML = `
+      <button class="text-btn" id="recipe-modal-cancel">Cancel</button>
+      <button class="text-btn" id="recipe-modal-retry" style="display: none;">Retry</button>
+      <button class="text-btn" id="recipe-modal-import">Import Recipe</button>
+      <button class="text-btn save-btn" id="recipe-modal-save" style="display: none;">Save to Cookbook</button>
+    `;
+  }
+
   const logoContainer = document.querySelector('.logo-container');
   if (logoContainer && !logoContainer.querySelector('.brand-lockup')) {
     const titleText = logoContainer.querySelector('.logo-title');
@@ -428,7 +536,9 @@ function initViewLayout() {
 
 function initData() {
   const localData = localStorage.getItem(STORAGE_KEYS.notes);
+  const localFolders = localStorage.getItem(STORAGE_KEYS.folders);
   let loadedNotes = [];
+  let loadedFolders = [];
   
   if (localData) {
     try {
@@ -440,6 +550,17 @@ function initData() {
       }
     } catch (e) {
       loadedNotes = [];
+    }
+  }
+
+  if (localFolders) {
+    try {
+      loadedFolders = JSON.parse(localFolders);
+      if (!Array.isArray(loadedFolders)) {
+        loadedFolders = [];
+      }
+    } catch (e) {
+      loadedFolders = [];
     }
   }
   
@@ -467,6 +588,8 @@ function initData() {
   loadedNotes.sort((a, b) => b.updatedAt - a.updatedAt);
   
   notes = loadedNotes;
+  customFolders = sanitizeFolderList(loadedFolders);
+  notes.forEach(note => registerFolder(note.folder));
   saveToLocalStorage();
 }
 
@@ -495,6 +618,9 @@ function setupEventHandlers() {
       if (!sidebar.contains(e.target) && e.target !== menuBtn && !menuBtn.contains(e.target)) {
         sidebar.classList.remove('sidebar-open');
       }
+    }
+    if (!e.target.closest('.note-card')) {
+      collapseExpandedTouchCards();
     }
     if (!e.target.closest('.note-card-menu')) {
       closeAllNoteCardMenus();
@@ -534,6 +660,12 @@ function setupEventHandlers() {
   if (creatorFolderInput) {
     creatorFolderInput.addEventListener('input', () => {
       creatorFolder = creatorFolderInput.value.trim();
+      if (creatorFolder && creatorFolder !== creatorAutoFolder) {
+        creatorAutoFolder = '';
+      }
+    });
+    creatorFolderInput.addEventListener('blur', () => {
+      syncCreatorFolderInput();
     });
   }
 
@@ -576,6 +708,10 @@ function setupEventHandlers() {
     if (creatorText.value.startsWith('- [ ] ') || creatorText.value.startsWith('- [x] ')) {
       syncCreatorInputs();
     }
+    syncCreatorFolderInput();
+  });
+  creatorTitle.addEventListener('input', () => {
+    syncCreatorFolderInput();
   });
   creatorText.addEventListener('keydown', handleRichListEditing);
   modalText.addEventListener('input', autoGrowTextarea);
@@ -640,6 +776,7 @@ function setupEventHandlers() {
       creatorImage = base64;
       creatorImgPreview.src = base64;
       creatorImageBanner.style.display = 'block';
+      syncCreatorFolderInput();
     });
   });
 
@@ -650,6 +787,7 @@ function setupEventHandlers() {
     creatorImageBanner.style.display = 'none';
     creatorImgPreview.src = '';
     creatorImageInput.value = ''; // reset file input
+    syncCreatorFolderInput();
   });
 
   // Close / Save Note Creator
@@ -732,7 +870,7 @@ function setupEventHandlers() {
       note.text = plainToChecklist(note.text);
       modalText.value = note.text;
     }
-    note.type = getNoteType(note.text);
+    note.type = note.recipeData ? 'recipe' : getNoteType(note.text);
     saveToLocalStorage();
     renderNotes();
     syncModalInputs(note);
@@ -760,14 +898,20 @@ function setupEventHandlers() {
 
   // Recipe Importer trigger actions
   const creatorRecipeBtn = document.getElementById('creator-recipe-btn');
-  creatorRecipeBtn.addEventListener('click', openRecipeModal);
+  creatorRecipeBtn.addEventListener('click', () => openRecipeModal());
   const recipeCancel = document.getElementById('recipe-modal-cancel');
-  recipeCancel.addEventListener('click', () => {
-    document.getElementById('recipe-modal').classList.remove('visible');
-  });
-
+  recipeCancel.addEventListener('click', closeRecipeModal);
+  const recipeRetry = document.getElementById('recipe-modal-retry');
+  recipeRetry.addEventListener('click', handleRecipeImportAction);
   const recipeImport = document.getElementById('recipe-modal-import');
   recipeImport.addEventListener('click', handleRecipeImportAction);
+  const recipeSave = document.getElementById('recipe-modal-save');
+  recipeSave.addEventListener('click', saveRecipeDraftToNotes);
+  document.getElementById('recipe-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'recipe-modal') {
+      closeRecipeModal();
+    }
+  });
 
   // Modal Image upload trigger
   modalImageBtn.addEventListener('click', () => modalImageInput.click());
@@ -926,6 +1070,7 @@ function expandCreator() {
   creatorExpanded.style.display = 'flex';
   creatorPin.style.display = 'flex'; // Show pin button when expanded
   syncCreatorInputs();
+  syncCreatorFolderInput(true);
   creatorText.focus();
 }
 
@@ -943,6 +1088,7 @@ function collapseCreator() {
   creatorReminder = null; // Reset reminder
   creatorAudio = null; // Reset audio
   creatorFolder = '';
+  creatorAutoFolder = '';
   creatorAudioDuration = null;
   creatorPinned = false;
   creatorImage = null;
@@ -1007,6 +1153,7 @@ function saveCreatorNote() {
     updatedAt: Date.now()
   };
   
+  registerFolder(newNote.folder);
   notes.unshift(newNote);
   saveToLocalStorage();
   renderNotes();
@@ -1029,8 +1176,67 @@ function inferDefaultFolder(note, index = 0) {
   return note.folder || defaults[kind] || (index === 0 ? 'Welcome' : 'Inbox');
 }
 
+function sanitizeFolderName(folderName) {
+  return (folderName || '').trim();
+}
+
+function sanitizeFolderList(folderNames = []) {
+  return Array.from(
+    new Set(
+      folderNames
+        .map(sanitizeFolderName)
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b));
+}
+
+function registerFolder(folderName) {
+  const normalizedFolder = sanitizeFolderName(folderName);
+  if (!normalizedFolder || customFolders.includes(normalizedFolder)) return;
+  customFolders = sanitizeFolderList([...customFolders, normalizedFolder]);
+}
+
+function hashString(value = '') {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = ((hash << 5) - hash) + value.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getFolderMeta(folderName) {
+  const normalizedFolder = sanitizeFolderName(folderName) || 'Inbox';
+  const preset = DEFAULT_FOLDERS.find(folder => folder.name === normalizedFolder);
+  if (preset) return preset;
+
+  const fallback = FOLDER_ICON_FALLBACKS[hashString(normalizedFolder) % FOLDER_ICON_FALLBACKS.length];
+  return {
+    name: normalizedFolder,
+    icon: 'folder',
+    accent: fallback.accent,
+    soft: fallback.soft
+  };
+}
+
+function getFolderIconSvg(iconName) {
+  const icons = {
+    inbox: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 21h13a2 2 0 0 0 2-2V8.5a2 2 0 0 0-.59-1.41l-2.5-2.5A2 2 0 0 0 16 4H8a2 2 0 0 0-1.41.59l-2.5 2.5A2 2 0 0 0 3.5 8.5V19a2 2 0 0 0 2 2Z"/></svg>',
+    sparkles: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 1.9 4.6L18.5 9l-4.6 1.4L12 15l-1.9-4.6L5.5 9l4.6-1.4L12 3Z"/><path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14Z"/><path d="M5 14l.7 1.3L7 16l-1.3.7L5 18l-.7-1.3L3 16l1.3-.7L5 14Z"/></svg>',
+    bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10a1 1 0 0 1 1 1v15l-6-3-6 3V5a1 1 0 0 1 1-1Z"/></svg>',
+    mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M8.5 21h7"/></svg>',
+    'chef-hat': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 12h12"/><path d="M7 12a4 4 0 0 1-.7-7.94A5 5 0 0 1 16.9 5a3.5 3.5 0 0 1 .1 7"/><path d="M8 12v7"/><path d="M16 12v7"/><path d="M8 19h8"/></svg>',
+    'check-square': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="m8.5 12 2.3 2.3 4.7-5.1"/></svg>',
+    image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><circle cx="9" cy="10" r="1.5"/><path d="m20.5 16-4.4-4.4a1 1 0 0 0-1.4 0L7 19.5"/></svg>',
+    star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.47L20.75 9.3l-4.38 4.28 1.03 6.05L12 16.77l-5.4 2.86 1.03-6.05L3.25 9.3l6.05-.83L12 3Z"/></svg>',
+    folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v8A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5v-10Z"/></svg>'
+  };
+  return icons[iconName] || icons.folder;
+}
+
 function getVisualNoteType(note) {
   const rawType = note.type || getNoteType(note.text || '');
+  if (note.recipeData || rawType === 'recipe') return 'recipe';
   if (note.audio) return 'voice';
   if ((note.title || '').toLowerCase().includes('recipe')) return 'recipe';
   if (note.image) return rawType === 'checklist' ? 'checklist' : 'image';
@@ -1039,19 +1245,24 @@ function getVisualNoteType(note) {
 }
 
 function getAllFolders() {
-  return Array.from(new Set(notes.map(note => note.folder || 'Inbox'))).sort();
+  return sanitizeFolderList([
+    ...DEFAULT_FOLDERS.map(folder => folder.name),
+    ...customFolders,
+    ...notes.map(note => note.folder || 'Inbox')
+  ]);
 }
 
 function renderSidebarFolders() {
   if (!sidebarFoldersList) return;
   sidebarFoldersList.innerHTML = '';
   getAllFolders().forEach(folder => {
+    const folderMeta = getFolderMeta(folder);
     const item = document.createElement('div');
     item.className = `sidebar-item ${selectedFolderFilter === folder ? 'active' : ''}`;
     item.setAttribute('title', folder);
     item.setAttribute('aria-label', folder);
     item.innerHTML = `
-      <span class="sidebar-icon folder-icon">▣</span>
+      <span class="sidebar-icon folder-icon" style="--folder-accent: ${folderMeta.accent}; --folder-soft: ${folderMeta.soft};">${getFolderIconSvg(folderMeta.icon)}</span>
       <span class="sidebar-label">${folder}</span>
     `;
     item.addEventListener('click', () => {
@@ -1070,11 +1281,12 @@ function renderFolderDrawer() {
   folderDrawerList.innerHTML = '';
 
   getAllFolders().forEach(folder => {
+    const folderMeta = getFolderMeta(folder);
     const relatedNotes = notes.filter(note => (note.folder || 'Inbox') === folder && !note.archived);
     const item = document.createElement('button');
     item.className = `folder-drawer-item ${selectedFolderFilter === folder ? 'active' : ''}`;
     item.innerHTML = `
-      <span class="folder-drawer-item-icon">▣</span>
+      <span class="folder-drawer-item-icon" style="--folder-accent: ${folderMeta.accent}; --folder-soft: ${folderMeta.soft};">${getFolderIconSvg(folderMeta.icon)}</span>
       <span class="folder-drawer-item-content">
         <span class="folder-drawer-item-title">${folder}</span>
         <span class="folder-drawer-item-meta">${relatedNotes.length} note${relatedNotes.length === 1 ? '' : 's'}</span>
@@ -1109,6 +1321,44 @@ function renderFolderSuggestions() {
     option.value = folder;
     folderSuggestions.appendChild(option);
   });
+}
+
+function supportsHoverPreview() {
+  return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+}
+
+function collapseExpandedTouchCards() {
+  document.querySelectorAll('.note-card.touch-expanded').forEach(card => {
+    card.classList.remove('touch-expanded');
+  });
+}
+
+function getSuggestedCreatorFolder() {
+  const draftNote = {
+    title: creatorTitle?.value.trim() || '',
+    text: creatorText?.value.trim() || '',
+    type: getNoteType(creatorText?.value.trim() || ''),
+    audio: creatorAudio,
+    image: creatorImage
+  };
+  return inferDefaultFolder(draftNote, 1);
+}
+
+function syncCreatorFolderInput(force = false) {
+  if (!creatorFolderInput) return;
+
+  const currentValue = creatorFolderInput.value.trim();
+  const suggestedFolder = getSuggestedCreatorFolder();
+  const shouldAutofill = force || !currentValue || currentValue === creatorAutoFolder;
+
+  if (shouldAutofill) {
+    creatorFolderInput.value = suggestedFolder;
+    creatorFolder = suggestedFolder;
+    creatorAutoFolder = suggestedFolder;
+    return;
+  }
+
+  creatorFolder = currentValue;
 }
 
 function closeAllNoteCardMenus() {
@@ -1487,7 +1737,7 @@ function renderGrid(gridContainer, notesArray) {
     surface.appendChild(previewBody);
 
     // 4. Content (Checklist vs Plain Text)
-    note.type = getNoteType(note.text || '');
+    note.type = note.recipeData || note.type === 'recipe' ? 'recipe' : getNoteType(note.text || '');
     const contentEl = renderNoteContent(note, {
       cleanTextTags,
       currentEditingNoteId: () => currentEditingNoteId,
@@ -1635,18 +1885,28 @@ function renderGrid(gridContainer, notesArray) {
       const mockMeta = getLinkMetadata(firstUrl, note);
       if (mockMeta) {
         previewBox.className = 'link-preview-box rich';
-        previewBox.innerHTML = `
-          <img class="link-preview-cover" src="${mockMeta.image}" alt="Preview image">
-          <div class="link-preview-rich-content">
-            <div class="link-preview-domain">${cleanDomain}</div>
-            <div class="link-preview-rich-title">${mockMeta.title}</div>
-            <div class="link-preview-rich-desc">${mockMeta.description}</div>
-            <div class="link-preview-badge">
-              <svg viewBox="0 0 24 24" style="width: 10px; height: 10px; margin-right: 2px;"><path fill="currentColor" d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
-              ${mockMeta.badge}
-            </div>
+        const cover = document.createElement('img');
+        cover.className = 'link-preview-cover';
+        cover.src = mockMeta.image;
+        cover.alt = `${mockMeta.title} preview`;
+        cover.loading = 'lazy';
+        cover.addEventListener('error', () => {
+          cover.src = createPreviewFallbackImage(cleanDomain, mockMeta.title);
+        }, { once: true });
+
+        const richContent = document.createElement('div');
+        richContent.className = 'link-preview-rich-content';
+        richContent.innerHTML = `
+          <div class="link-preview-domain">${cleanDomain}</div>
+          <div class="link-preview-rich-title">${mockMeta.title}</div>
+          <div class="link-preview-rich-desc">${mockMeta.description}</div>
+          <div class="link-preview-badge">
+            <svg viewBox="0 0 24 24" style="width: 10px; height: 10px; margin-right: 2px;"><path fill="currentColor" d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+            ${mockMeta.badge}
           </div>
         `;
+        previewBox.appendChild(cover);
+        previewBox.appendChild(richContent);
       } else {
         previewBox.className = 'link-preview-box';
         previewBox.innerHTML = `
@@ -1763,7 +2023,19 @@ function renderGrid(gridContainer, notesArray) {
     // Open Edit Modal on Click
     card.addEventListener('click', (e) => {
       if (!e.target.closest('.icon-btn') && !e.target.closest('.note-card-menu-action') && !e.target.closest('.color-picker-bubble') && !e.target.closest('.checklist-checkbox')) {
-        openEditModal(note);
+        if (!supportsHoverPreview()) {
+          if (!card.classList.contains('touch-expanded')) {
+            collapseExpandedTouchCards();
+            card.classList.add('touch-expanded');
+            return;
+          }
+          card.classList.remove('touch-expanded');
+        }
+        if (note.recipeData) {
+          openRecipeModal(note);
+        } else {
+          openEditModal(note);
+        }
       }
     });
 
@@ -2011,7 +2283,8 @@ function closeEditModal() {
         note.title = title;
         note.text = text;
         note.folder = modalFolderInput?.value.trim() || 'Inbox';
-        note.type = getNoteType(text);
+        registerFolder(note.folder);
+        note.type = note.recipeData ? 'recipe' : getNoteType(text);
         note.updatedAt = Date.now();
         saveToLocalStorage();
         renderNotes();
@@ -2060,6 +2333,7 @@ function toggleViewLayout() {
 function saveToLocalStorage() {
   try {
     localStorage.setItem(STORAGE_KEYS.notes, JSON.stringify(notes));
+    localStorage.setItem(STORAGE_KEYS.folders, JSON.stringify(customFolders));
     hasShownStorageWarning = false;
     return true;
   } catch (error) {
@@ -2258,6 +2532,30 @@ function getLinkMetadata(url, note) {
     image: note.image || inferredImage || `https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=900&auto=format&fit=crop`,
     badge: 'Saved link'
   };
+}
+
+function createPreviewFallbackImage(domain, title) {
+  const safeDomain = (domain || 'shared link').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const safeTitle = (title || 'Saved link').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+      <defs>
+        <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="55%" stop-color="#dbeafe"/>
+          <stop offset="100%" stop-color="#fde68a"/>
+        </linearGradient>
+      </defs>
+      <rect width="1200" height="630" rx="42" fill="url(#g)"/>
+      <circle cx="1030" cy="120" r="94" fill="rgba(251,188,4,0.18)"/>
+      <circle cx="170" cy="510" r="110" fill="rgba(79,134,255,0.14)"/>
+      <rect x="78" y="78" width="1044" height="474" rx="34" fill="rgba(255,255,255,0.82)" stroke="rgba(15,23,42,0.08)"/>
+      <text x="132" y="180" fill="#64748b" font-family="Outfit, Arial, sans-serif" font-size="36" font-weight="700" letter-spacing="6">${safeDomain.toUpperCase()}</text>
+      <text x="132" y="276" fill="#0f172a" font-family="Outfit, Arial, sans-serif" font-size="62" font-weight="800">${safeTitle}</text>
+      <text x="132" y="462" fill="#f59e0b" font-family="Outfit, Arial, sans-serif" font-size="28" font-weight="700">AtlasNest saved preview</text>
+    </svg>
+  `;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
 function inferPreviewImageFromUrl(url, note) {
@@ -2593,12 +2891,135 @@ function legacyParseMarkdown(text) {
   return html;
 }
 
-function openRecipeModal() {
-  document.getElementById('recipe-url-input').value = '';
-  document.getElementById('recipe-title-input').value = '';
-  document.getElementById('recipe-ingredients-input').value = '';
-  document.getElementById('recipe-instructions-input').value = '';
-  document.getElementById('recipe-modal').classList.add('visible');
+function getRecipeFormElements() {
+  return {
+    modal: document.getElementById('recipe-modal'),
+    status: document.getElementById('recipe-import-status'),
+    error: document.getElementById('recipe-import-error'),
+    builder: document.getElementById('recipe-builder-form'),
+    url: document.getElementById('recipe-url-input'),
+    title: document.getElementById('recipe-title-input'),
+    description: document.getElementById('recipe-description-input'),
+    imageUrl: document.getElementById('recipe-image-url-input'),
+    servings: document.getElementById('recipe-servings-input'),
+    prep: document.getElementById('recipe-prep-time-input'),
+    cook: document.getElementById('recipe-cook-time-input'),
+    ingredients: document.getElementById('recipe-ingredients-input'),
+    instructions: document.getElementById('recipe-instructions-input'),
+    importBtn: document.getElementById('recipe-modal-import'),
+    retryBtn: document.getElementById('recipe-modal-retry'),
+    saveBtn: document.getElementById('recipe-modal-save')
+  };
+}
+
+function openRecipeModal(note = null) {
+  recipeEditingNoteId = note?.id || null;
+  recipeImportDraft = note?.recipeData ? normalizeRecipeDraft(note.recipeData) : null;
+  recipeImportWarnings = Array.isArray(note?.recipeImportWarnings) ? [...note.recipeImportWarnings] : [];
+  recipeImportMethod = note?.recipeImportMethod || null;
+  recipeImportPending = false;
+
+  const els = getRecipeFormElements();
+  els.modal.classList.add('visible');
+  els.error.style.display = 'none';
+  els.error.textContent = '';
+  els.status.textContent = '';
+  els.retryBtn.style.display = 'none';
+  els.importBtn.disabled = false;
+  els.importBtn.textContent = note?.recipeData ? 'Re-import Recipe' : 'Import Recipe';
+
+  if (note?.recipeData) {
+    els.url.value = note.recipeSourceUrl || '';
+    populateRecipeBuilderForm(note.recipeData, { editing: true });
+  } else {
+    resetRecipeBuilderForm();
+    els.url.value = '';
+  }
+}
+
+function closeRecipeModal() {
+  const els = getRecipeFormElements();
+  els.modal.classList.remove('visible');
+  resetRecipeBuilderForm();
+  recipeEditingNoteId = null;
+  recipeImportDraft = null;
+  recipeImportWarnings = [];
+  recipeImportMethod = null;
+  recipeImportPending = false;
+}
+
+function resetRecipeBuilderForm() {
+  const els = getRecipeFormElements();
+  els.status.textContent = '';
+  els.error.textContent = '';
+  els.error.style.display = 'none';
+  els.builder.style.display = 'none';
+  els.saveBtn.style.display = 'none';
+  els.retryBtn.style.display = 'none';
+  els.title.value = '';
+  els.description.value = '';
+  els.imageUrl.value = '';
+  els.servings.value = '';
+  els.prep.value = '';
+  els.cook.value = '';
+  els.ingredients.value = '';
+  els.instructions.value = '';
+}
+
+function parseIntegerInput(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : null;
+}
+
+function normalizeRecipeDraft(recipe) {
+  return {
+    title: (recipe?.title || '').trim(),
+    description: (recipe?.description || '').trim(),
+    image_url: (recipe?.image_url || '').trim(),
+    prep_time_minutes: parseIntegerInput(recipe?.prep_time_minutes),
+    cook_time_minutes: parseIntegerInput(recipe?.cook_time_minutes),
+    servings: parseIntegerInput(recipe?.servings),
+    ingredients: Array.isArray(recipe?.ingredients) ? recipe.ingredients.map(item => String(item).trim()).filter(Boolean) : [],
+    instructions: Array.isArray(recipe?.instructions) ? recipe.instructions.map(item => String(item).trim()).filter(Boolean) : []
+  };
+}
+
+function buildRecipeStatusMessage(editing = false) {
+  const base = editing
+    ? 'Saved recipe note ready for editing.'
+    : recipeImportMethod === 'llm'
+      ? 'Imported with AI fallback.'
+      : recipeImportMethod === 'jsonld'
+        ? 'Imported from structured recipe data.'
+        : '';
+  if (!recipeImportWarnings.length) return base;
+  return [base, ...recipeImportWarnings].filter(Boolean).join(' ');
+}
+
+function populateRecipeBuilderForm(recipe, options = {}) {
+  const els = getRecipeFormElements();
+  const normalized = normalizeRecipeDraft(recipe);
+  recipeImportDraft = normalized;
+  els.title.value = normalized.title;
+  els.description.value = normalized.description || '';
+  els.imageUrl.value = normalized.image_url || '';
+  els.servings.value = normalized.servings ?? '';
+  els.prep.value = normalized.prep_time_minutes ?? '';
+  els.cook.value = normalized.cook_time_minutes ?? '';
+  els.ingredients.value = normalized.ingredients.join('\n');
+  els.instructions.value = normalized.instructions.join('\n');
+  els.builder.style.display = 'block';
+  els.saveBtn.style.display = 'inline-flex';
+  els.retryBtn.style.display = options.editing ? 'inline-flex' : recipeImportWarnings.length > 0 ? 'inline-flex' : 'none';
+  els.status.textContent = buildRecipeStatusMessage(Boolean(options.editing));
+}
+
+function renderRecipeImportError(message) {
+  const els = getRecipeFormElements();
+  els.status.textContent = '';
+  els.error.textContent = message;
+  els.error.style.display = 'block';
 }
 
 const MOCK_RECIPE_DATABASE = {
@@ -2631,13 +3052,14 @@ const MOCK_RECIPE_DATABASE = {
   }
 };
 
-function handleRecipeImportAction() {
+function legacyHandleRecipeImportAction() {
   let title = document.getElementById('recipe-title-input').value.trim();
   let ingredientsRaw = document.getElementById('recipe-ingredients-input').value.trim();
   let instructions = document.getElementById('recipe-instructions-input').value.trim();
   let image = null;
   
   const urlVal = document.getElementById('recipe-url-input').value.toLowerCase();
+  let usedQuickFill = false;
   
   if (urlVal.includes('salmon')) {
     const data = MOCK_RECIPE_DATABASE.salmon;
@@ -2645,12 +3067,20 @@ function handleRecipeImportAction() {
     ingredientsRaw = data.ingredients.join('\n');
     instructions = data.instructions;
     image = data.image;
+    usedQuickFill = true;
   } else if (urlVal.includes('taco') || urlVal.includes('beef')) {
     const data = MOCK_RECIPE_DATABASE.taco;
     title = data.title;
     ingredientsRaw = data.ingredients.join('\n');
     instructions = data.instructions;
     image = data.image;
+    usedQuickFill = true;
+  } else if (urlVal && !title && !ingredientsRaw && !instructions) {
+    showToast({
+      title: 'Recipe link not imported',
+      text: 'This local build supports demo quick-fill keywords like salmon or taco. Paste ingredients and steps manually for other recipe links.'
+    });
+    return;
   }
   
   if (!title) title = '🍽️ Recipe: New Culinary Dish';
@@ -2693,6 +3123,159 @@ function handleRecipeImportAction() {
   renderNotes();
   
   document.getElementById('recipe-modal').classList.remove('visible');
+showToast({
+    title: usedQuickFill ? 'Recipe quick-filled' : 'Recipe note saved',
+    text: usedQuickFill ? 'Demo recipe content was added to Kitchen Board.' : 'Your recipe note was added to Kitchen Board.'
+  });
+}
+
+async function handleRecipeImportAction() {
+  const els = getRecipeFormElements();
+  const url = els.url.value.trim();
+  if (!url) {
+    renderRecipeImportError('Paste a cooking website URL first.');
+    return;
+  }
+  if (window.location.protocol === 'file:') {
+    renderRecipeImportError('Recipe import requires the AtlasNest server. Start the app with npm start and open http://localhost:3000.');
+    return;
+  }
+
+  recipeImportPending = true;
+  els.importBtn.disabled = true;
+  els.retryBtn.style.display = 'none';
+  els.saveBtn.style.display = 'none';
+  els.builder.style.display = 'none';
+  els.error.style.display = 'none';
+  els.error.textContent = '';
+  els.status.textContent = 'Scraping and parsing recipe...';
+
+  try {
+    const response = await fetch('/api/recipes/import', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || 'Recipe import failed.');
+    }
+
+    recipeImportMethod = payload.meta?.import_method || null;
+    recipeImportWarnings = Array.isArray(payload.meta?.warnings) ? payload.meta.warnings : [];
+    populateRecipeBuilderForm(payload.recipe);
+  } catch (error) {
+    renderRecipeImportError(error.message || 'Recipe import failed.');
+    els.retryBtn.style.display = 'inline-flex';
+  } finally {
+    recipeImportPending = false;
+    els.importBtn.disabled = false;
+  }
+}
+
+function readRecipeBuilderForm() {
+  const els = getRecipeFormElements();
+  return normalizeRecipeDraft({
+    title: els.title.value.trim(),
+    description: els.description.value.trim(),
+    image_url: els.imageUrl.value.trim(),
+    prep_time_minutes: els.prep.value.trim(),
+    cook_time_minutes: els.cook.value.trim(),
+    servings: els.servings.value.trim(),
+    ingredients: els.ingredients.value.split('\n'),
+    instructions: els.instructions.value.split('\n')
+  });
+}
+
+function buildRecipeNoteText(recipe) {
+  const lines = [];
+  if (recipe.description) lines.push(recipe.description);
+
+  const metaParts = [];
+  if (recipe.prep_time_minutes !== null) metaParts.push(`Prep: ${recipe.prep_time_minutes} min`);
+  if (recipe.cook_time_minutes !== null) metaParts.push(`Cook: ${recipe.cook_time_minutes} min`);
+  if (recipe.servings !== null) metaParts.push(`Servings: ${recipe.servings}`);
+  if (metaParts.length > 0) lines.push(metaParts.join(' | '));
+
+  lines.push('Ingredients:');
+  if (recipe.ingredients.length > 0) {
+    recipe.ingredients.forEach(ingredient => lines.push(`- [ ] ${ingredient}`));
+  } else {
+    lines.push('- [ ] Add ingredients');
+  }
+
+  lines.push('');
+  lines.push('Instructions:');
+  if (recipe.instructions.length > 0) {
+    recipe.instructions.forEach((step, index) => lines.push(`${index + 1}. ${step}`));
+  } else {
+    lines.push('1. Add cooking steps');
+  }
+
+  return lines.join('\n').trim();
+}
+
+function validateRecipeDraft(recipe) {
+  if (!recipe.title) return 'Add a recipe title before saving.';
+  if (recipe.ingredients.length === 0) return 'Add at least one ingredient before saving.';
+  if (recipe.instructions.length === 0) return 'Add at least one instruction before saving.';
+  return null;
+}
+
+function saveRecipeDraftToNotes() {
+  const recipe = readRecipeBuilderForm();
+  const validationError = validateRecipeDraft(recipe);
+  if (validationError) {
+    renderRecipeImportError(validationError);
+    return;
+  }
+
+  const text = buildRecipeNoteText(recipe);
+  const image = recipe.image_url || null;
+  const recipeSourceUrl = getRecipeFormElements().url.value.trim();
+  const existingNote = recipeEditingNoteId ? notes.find(note => note.id === recipeEditingNoteId) : null;
+
+  if (existingNote) {
+    existingNote.type = 'recipe';
+    existingNote.title = recipe.title;
+    existingNote.text = text;
+    existingNote.folder = 'Kitchen Board';
+    existingNote.image = image;
+    existingNote.recipeData = recipe;
+    existingNote.recipeImportWarnings = [...recipeImportWarnings];
+    existingNote.recipeImportMethod = recipeImportMethod;
+    existingNote.recipeSourceUrl = recipeSourceUrl;
+    existingNote.updatedAt = Date.now();
+    registerFolder(existingNote.folder);
+  } else {
+    const newNote = {
+      id: `note-${Date.now()}`,
+      type: 'recipe',
+      title: recipe.title,
+      text,
+      folder: 'Kitchen Board',
+      color: 'default',
+      theme: 'plants',
+      pinned: false,
+      archived: false,
+      image,
+      recipeData: recipe,
+      recipeImportWarnings: [...recipeImportWarnings],
+      recipeImportMethod,
+      recipeSourceUrl,
+      updatedAt: Date.now()
+    };
+    registerFolder(newNote.folder);
+    notes.unshift(newNote);
+  }
+
+  saveToLocalStorage();
+  renderNotes();
+  closeRecipeModal();
+  showToast({
+    title: existingNote ? 'Recipe updated' : 'Recipe saved',
+    text: existingNote ? 'Recipe changes were saved to Kitchen Board.' : 'Imported recipe was added to Kitchen Board.'
+  });
 }
 
 /* ==========================================================================
@@ -2919,6 +3502,7 @@ function saveVoiceNoteAudio(base64Audio, duration) {
     creatorAudio = base64Audio;
     creatorAudioDuration = dur;
     renderCreatorAudioPreview();
+    syncCreatorFolderInput();
     showToast({ title: '🎙️ Voice note recorded', text: `Duration: ${dur}` });
   } else {
     const note = notes.find(n => n.id === currentEditingNoteId);
@@ -2950,6 +3534,7 @@ function renderCreatorAudioPreview() {
       creatorAudio = null;
       creatorAudioDuration = null;
       renderCreatorAudioPreview();
+      syncCreatorFolderInput();
     });
     container.appendChild(chip);
   }
@@ -3181,7 +3766,7 @@ function syncModalInputs(note) {
     rawText: note.text,
     onChange: (newText, skipRedraw) => {
       note.text = newText;
-      note.type = getNoteType(newText);
+      note.type = note.recipeData ? 'recipe' : getNoteType(newText);
       modalText.value = newText;
       saveToLocalStorage();
       renderNotes();

@@ -1089,6 +1089,43 @@ body.dark-theme .note-card-menu-action:hover {
   }
 }
 
+@media (hover: none), (pointer: coarse) {
+  .note-card-preview-body {
+    max-height: 248px;
+    overflow: hidden;
+    transition: max-height 0.24s ease;
+  }
+
+  .note-card-preview-body::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 54px;
+    background: linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,0.94));
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+
+  body.dark-theme .note-card-preview-body::after {
+    background: linear-gradient(180deg, rgba(18,22,30,0), rgba(18,22,30,0.94));
+  }
+
+  .note-card.touch-expanded .note-card-preview-body {
+    max-height: 720px;
+  }
+
+  .note-card.touch-expanded .note-card-preview-body::after {
+    opacity: 0;
+  }
+
+  .note-card.touch-expanded .note-title {
+    -webkit-line-clamp: unset;
+    overflow: visible;
+  }
+}
+
 /* Dynamic Colors binding */
 .note-creator[data-color="default"] { --bg-current-creator: var(--note-default); }
 .note-creator[data-color="red"] { --bg-current-creator: var(--note-red); }
@@ -2364,6 +2401,18 @@ body.dark-theme .brush-slider::-webkit-slider-runnable-track {
   padding-right: 4px;
 }
 
+.recipe-builder-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recipe-inline-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .input-group {
   display: flex;
   flex-direction: column;
@@ -2407,6 +2456,10 @@ body.dark-theme .brush-slider::-webkit-slider-runnable-track {
   min-height: 60px;
 }
 
+.recipe-list-textarea {
+  min-height: 140px;
+}
+
 .form-divider {
   display: flex;
   align-items: center;
@@ -2431,6 +2484,43 @@ body.dark-theme .brush-slider::-webkit-slider-runnable-track {
   border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
+.recipe-import-status,
+.recipe-import-error {
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.recipe-import-status:empty,
+.recipe-import-error:empty {
+  display: none;
+}
+
+.recipe-import-status {
+  background: rgba(66, 133, 244, 0.08);
+  color: #1d4ed8;
+  border: 1px solid rgba(66, 133, 244, 0.14);
+}
+
+.recipe-import-error {
+  background: rgba(239, 68, 68, 0.08);
+  color: #b91c1c;
+  border: 1px solid rgba(239, 68, 68, 0.14);
+}
+
+.dark-theme .recipe-import-status {
+  background: rgba(96, 165, 250, 0.14);
+  color: #bfdbfe;
+  border-color: rgba(96, 165, 250, 0.24);
+}
+
+.dark-theme .recipe-import-error {
+  background: rgba(248, 113, 113, 0.14);
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.24);
+}
+
 .form-divider span {
   padding: 0 10px;
 }
@@ -2440,6 +2530,12 @@ body.dark-theme .brush-slider::-webkit-slider-runnable-track {
   justify-content: flex-end;
   gap: 12px;
   margin-top: 8px;
+}
+
+@media (max-width: 600px) {
+  .recipe-inline-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* AtlasNest Brand Refresh */
@@ -2570,6 +2666,13 @@ body.dark-theme .brush-slider::-webkit-slider-runnable-track {
     max-height: 88vh;
     overflow: auto;
     border-radius: 20px;
+  }
+}
+
+@media screen and (min-width: 769px) and (max-width: 900px) {
+  .notes-grid {
+    grid-template-columns: repeat(3, minmax(0, 204px));
+    justify-content: center;
   }
 }
 
@@ -2979,8 +3082,14 @@ body.dark-theme .note-card[data-note-kind="image"] {
   margin: 0 20px;
   font-size: 13px;
   font-weight: 700;
-  background: rgba(148, 163, 184, 0.14);
-  color: var(--text-primary);
+  background: var(--folder-soft, rgba(148, 163, 184, 0.14));
+  color: var(--folder-accent, var(--text-primary));
+}
+
+.folder-icon svg,
+.folder-drawer-item-icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 .link-preview-domain {
@@ -3115,8 +3224,8 @@ body.dark-theme .note-card[data-note-kind="image"] {
   width: 36px;
   height: 36px;
   border-radius: 12px;
-  background: rgba(249, 115, 22, 0.12);
-  color: #c2410c;
+  background: var(--folder-soft, rgba(249, 115, 22, 0.12));
+  color: var(--folder-accent, #c2410c);
   display: inline-flex;
   align-items: center;
   justify-content: center;

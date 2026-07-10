@@ -14,7 +14,7 @@ export function getNoteTypeFromText(text = '') {
 export function normalizeNoteType(note) {
   return {
     ...note,
-    type: note?.type || getNoteTypeFromText(note?.text || '')
+    type: note?.type || (note?.recipeData ? 'recipe' : getNoteTypeFromText(note?.text || ''))
   };
 }
 
