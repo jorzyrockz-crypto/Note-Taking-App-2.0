@@ -59,6 +59,10 @@ let recipeImportPending = false;
 let selectedTagFilter = null; // Sidebar selected filter tag
 let selectedFolderFilter = null;
 let selectedTypeFilter = 'all';
+let currentPage = 'notes';
+let selectedProductivityTaskFilter = 'all';
+let calendarCursorDate = new Date();
+let selectedCalendarDate = getLocalDateKey(new Date());
 let hasShownStorageWarning = false;
 
 const STORAGE_KEYS = {
@@ -222,13 +226,17 @@ const othersSectionTitle = document.getElementById('others-section-title');
 const emptyState = document.getElementById('empty-state');
 const sidebarTagsList = document.getElementById('sidebar-tags-list');
 const sidebarAllNotes = document.getElementById('sidebar-all-notes');
+const creatorWrapper = document.querySelector('.creator-wrapper');
+const notesFeed = document.querySelector('.notes-feed');
 let sidebarFoldersList = null;
+let sidebarProductivity = null;
 let creatorFolderInput = null;
 let folderSuggestions = null;
 let feedFilterRow = null;
 let menuPanel = null;
 let folderDrawer = null;
 let folderDrawerList = null;
+let productivityPage = null;
 
 const editModal = document.getElementById('edit-modal');
 const editModalCard = document.getElementById('edit-modal-card');
@@ -379,6 +387,20 @@ function enhanceShell() {
   }
 
   const sidebar = document.querySelector('.app-sidebar');
+  if (sidebar && !document.getElementById('sidebar-productivity')) {
+    const productivityItem = document.createElement('div');
+    productivityItem.className = 'sidebar-item';
+    productivityItem.id = 'sidebar-productivity';
+    productivityItem.setAttribute('title', 'Productivity');
+    productivityItem.setAttribute('aria-label', 'Productivity');
+    productivityItem.innerHTML = `
+      <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 18.5v-13Zm3 0v2h10v-2H7Zm0 5v7h3v-7H7Zm5 0v2h5v-2h-5Zm0 4v3h5v-3h-5Z"/></svg>
+      <span class="sidebar-label">Productivity</span>
+    `;
+    sidebar.insertBefore(productivityItem, sidebar.querySelector('.sidebar-divider') || null);
+  }
+  sidebarProductivity = document.getElementById('sidebar-productivity');
+
   if (sidebar && !document.getElementById('sidebar-folders-list')) {
     const divider = document.createElement('div');
     divider.className = 'sidebar-divider';
@@ -412,7 +434,6 @@ function enhanceShell() {
   creatorFolderInput = document.getElementById('creator-folder');
   folderSuggestions = document.getElementById('folder-suggestions');
 
-  const creatorWrapper = document.querySelector('.creator-wrapper');
   if (creatorWrapper && !document.getElementById('feed-filter-row')) {
     feedFilterRow = document.createElement('div');
     feedFilterRow.className = 'feed-filter-row';
@@ -456,6 +477,119 @@ function enhanceShell() {
   }
 
   folderDrawerList = document.getElementById('folder-drawer-list');
+
+  if (!document.getElementById('productivity-page')) {
+    productivityPage = document.createElement('section');
+    productivityPage.className = 'productivity-page';
+    productivityPage.id = 'productivity-page';
+    productivityPage.style.display = 'none';
+    productivityPage.innerHTML = `
+      <div class="productivity-hero">
+        <div class="productivity-hero-copy">
+          <div class="productivity-eyebrow">PRODUCTIVITY</div>
+          <h2 class="productivity-title">Calendar and Task Flow</h2>
+          <p class="productivity-subtitle">Track reminder notes on a monthly calendar and keep task notes moving with clear progress cards.</p>
+        </div>
+        <div class="productivity-summary" id="productivity-summary"></div>
+      </div>
+
+      <div class="productivity-layout">
+        <section class="productivity-panel productivity-calendar-panel">
+          <div class="productivity-panel-header">
+            <div>
+              <div class="productivity-panel-kicker">Calendar</div>
+              <h3>Reminder timeline</h3>
+            </div>
+            <div class="calendar-controls">
+              <button class="text-btn productivity-nav-btn" id="calendar-prev-btn" type="button">Prev</button>
+              <button class="text-btn productivity-nav-btn" id="calendar-today-btn" type="button">Today</button>
+              <button class="text-btn productivity-nav-btn" id="calendar-next-btn" type="button">Next</button>
+            </div>
+          </div>
+          <div class="calendar-month-label" id="calendar-month-label"></div>
+          <div class="calendar-weekdays" id="calendar-weekdays"></div>
+          <div class="calendar-grid" id="calendar-grid"></div>
+          <div class="agenda-panel">
+            <div class="agenda-header">
+              <div>
+                <div class="productivity-panel-kicker">Agenda</div>
+                <h4 id="agenda-date-label">Selected day</h4>
+              </div>
+              <span class="agenda-count" id="agenda-count"></span>
+            </div>
+            <div class="agenda-list" id="agenda-list"></div>
+          </div>
+        </section>
+
+        <section class="productivity-panel productivity-tasks-panel">
+          <div class="productivity-panel-header">
+            <div>
+              <div class="productivity-panel-kicker">To Do</div>
+              <h3>Task cards</h3>
+            </div>
+          </div>
+          <div class="productivity-filter-row" id="productivity-filter-row">
+            <button class="filter-pill active" data-task-filter="all" type="button">All</button>
+            <button class="filter-pill" data-task-filter="today" type="button">Due Today</button>
+            <button class="filter-pill" data-task-filter="upcoming" type="button">Upcoming</button>
+            <button class="filter-pill" data-task-filter="nodate" type="button">No Date</button>
+            <button class="filter-pill" data-task-filter="completed" type="button">Completed</button>
+          </div>
+          <div class="productivity-task-grid" id="productivity-task-grid"></div>
+          <div class="productivity-empty" id="productivity-task-empty" style="display: none;">No task notes match this view yet.</div>
+        </section>
+      </div>
+    `;
+    notesFeed?.insertAdjacentElement('afterend', productivityPage);
+  } else {
+    productivityPage = document.getElementById('productivity-page');
+  }
+}
+
+function clearSidebarActiveStates() {
+  document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+}
+
+function setActiveSidebarPage(page) {
+  clearSidebarActiveStates();
+  if (page === 'productivity') {
+    sidebarProductivity?.classList.add('active');
+  } else {
+    sidebarAllNotes?.classList.add('active');
+  }
+}
+
+function setActivePage(page) {
+  currentPage = page;
+  if (page === 'productivity') {
+    selectedTagFilter = null;
+    selectedFolderFilter = null;
+    setActiveSidebarPage('productivity');
+  } else {
+    setActiveSidebarPage('notes');
+  }
+  renderAppView();
+}
+
+function ensureCalendarSelection() {
+  if (!selectedCalendarDate) {
+    selectedCalendarDate = getLocalDateKey(new Date());
+  }
+  const selectedDate = new Date(`${selectedCalendarDate}T00:00:00`);
+  if (Number.isNaN(selectedDate.getTime())) {
+    selectedCalendarDate = getLocalDateKey(new Date());
+    calendarCursorDate = new Date();
+    return;
+  }
+  calendarCursorDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+}
+
+function renderAppView() {
+  if (currentPage === 'productivity') {
+    renderProductivityPage();
+  } else {
+    renderNotesPage();
+  }
 }
 
 // ==========================================================================
@@ -470,7 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupEventHandlers();
   buildColorPickers();
   initCanvasDrawEngine();
-  renderNotes();
+  renderAppView();
 
   registerServiceWorker();
   
@@ -639,12 +773,12 @@ function setupEventHandlers() {
   // Search filter
   searchInput.addEventListener('input', () => {
     searchClear.style.display = searchInput.value.trim() !== '' ? 'block' : 'none';
-    renderNotes();
+    renderAppView();
   });
   searchClear.addEventListener('click', () => {
     searchInput.value = '';
     searchClear.style.display = 'none';
-    renderNotes();
+    renderAppView();
     searchInput.focus();
   });
 
@@ -652,9 +786,12 @@ function setupEventHandlers() {
   sidebarAllNotes.addEventListener('click', () => {
     selectedTagFilter = null;
     selectedFolderFilter = null;
-    document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
-    sidebarAllNotes.classList.add('active');
-    renderNotes();
+    setActivePage('notes');
+  });
+
+  sidebarProductivity?.addEventListener('click', () => {
+    ensureCalendarSelection();
+    setActivePage('productivity');
   });
 
   if (creatorFolderInput) {
@@ -675,10 +812,34 @@ function setupEventHandlers() {
         selectedTypeFilter = btn.getAttribute('data-type-filter') || 'all';
         feedFilterRow.querySelectorAll('.filter-pill').forEach(pill => pill.classList.remove('active'));
         btn.classList.add('active');
-        renderNotes();
+        renderAppView();
       });
     });
   }
+
+  document.getElementById('calendar-prev-btn')?.addEventListener('click', () => {
+    calendarCursorDate = new Date(calendarCursorDate.getFullYear(), calendarCursorDate.getMonth() - 1, 1);
+    renderAppView();
+  });
+
+  document.getElementById('calendar-next-btn')?.addEventListener('click', () => {
+    calendarCursorDate = new Date(calendarCursorDate.getFullYear(), calendarCursorDate.getMonth() + 1, 1);
+    renderAppView();
+  });
+
+  document.getElementById('calendar-today-btn')?.addEventListener('click', () => {
+    const today = new Date();
+    selectedCalendarDate = getLocalDateKey(today);
+    calendarCursorDate = new Date(today.getFullYear(), today.getMonth(), 1);
+    renderAppView();
+  });
+
+  document.getElementById('productivity-filter-row')?.querySelectorAll('.filter-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedProductivityTaskFilter = btn.getAttribute('data-task-filter') || 'all';
+      renderAppView();
+    });
+  });
 
   // Note Creator Focus / Expand
   creatorCollapsed.addEventListener('click', (e) => {
@@ -1266,11 +1427,12 @@ function renderSidebarFolders() {
       <span class="sidebar-label">${folder}</span>
     `;
     item.addEventListener('click', () => {
+      currentPage = 'notes';
       selectedFolderFilter = folder;
       selectedTagFilter = null;
-      document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+      clearSidebarActiveStates();
       item.classList.add('active');
-      renderNotes();
+      renderAppView();
     });
     sidebarFoldersList.appendChild(item);
   });
@@ -1294,10 +1456,11 @@ function renderFolderDrawer() {
       <span class="folder-drawer-item-trailing">${relatedNotes.slice(0, 2).map(note => getVisualTypeLabel(getVisualNoteType(note))).join(' · ') || 'Empty'}</span>
     `;
     item.addEventListener('click', () => {
+      currentPage = 'notes';
       selectedFolderFilter = folder;
       selectedTagFilter = null;
-      document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
-      renderNotes();
+      clearSidebarActiveStates();
+      renderAppView();
       closeFolderDrawer();
     });
     folderDrawerList.appendChild(item);
@@ -1399,11 +1562,12 @@ function renderSidebarTags() {
       <span class="sidebar-label">#${tag}</span>
     `;
     item.addEventListener('click', () => {
+      currentPage = 'notes';
       selectedTagFilter = tag;
       selectedFolderFilter = null;
-      document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+      clearSidebarActiveStates();
       item.classList.add('active');
-      renderNotes();
+      renderAppView();
     });
     sidebarTagsList.appendChild(item);
   });
@@ -1604,6 +1768,19 @@ function stopDrawing() {
 // ==========================================================================
 
 function renderNotes() {
+  renderAppView();
+}
+
+function renderNotesPage() {
+  currentPage = 'notes';
+  creatorWrapper.style.display = '';
+  if (feedFilterRow) feedFilterRow.style.display = '';
+  if (notesFeed) notesFeed.style.display = '';
+  if (productivityPage) productivityPage.style.display = 'none';
+  if (!selectedFolderFilter && !selectedTagFilter) {
+    setActiveSidebarPage('notes');
+  }
+
   const query = searchInput.value.toLowerCase().trim();
   
   // Apply Search + Tag filters
@@ -1657,6 +1834,271 @@ function renderNotes() {
   renderSidebarFolders();
   renderFolderSuggestions();
   renderSidebarTags();
+}
+
+function getLocalDateKey(dateInput) {
+  const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  if (Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getReminderNotes(noteList = notes) {
+  return (noteList || [])
+    .filter(note => !note.archived && note.reminder && !Number.isNaN(new Date(note.reminder).getTime()))
+    .sort((a, b) => new Date(a.reminder).getTime() - new Date(b.reminder).getTime());
+}
+
+function getChecklistStats(note) {
+  const lines = `${note?.text || ''}`.split('\n');
+  const checklistLines = lines.filter(line => line.startsWith('- [ ] ') || line.startsWith('- [x] '));
+  const total = checklistLines.length;
+  const completed = checklistLines.filter(line => line.startsWith('- [x] ')).length;
+  const remaining = Math.max(0, total - completed);
+  const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
+  return { total, completed, remaining, progressPercent };
+}
+
+function isTaskNote(note) {
+  if (!note || note.archived) return false;
+  const noteKind = getVisualNoteType(note);
+  if (noteKind === 'checklist') return true;
+  const tags = extractHashtags(`${note.title || ''} ${note.text || ''}`);
+  return tags.includes('task') || tags.includes('todo');
+}
+
+function isTaskCompleted(note) {
+  const stats = getChecklistStats(note);
+  if (stats.total > 0) return stats.remaining === 0;
+  const tags = extractHashtags(`${note.title || ''} ${note.text || ''}`);
+  return tags.includes('done');
+}
+
+function getTaskNotes(noteList = notes) {
+  return (noteList || []).filter(note => !note.archived && isTaskNote(note));
+}
+
+function getProductivityDates(noteList = notes) {
+  return getReminderNotes(noteList).reduce((acc, note) => {
+    const dateKey = getLocalDateKey(note.reminder);
+    if (!dateKey) return acc;
+    if (!acc[dateKey]) acc[dateKey] = [];
+    acc[dateKey].push(note);
+    return acc;
+  }, {});
+}
+
+function getTaskSortWeight(note) {
+  const reminderDate = note.reminder ? new Date(note.reminder) : null;
+  const now = new Date();
+  const todayKey = getLocalDateKey(now);
+  const reminderKey = reminderDate && !Number.isNaN(reminderDate.getTime()) ? getLocalDateKey(reminderDate) : null;
+  const completed = isTaskCompleted(note);
+
+  if (completed) return 4;
+  if (reminderDate && reminderDate.getTime() <= now.getTime()) return 0;
+  if (reminderKey === todayKey) return 0;
+  if (reminderDate) return 1;
+  return 2;
+}
+
+function getFilteredProductivityTasks() {
+  const query = searchInput.value.toLowerCase().trim();
+  const todayKey = getLocalDateKey(new Date());
+  return getTaskNotes()
+    .filter(note => {
+      if (query === '') return true;
+      return `${note.title || ''} ${note.text || ''}`.toLowerCase().includes(query);
+    })
+    .filter(note => {
+      const reminderKey = note.reminder ? getLocalDateKey(note.reminder) : '';
+      const completed = isTaskCompleted(note);
+      switch (selectedProductivityTaskFilter) {
+        case 'today':
+          return reminderKey === todayKey;
+        case 'upcoming':
+          return reminderKey && reminderKey > todayKey && !completed;
+        case 'nodate':
+          return !reminderKey && !completed;
+        case 'completed':
+          return completed;
+        default:
+          return true;
+      }
+    })
+    .sort((a, b) => {
+      const weightDiff = getTaskSortWeight(a) - getTaskSortWeight(b);
+      if (weightDiff !== 0) return weightDiff;
+      const aTime = a.reminder ? new Date(a.reminder).getTime() : Number.MAX_SAFE_INTEGER;
+      const bTime = b.reminder ? new Date(b.reminder).getTime() : Number.MAX_SAFE_INTEGER;
+      if (aTime !== bTime) return aTime - bTime;
+      return (b.updatedAt || 0) - (a.updatedAt || 0);
+    });
+}
+
+function formatCalendarDayLabel(dateKey) {
+  const date = new Date(`${dateKey}T00:00:00`);
+  return date.toLocaleDateString([], {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric'
+  });
+}
+
+function createProductivityNoteCard(note, options = {}) {
+  const { mode = 'agenda' } = options;
+  const noteKind = getVisualNoteType(note);
+  const stats = getChecklistStats(note);
+  const isTask = isTaskNote(note);
+  const completed = isTaskCompleted(note);
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = `productivity-note-card ${mode === 'task' ? 'task-card' : 'agenda-card'}`;
+  card.setAttribute('data-note-kind', noteKind);
+
+  const previewText = cleanTextTags((note.text || '').replace(/^- \[(?: |x)\]\s*/gim, '')).replace(/\s+/g, ' ').trim();
+  const folderLabel = note.folder || getVisualTypeLabel(noteKind);
+  const reminderLabel = note.reminder ? formatReminderDate(note.reminder) : '';
+  const progressLabel = stats.total > 0
+    ? `${stats.completed}/${stats.total} complete`
+    : (completed ? 'Completed task' : 'Open task');
+  const progressPercent = stats.total > 0 ? stats.progressPercent : (completed ? 100 : 0);
+
+  card.innerHTML = `
+    <div class="productivity-note-top">
+      <span class="productivity-note-folder">${folderLabel}</span>
+      <span class="note-kind-pill type-${noteKind}">${getVisualTypeLabel(noteKind)}</span>
+    </div>
+    <h4>${cleanTitleTags(note.title || 'Untitled note')}</h4>
+    ${previewText ? `<p>${previewText.slice(0, mode === 'task' ? 180 : 120)}</p>` : '<p class="muted">No preview yet.</p>'}
+    <div class="productivity-note-meta">
+      ${reminderLabel ? `<span class="reminder-chip static"><span>${reminderLabel}</span></span>` : '<span class="productivity-meta-spacer"></span>'}
+      ${isTask ? `<span class="productivity-progress-chip ${completed ? 'is-complete' : ''}">${progressLabel}</span>` : ''}
+    </div>
+    ${mode === 'task' ? `
+      <div class="productivity-progress">
+        <div class="productivity-progress-bar"><span style="width: ${progressPercent}%"></span></div>
+        <div class="productivity-progress-caption">${progressLabel}</div>
+      </div>
+    ` : ''}
+  `;
+
+  card.addEventListener('click', () => {
+    if (note.recipeData) {
+      openRecipeModal(note);
+    } else {
+      openEditModal(note);
+    }
+  });
+  return card;
+}
+
+function renderProductivityPage() {
+  creatorWrapper.style.display = 'none';
+  if (feedFilterRow) feedFilterRow.style.display = 'none';
+  if (notesFeed) notesFeed.style.display = 'none';
+  if (productivityPage) productivityPage.style.display = 'flex';
+
+  ensureCalendarSelection();
+  setActiveSidebarPage('productivity');
+
+  const reminderNotes = getReminderNotes();
+  const taskNotes = getTaskNotes();
+  const summary = document.getElementById('productivity-summary');
+  if (summary) {
+    const dueTodayCount = taskNotes.filter(note => note.reminder && getLocalDateKey(note.reminder) === getLocalDateKey(new Date()) && !isTaskCompleted(note)).length;
+    summary.innerHTML = `
+      <div class="productivity-stat"><strong>${reminderNotes.length}</strong><span>Scheduled notes</span></div>
+      <div class="productivity-stat"><strong>${taskNotes.length}</strong><span>Task notes</span></div>
+      <div class="productivity-stat accent"><strong>${dueTodayCount}</strong><span>Due today</span></div>
+    `;
+  }
+
+  const weekdayContainer = document.getElementById('calendar-weekdays');
+  if (weekdayContainer && weekdayContainer.childElementCount === 0) {
+    ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
+      const el = document.createElement('div');
+      el.className = 'calendar-weekday';
+      el.textContent = day;
+      weekdayContainer.appendChild(el);
+    });
+  }
+
+  const calendarMonthLabel = document.getElementById('calendar-month-label');
+  if (calendarMonthLabel) {
+    calendarMonthLabel.textContent = calendarCursorDate.toLocaleDateString([], { month: 'long', year: 'numeric' });
+  }
+
+  const reminderMap = getProductivityDates();
+  const calendarGrid = document.getElementById('calendar-grid');
+  if (calendarGrid) {
+    calendarGrid.innerHTML = '';
+    const year = calendarCursorDate.getFullYear();
+    const month = calendarCursorDate.getMonth();
+    const monthStart = new Date(year, month, 1);
+    const gridStart = new Date(monthStart);
+    gridStart.setDate(monthStart.getDate() - monthStart.getDay());
+
+    for (let index = 0; index < 42; index += 1) {
+      const dayDate = new Date(gridStart);
+      dayDate.setDate(gridStart.getDate() + index);
+      const dateKey = getLocalDateKey(dayDate);
+      const count = reminderMap[dateKey]?.length || 0;
+      const cell = document.createElement('button');
+      cell.type = 'button';
+      cell.className = 'calendar-day';
+      if (dayDate.getMonth() !== month) cell.classList.add('is-outside-month');
+      if (dateKey === getLocalDateKey(new Date())) cell.classList.add('is-today');
+      if (dateKey === selectedCalendarDate) cell.classList.add('is-selected');
+      cell.innerHTML = `
+        <span class="calendar-day-number">${dayDate.getDate()}</span>
+        ${count > 0 ? `<span class="calendar-day-badge">${count}</span>` : ''}
+      `;
+      cell.addEventListener('click', () => {
+        selectedCalendarDate = dateKey;
+        if (dayDate.getMonth() !== calendarCursorDate.getMonth()) {
+          calendarCursorDate = new Date(dayDate.getFullYear(), dayDate.getMonth(), 1);
+        }
+        renderAppView();
+      });
+      calendarGrid.appendChild(cell);
+    }
+  }
+
+  const agendaLabel = document.getElementById('agenda-date-label');
+  const agendaCount = document.getElementById('agenda-count');
+  const agendaList = document.getElementById('agenda-list');
+  const agendaNotes = (reminderMap[selectedCalendarDate] || []).filter(note => {
+    const query = searchInput.value.toLowerCase().trim();
+    if (query === '') return true;
+    return `${note.title || ''} ${note.text || ''}`.toLowerCase().includes(query);
+  });
+  if (agendaLabel) agendaLabel.textContent = formatCalendarDayLabel(selectedCalendarDate);
+  if (agendaCount) agendaCount.textContent = `${agendaNotes.length} note${agendaNotes.length === 1 ? '' : 's'}`;
+  if (agendaList) {
+    agendaList.innerHTML = '';
+    if (agendaNotes.length === 0) {
+      agendaList.innerHTML = '<div class="productivity-empty">No reminder notes for this day.</div>';
+    } else {
+      agendaNotes.forEach(note => agendaList.appendChild(createProductivityNoteCard(note, { mode: 'agenda' })));
+    }
+  }
+
+  const taskGrid = document.getElementById('productivity-task-grid');
+  const taskEmpty = document.getElementById('productivity-task-empty');
+  const filteredTasks = getFilteredProductivityTasks();
+  document.getElementById('productivity-filter-row')?.querySelectorAll('.filter-pill').forEach(pill => {
+    pill.classList.toggle('active', (pill.getAttribute('data-task-filter') || 'all') === selectedProductivityTaskFilter);
+  });
+  if (taskGrid) {
+    taskGrid.innerHTML = '';
+    filteredTasks.forEach(note => taskGrid.appendChild(createProductivityNoteCard(note, { mode: 'task' })));
+  }
+  if (taskEmpty) {
+    taskEmpty.style.display = filteredTasks.length === 0 ? 'block' : 'none';
+  }
 }
 
 function renderGrid(gridContainer, notesArray) {
@@ -1851,6 +2293,7 @@ function renderGrid(gridContainer, notesArray) {
         badge.textContent = `#${tag}`;
         badge.addEventListener('click', (e) => {
           e.stopPropagation();
+          currentPage = 'notes';
           selectedTagFilter = tag;
           selectedFolderFilter = null;
           // Sync sidebar active styling
@@ -1862,7 +2305,7 @@ function renderGrid(gridContainer, notesArray) {
               el.classList.remove('active');
             }
           });
-          renderNotes();
+          renderAppView();
         });
         tagList.appendChild(badge);
       });
