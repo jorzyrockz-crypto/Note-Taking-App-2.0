@@ -61,6 +61,7 @@ let selectedFolderFilter = null;
 let selectedTypeFilter = 'all';
 let currentPage = 'notes';
 let selectedProductivityTaskFilter = 'all';
+let selectedProductivityDayView = 'agenda';
 let calendarCursorDate = new Date();
 let selectedCalendarDate = getLocalDateKey(new Date());
 let hasShownStorageWarning = false;
@@ -487,8 +488,8 @@ function enhanceShell() {
       <div class="productivity-hero">
         <div class="productivity-hero-copy">
           <div class="productivity-eyebrow">PRODUCTIVITY</div>
-          <h2 class="productivity-title">Calendar and Task Flow</h2>
-          <p class="productivity-subtitle">Track reminder notes on a monthly calendar and keep task notes moving with clear progress cards.</p>
+          <h2 class="productivity-title">Calendar Flow</h2>
+          <p class="productivity-subtitle">A clean month view with type-colored note dots and a focused day panel for agenda, tasks, and notes created that day.</p>
         </div>
         <div class="productivity-summary" id="productivity-summary"></div>
       </div>
@@ -498,7 +499,7 @@ function enhanceShell() {
           <div class="productivity-panel-header">
             <div>
               <div class="productivity-panel-kicker">Calendar</div>
-              <h3>Reminder timeline</h3>
+              <h3>Reminder map</h3>
             </div>
             <div class="calendar-controls">
               <button class="text-btn productivity-nav-btn" id="calendar-prev-btn" type="button">Prev</button>
@@ -509,34 +510,28 @@ function enhanceShell() {
           <div class="calendar-month-label" id="calendar-month-label"></div>
           <div class="calendar-weekdays" id="calendar-weekdays"></div>
           <div class="calendar-grid" id="calendar-grid"></div>
-          <div class="agenda-panel">
-            <div class="agenda-header">
-              <div>
-                <div class="productivity-panel-kicker">Agenda</div>
-                <h4 id="agenda-date-label">Selected day</h4>
-              </div>
-              <span class="agenda-count" id="agenda-count"></span>
-            </div>
-            <div class="agenda-list" id="agenda-list"></div>
-          </div>
+          <div class="productivity-todo-widget" id="productivity-todo-widget"></div>
         </section>
 
-        <section class="productivity-panel productivity-tasks-panel">
-          <div class="productivity-panel-header">
+        <section class="productivity-panel productivity-agenda-panel">
+          <div class="agenda-header productivity-panel-header">
             <div>
-              <div class="productivity-panel-kicker">To Do</div>
-              <h3>Task cards</h3>
+              <div class="productivity-panel-kicker">Day View</div>
+              <h4 id="agenda-date-label">Selected day</h4>
+              <div class="agenda-date-meta" id="agenda-date-meta">Choose a date to reveal reminders and notes.</div>
             </div>
+            <span class="agenda-count" id="agenda-count"></span>
           </div>
-          <div class="productivity-filter-row" id="productivity-filter-row">
-            <button class="filter-pill active" data-task-filter="all" type="button">All</button>
-            <button class="filter-pill" data-task-filter="today" type="button">Due Today</button>
-            <button class="filter-pill" data-task-filter="upcoming" type="button">Upcoming</button>
-            <button class="filter-pill" data-task-filter="nodate" type="button">No Date</button>
-            <button class="filter-pill" data-task-filter="completed" type="button">Completed</button>
+          <div class="productivity-day-section-label">
+            <span>Agenda</span>
+            <span id="agenda-section-caption">Only notes with reminders are shown here.</span>
           </div>
-          <div class="productivity-task-grid" id="productivity-task-grid"></div>
-          <div class="productivity-empty" id="productivity-task-empty" style="display: none;">No task notes match this view yet.</div>
+          <div class="productivity-day-stream" id="productivity-day-stream"></div>
+          <div class="productivity-empty" id="productivity-day-empty" style="display: none;">Nothing is linked to this day yet.</div>
+          <div class="productivity-day-notes" id="productivity-day-notes" style="display: none;">
+            <div class="productivity-notes-label">Notes made this day</div>
+            <div class="productivity-note-pills" id="productivity-note-pills"></div>
+          </div>
         </section>
       </div>
     `;
@@ -575,13 +570,18 @@ function ensureCalendarSelection() {
   if (!selectedCalendarDate) {
     selectedCalendarDate = getLocalDateKey(new Date());
   }
+  if (!(calendarCursorDate instanceof Date) || Number.isNaN(calendarCursorDate.getTime())) {
+    const fallbackDate = new Date(`${selectedCalendarDate}T00:00:00`);
+    calendarCursorDate = Number.isNaN(fallbackDate.getTime())
+      ? new Date()
+      : new Date(fallbackDate.getFullYear(), fallbackDate.getMonth(), 1);
+  }
   const selectedDate = new Date(`${selectedCalendarDate}T00:00:00`);
   if (Number.isNaN(selectedDate.getTime())) {
     selectedCalendarDate = getLocalDateKey(new Date());
     calendarCursorDate = new Date();
     return;
   }
-  calendarCursorDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
 }
 
 function renderAppView() {
@@ -834,9 +834,9 @@ function setupEventHandlers() {
     renderAppView();
   });
 
-  document.getElementById('productivity-filter-row')?.querySelectorAll('.filter-pill').forEach(btn => {
+  document.getElementById('productivity-day-pills')?.querySelectorAll('.filter-pill').forEach(btn => {
     btn.addEventListener('click', () => {
-      selectedProductivityTaskFilter = btn.getAttribute('data-task-filter') || 'all';
+      selectedProductivityDayView = btn.getAttribute('data-day-view') || 'all';
       renderAppView();
     });
   });
@@ -1311,6 +1311,7 @@ function saveCreatorNote() {
     pinned: creatorPinned,
     archived: false,
     image: creatorImage,
+    createdAt: Date.now(),
     updatedAt: Date.now()
   };
   
@@ -1890,6 +1891,50 @@ function getProductivityDates(noteList = notes) {
   }, {});
 }
 
+function getNoteTypeAccent(kind) {
+  const accents = {
+    text: '#ec4899',
+    checklist: '#22c55e',
+    bookmark: '#3b82f6',
+    voice: '#d946ef',
+    recipe: '#f97316',
+    image: '#8b5cf6'
+  };
+  return accents[kind] || '#94a3b8';
+}
+
+function getNoteCreatedDateKey(note) {
+  return getLocalDateKey(note?.createdAt || note?.updatedAt || Date.now());
+}
+
+function getNoteReminderDateKey(note) {
+  return note?.reminder ? getLocalDateKey(note.reminder) : '';
+}
+
+function getDayCollections(dateKey) {
+  const relevantNotes = notes.filter(note => !note.archived);
+  const agenda = relevantNotes.filter(note => getNoteReminderDateKey(note) === dateKey);
+  const todo = relevantNotes.filter(note => isTaskNote(note) && (getNoteReminderDateKey(note) === dateKey || getNoteCreatedDateKey(note) === dateKey));
+  const created = relevantNotes.filter(note => getNoteCreatedDateKey(note) === dateKey);
+  return {
+    agenda,
+    todo,
+    created
+  };
+}
+
+function getDayDotTypes(dateKey) {
+  const collections = getDayCollections(dateKey);
+  const seen = new Set();
+  return [...collections.agenda, ...collections.todo, ...collections.created].reduce((acc, note) => {
+    const kind = getVisualNoteType(note);
+    if (seen.has(kind)) return acc;
+    seen.add(kind);
+    acc.push(kind);
+    return acc;
+  }, []);
+}
+
 function getTaskSortWeight(note) {
   const reminderDate = note.reminder ? new Date(note.reminder) : null;
   const now = new Date();
@@ -1947,8 +1992,47 @@ function formatCalendarDayLabel(dateKey) {
   });
 }
 
+function getTaskPreviewLabel(note) {
+  const lines = `${note?.text || ''}`
+    .split('\n')
+    .map(line => line.replace(/^- \[(?: |x)\]\s*/, '').trim())
+    .filter(Boolean);
+  return cleanTextTags(lines[0] || note?.title || 'Untitled task');
+}
+
+function createReminderPreviewCard(note) {
+  const noteKind = getVisualNoteType(note);
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'productivity-reminder-card';
+  card.setAttribute('data-note-kind', noteKind);
+
+  const previewText = cleanTextTags((note.text || '').replace(/^- \[(?: |x)\]\s*/gim, '')).replace(/\s+/g, ' ').trim();
+  const reminderLabel = note.reminder ? formatReminderDate(note.reminder) : formatCardTimestamp(note.updatedAt);
+
+  card.innerHTML = `
+    <div class="productivity-reminder-top">
+      <span class="productivity-note-folder">Agenda</span>
+      <span class="note-kind-pill type-${noteKind}">${getVisualTypeLabel(noteKind)}</span>
+    </div>
+    <h4>${cleanTitleTags(note.title || 'Untitled note')}</h4>
+    ${previewText ? `<p>${previewText.slice(0, 120)}</p>` : '<p class="muted">No preview yet.</p>'}
+    <div class="productivity-reminder-meta">${reminderLabel}</div>
+  `;
+
+  card.addEventListener('click', () => {
+    if (note.recipeData) {
+      openRecipeModal(note);
+    } else {
+      openEditModal(note);
+    }
+  });
+
+  return card;
+}
+
 function createProductivityNoteCard(note, options = {}) {
-  const { mode = 'agenda' } = options;
+  const { mode = 'agenda', eyebrow = '' } = options;
   const noteKind = getVisualNoteType(note);
   const stats = getChecklistStats(note);
   const isTask = isTaskNote(note);
@@ -1965,19 +2049,22 @@ function createProductivityNoteCard(note, options = {}) {
     ? `${stats.completed}/${stats.total} complete`
     : (completed ? 'Completed task' : 'Open task');
   const progressPercent = stats.total > 0 ? stats.progressPercent : (completed ? 100 : 0);
+  const metaStamp = mode === 'created'
+    ? `Made ${formatCardTimestamp(note.createdAt || note.updatedAt)}`
+    : (reminderLabel || formatCardTimestamp(note.updatedAt));
 
   card.innerHTML = `
     <div class="productivity-note-top">
-      <span class="productivity-note-folder">${folderLabel}</span>
+      <span class="productivity-note-folder">${eyebrow || folderLabel}</span>
       <span class="note-kind-pill type-${noteKind}">${getVisualTypeLabel(noteKind)}</span>
     </div>
     <h4>${cleanTitleTags(note.title || 'Untitled note')}</h4>
     ${previewText ? `<p>${previewText.slice(0, mode === 'task' ? 180 : 120)}</p>` : '<p class="muted">No preview yet.</p>'}
     <div class="productivity-note-meta">
-      ${reminderLabel ? `<span class="reminder-chip static"><span>${reminderLabel}</span></span>` : '<span class="productivity-meta-spacer"></span>'}
+      <span class="productivity-inline-stamp">${metaStamp}</span>
       ${isTask ? `<span class="productivity-progress-chip ${completed ? 'is-complete' : ''}">${progressLabel}</span>` : ''}
     </div>
-    ${mode === 'task' ? `
+    ${mode === 'task' || (mode === 'agenda' && isTask) ? `
       <div class="productivity-progress">
         <div class="productivity-progress-bar"><span style="width: ${progressPercent}%"></span></div>
         <div class="productivity-progress-caption">${progressLabel}</div>
@@ -2008,11 +2095,11 @@ function renderProductivityPage() {
   const taskNotes = getTaskNotes();
   const summary = document.getElementById('productivity-summary');
   if (summary) {
-    const dueTodayCount = taskNotes.filter(note => note.reminder && getLocalDateKey(note.reminder) === getLocalDateKey(new Date()) && !isTaskCompleted(note)).length;
+    const selectedDay = getDayCollections(selectedCalendarDate);
     summary.innerHTML = `
-      <div class="productivity-stat"><strong>${reminderNotes.length}</strong><span>Scheduled notes</span></div>
+      <div class="productivity-stat"><strong>${reminderNotes.length}</strong><span>Reminder notes</span></div>
       <div class="productivity-stat"><strong>${taskNotes.length}</strong><span>Task notes</span></div>
-      <div class="productivity-stat accent"><strong>${dueTodayCount}</strong><span>Due today</span></div>
+      <div class="productivity-stat accent"><strong>${selectedDay.created.length}</strong><span>Made on selected day</span></div>
     `;
   }
 
@@ -2045,7 +2132,8 @@ function renderProductivityPage() {
       const dayDate = new Date(gridStart);
       dayDate.setDate(gridStart.getDate() + index);
       const dateKey = getLocalDateKey(dayDate);
-      const count = reminderMap[dateKey]?.length || 0;
+      const dayDotTypes = getDayDotTypes(dateKey);
+      const dayRelatedCount = getDayCollections(dateKey);
       const cell = document.createElement('button');
       cell.type = 'button';
       cell.className = 'calendar-day';
@@ -2053,8 +2141,12 @@ function renderProductivityPage() {
       if (dateKey === getLocalDateKey(new Date())) cell.classList.add('is-today');
       if (dateKey === selectedCalendarDate) cell.classList.add('is-selected');
       cell.innerHTML = `
-        <span class="calendar-day-number">${dayDate.getDate()}</span>
-        ${count > 0 ? `<span class="calendar-day-badge">${count}</span>` : ''}
+        <span class="calendar-day-number-wrap">
+          <span class="calendar-day-number">${dayDate.getDate()}</span>
+        </span>
+        <span class="calendar-day-dots">
+          ${dayDotTypes.slice(0, 4).map(kind => `<span class="calendar-day-dot" style="--dot-color:${getNoteTypeAccent(kind)}" title="${getVisualTypeLabel(kind)}"></span>`).join('')}
+        </span>
       `;
       cell.addEventListener('click', () => {
         selectedCalendarDate = dateKey;
@@ -2069,35 +2161,98 @@ function renderProductivityPage() {
 
   const agendaLabel = document.getElementById('agenda-date-label');
   const agendaCount = document.getElementById('agenda-count');
-  const agendaList = document.getElementById('agenda-list');
-  const agendaNotes = (reminderMap[selectedCalendarDate] || []).filter(note => {
+  const agendaMeta = document.getElementById('agenda-date-meta');
+  const agendaCaption = document.getElementById('agenda-section-caption');
+  const dayStream = document.getElementById('productivity-day-stream');
+  const dayEmpty = document.getElementById('productivity-day-empty');
+  const notePillsContainer = document.getElementById('productivity-note-pills');
+  const notesMadeWrap = document.getElementById('productivity-day-notes');
+  const todoWidget = document.getElementById('productivity-todo-widget');
+  const dayCollections = getDayCollections(selectedCalendarDate);
+  const queryMatches = note => {
     const query = searchInput.value.toLowerCase().trim();
     if (query === '') return true;
     return `${note.title || ''} ${note.text || ''}`.toLowerCase().includes(query);
-  });
-  if (agendaLabel) agendaLabel.textContent = formatCalendarDayLabel(selectedCalendarDate);
-  if (agendaCount) agendaCount.textContent = `${agendaNotes.length} note${agendaNotes.length === 1 ? '' : 's'}`;
-  if (agendaList) {
-    agendaList.innerHTML = '';
-    if (agendaNotes.length === 0) {
-      agendaList.innerHTML = '<div class="productivity-empty">No reminder notes for this day.</div>';
-    } else {
-      agendaNotes.forEach(note => agendaList.appendChild(createProductivityNoteCard(note, { mode: 'agenda' })));
-    }
-  }
+  };
+  const agendaNotes = dayCollections.agenda.filter(queryMatches);
+  const todoNotes = dayCollections.todo.filter(queryMatches);
+  const createdNotes = dayCollections.created.filter(queryMatches);
 
-  const taskGrid = document.getElementById('productivity-task-grid');
-  const taskEmpty = document.getElementById('productivity-task-empty');
-  const filteredTasks = getFilteredProductivityTasks();
-  document.getElementById('productivity-filter-row')?.querySelectorAll('.filter-pill').forEach(pill => {
-    pill.classList.toggle('active', (pill.getAttribute('data-task-filter') || 'all') === selectedProductivityTaskFilter);
-  });
-  if (taskGrid) {
-    taskGrid.innerHTML = '';
-    filteredTasks.forEach(note => taskGrid.appendChild(createProductivityNoteCard(note, { mode: 'task' })));
+  if (agendaLabel) agendaLabel.textContent = formatCalendarDayLabel(selectedCalendarDate);
+  if (agendaMeta) {
+    agendaMeta.textContent = `${agendaNotes.length} reminder${agendaNotes.length === 1 ? '' : 's'} • ${createdNotes.length} note${createdNotes.length === 1 ? '' : 's'} made`;
   }
-  if (taskEmpty) {
-    taskEmpty.style.display = filteredTasks.length === 0 ? 'block' : 'none';
+  if (agendaCount) {
+    agendaCount.textContent = `${agendaNotes.length} reminder${agendaNotes.length === 1 ? '' : 's'}`;
+  }
+  if (agendaCaption) {
+    agendaCaption.textContent = agendaNotes.length > 0
+      ? 'Only notes with reminders are shown here.'
+      : 'No reminder notes are linked to this day.';
+  }
+  if (dayStream) {
+    dayStream.innerHTML = '';
+    agendaNotes.forEach(note => {
+      dayStream.appendChild(createReminderPreviewCard(note));
+    });
+  }
+  if (dayEmpty) {
+    dayEmpty.style.display = agendaNotes.length === 0 ? 'block' : 'none';
+  }
+  if (notePillsContainer) {
+    notePillsContainer.innerHTML = '';
+    createdNotes.forEach(note => {
+      const pill = document.createElement('button');
+      pill.type = 'button';
+      pill.className = `productivity-created-pill type-${getVisualNoteType(note)}`;
+      pill.textContent = cleanTitleTags(note.title || 'Untitled note');
+      pill.addEventListener('click', () => {
+        if (note.recipeData) {
+          openRecipeModal(note);
+        } else {
+          openEditModal(note);
+        }
+      });
+      notePillsContainer.appendChild(pill);
+    });
+  }
+  if (notesMadeWrap) {
+    notesMadeWrap.style.display = createdNotes.length > 0 ? 'flex' : 'none';
+  }
+  if (todoWidget) {
+    const widgetTasks = todoNotes.length > 0
+      ? todoNotes
+      : getFilteredProductivityTasks().filter(note => !isTaskCompleted(note)).slice(0, 4);
+    const widgetLabel = todoNotes.length > 0 ? 'Selected day' : 'Next up';
+    todoWidget.innerHTML = `
+      <div class="productivity-todo-widget-head">
+        <div>
+          <div class="productivity-panel-kicker">To Do</div>
+          <h4>Task widget</h4>
+        </div>
+        <span class="agenda-count">${widgetTasks.length}</span>
+      </div>
+      <div class="productivity-todo-widget-meta">${widgetLabel} tasks at a glance.</div>
+      <div class="productivity-todo-list">
+        ${widgetTasks.length > 0
+          ? widgetTasks.map(note => `
+            <button class="productivity-todo-item ${isTaskCompleted(note) ? 'is-complete' : ''}" type="button" data-note-id="${note.id}">
+              <span class="productivity-todo-bullet"></span>
+              <span class="productivity-todo-copy">
+                <strong>${cleanTitleTags(note.title || 'Untitled task')}</strong>
+                <span>${getTaskPreviewLabel(note)}</span>
+              </span>
+            </button>
+          `).join('')
+          : '<div class="productivity-empty productivity-todo-empty">No open tasks to show.</div>'}
+      </div>
+    `;
+    todoWidget.querySelectorAll('.productivity-todo-item').forEach(button => {
+      button.addEventListener('click', () => {
+        const note = notes.find(entry => entry.id === button.getAttribute('data-note-id'));
+        if (note) openEditModal(note);
+      });
+    });
   }
 }
 

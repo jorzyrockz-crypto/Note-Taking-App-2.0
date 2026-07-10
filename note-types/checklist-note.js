@@ -2,6 +2,22 @@ import { renderTextWithLinks } from './shared.js';
 
 let checklistFocusIndex = null;
 let checklistFocusIsNew = false;
+let draggedChecklistIndex = null;
+
+function normalizeChecklistLine(line = '') {
+  if (line.startsWith('- [ ] ') || line.startsWith('- [x] ')) return line;
+  if (line === '- [ ]' || line === '- [x]') return `${line} `;
+  if (line.trim() === '') return '- [ ] ';
+  return `- [ ] ${line.trim()}`;
+}
+
+function moveChecklistLine(lines, fromIndex, toIndex) {
+  if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return lines;
+  const nextLines = [...lines];
+  const [moved] = nextLines.splice(fromIndex, 1);
+  nextLines.splice(toIndex, 0, moved);
+  return nextLines;
+}
 
 export function renderChecklistNoteContent(note, options) {
   const {
@@ -98,15 +114,16 @@ export function renderChecklistNoteContent(note, options) {
 export function syncChecklistEditor(container, rawText, onChange) {
   container.innerHTML = '';
 
-  let lines = rawText.split('\n').map(line => line.trim());
+  let lines = rawText.split('\n');
 
   let formatted = false;
   lines = lines.map(line => {
-    if (!line.startsWith('- [ ] ') && !line.startsWith('- [x] ')) {
+    const normalizedLine = normalizeChecklistLine(line);
+    if (normalizedLine !== line) {
       formatted = true;
-      return '- [ ] ' + line;
+      return normalizedLine;
     }
-    return line;
+    return normalizedLine;
   });
 
   if (formatted) {
@@ -130,6 +147,50 @@ export function syncChecklistEditor(container, rawText, onChange) {
 
     const row = document.createElement('div');
     row.className = 'checklist-editor-row';
+    row.dataset.index = String(index);
+
+    row.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      if (draggedChecklistIndex === null || draggedChecklistIndex === index) return;
+      row.classList.add('is-drop-target');
+    });
+
+    row.addEventListener('dragleave', () => {
+      row.classList.remove('is-drop-target');
+    });
+
+    row.addEventListener('drop', (event) => {
+      event.preventDefault();
+      row.classList.remove('is-drop-target');
+      if (draggedChecklistIndex === null || draggedChecklistIndex === index) return;
+      lines = moveChecklistLine(lines, draggedChecklistIndex, index);
+      checklistFocusIndex = index;
+      draggedChecklistIndex = null;
+      onChange(lines.join('\n'));
+    });
+
+    row.addEventListener('dragend', () => {
+      draggedChecklistIndex = null;
+      container.querySelectorAll('.checklist-editor-row').forEach(item => item.classList.remove('is-drop-target', 'is-dragging'));
+    });
+
+    const dragHandle = document.createElement('button');
+    dragHandle.type = 'button';
+    dragHandle.className = 'checklist-editor-drag-handle';
+    dragHandle.setAttribute('aria-label', 'Drag to reorder checklist item');
+    dragHandle.setAttribute('title', 'Drag to reorder');
+    dragHandle.setAttribute('draggable', 'true');
+    dragHandle.innerHTML = `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M9 6a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm0 7.5A1.5 1.5 0 1 1 9 10.5a1.5 1.5 0 0 1 0 3zm0 7.5A1.5 1.5 0 1 1 9 18a1.5 1.5 0 0 1 0 3zm6-15a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm0 7.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm0 7.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>
+      </svg>
+    `;
+    dragHandle.addEventListener('dragstart', (event) => {
+      draggedChecklistIndex = index;
+      row.classList.add('is-dragging');
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', String(index));
+    });
 
     const checkbox = document.createElement('div');
     checkbox.className = `checklist-editor-checkbox ${isChecked ? 'checked' : ''}`;
@@ -187,6 +248,7 @@ export function syncChecklistEditor(container, rawText, onChange) {
       onChange(lines.join('\n'));
     });
 
+    row.appendChild(dragHandle);
     row.appendChild(checkbox);
     row.appendChild(input);
     row.appendChild(deleteBtn);
