@@ -43,10 +43,10 @@ const STORAGE_KEYS = {
 };
 
 const APP_UPDATE_NOTE = {
-  id: 'release-atlasnest-v2',
+  id: 'release-atlasnest-v3',
   type: 'text',
-  title: 'AtlasNest Update #mobile',
-  text: '# AtlasNest mobile refresh\n\n1. Tablet and phone layouts now come first with a cleaner stacked header and easier spacing\n2. Per-note actions moved into the new ellipsis menu for pin, theme, and delete\n3. Folders and groups now live in the sidebar for faster browsing\n4. Voice notes have a live recording animation and visible save flow\n5. Global themes were simplified into a clean light and dark mode switch\n\nOpen AtlasNest on mobile, swipe through note-type filters, and try the new card menus.',
+  title: 'AtlasNest Update #pwa',
+  text: '# AtlasNest installable app update\n\n1. AtlasNest now ships as a Progressive Web App with install metadata and offline caching\n2. Mobile-first note cards stay compact by default and expand on hover for desktop previewing\n3. Per-note actions live in the cleaner ellipsis menu instead of floating buttons\n4. Sidebar navigation is simpler with groups only and a clearer All Notes entry\n5. Light and dark mode stay available through the compact header toggle\n\nInstall AtlasNest from the browser when hosted, then reopen it offline to keep browsing your note board.',
   color: 'orange',
   theme: 'summer',
   folder: 'Product Updates',
@@ -247,6 +247,10 @@ function enhanceShell() {
   if (logoTitle) logoTitle.textContent = 'AtlasNest';
   const allNotesLabel = sidebarAllNotes?.querySelector('.sidebar-label');
   if (allNotesLabel) allNotesLabel.textContent = 'All Notes';
+  if (sidebarAllNotes) {
+    sidebarAllNotes.setAttribute('title', 'All Notes');
+    sidebarAllNotes.setAttribute('aria-label', 'All Notes');
+  }
 
   const logoContainer = document.querySelector('.logo-container');
   if (logoContainer && !logoContainer.querySelector('.brand-lockup')) {
@@ -359,10 +363,23 @@ document.addEventListener('DOMContentLoaded', () => {
   buildColorPickers();
   initCanvasDrawEngine();
   renderNotes();
+
+  registerServiceWorker();
   
   // Start background checks for note reminders
   setInterval(checkReminders, 10000);
 });
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  if (window.location.protocol === 'file:') return;
+
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch((error) => {
+      console.warn('Service worker registration failed:', error);
+    });
+  });
+}
 
 function initTheme() {
   const savedTheme = localStorage.getItem(STORAGE_KEYS.theme) === 'dark' ? 'dark' : 'light';
@@ -744,9 +761,6 @@ function setupEventHandlers() {
   // Recipe Importer trigger actions
   const creatorRecipeBtn = document.getElementById('creator-recipe-btn');
   creatorRecipeBtn.addEventListener('click', openRecipeModal);
-  const globalRecipeBtn = document.getElementById('global-recipe-import-btn');
-  globalRecipeBtn.addEventListener('click', openRecipeModal);
-
   const recipeCancel = document.getElementById('recipe-modal-cancel');
   recipeCancel.addEventListener('click', () => {
     document.getElementById('recipe-modal').classList.remove('visible');
@@ -1034,6 +1048,8 @@ function renderSidebarFolders() {
   getAllFolders().forEach(folder => {
     const item = document.createElement('div');
     item.className = `sidebar-item ${selectedFolderFilter === folder ? 'active' : ''}`;
+    item.setAttribute('title', folder);
+    item.setAttribute('aria-label', folder);
     item.innerHTML = `
       <span class="sidebar-icon folder-icon">▣</span>
       <span class="sidebar-label">${folder}</span>
@@ -1121,6 +1137,7 @@ function scanUniqueTags() {
 }
 
 function renderSidebarTags() {
+  if (!sidebarTagsList) return;
   sidebarTagsList.innerHTML = '';
   const tags = scanUniqueTags();
   
@@ -1415,11 +1432,13 @@ function renderGrid(gridContainer, notesArray) {
     const boardTitle = document.createElement('span');
     boardTitle.className = 'note-board-title';
     boardTitle.textContent = note.folder || getVisualTypeLabel(noteKind);
+    const boardHeaderMeta = document.createElement('div');
+    boardHeaderMeta.className = 'note-board-meta';
     const boardAccent = document.createElement('span');
     boardAccent.className = 'note-board-accent';
     boardAccent.textContent = getVisualTypeLabel(noteKind);
     boardHeader.appendChild(boardTitle);
-    boardHeader.appendChild(boardAccent);
+    boardHeader.appendChild(boardHeaderMeta);
     card.appendChild(boardHeader);
 
     const surface = document.createElement('div');
@@ -1451,7 +1470,8 @@ function renderGrid(gridContainer, notesArray) {
     const menuPanelEl = document.createElement('div');
     menuPanelEl.className = 'note-card-menu-panel';
     cardMenu.appendChild(menuPanelEl);
-    card.appendChild(cardMenu);
+    boardHeaderMeta.appendChild(boardAccent);
+    boardHeaderMeta.appendChild(cardMenu);
 
     // 3. Title (if not empty)
     const titleVal = note.title || '';
@@ -1462,22 +1482,9 @@ function renderGrid(gridContainer, notesArray) {
       surface.appendChild(titleEl);
     }
 
-    const metaRow = document.createElement('div');
-    metaRow.className = 'note-meta-row';
-    const typePill = document.createElement('span');
-    typePill.className = `note-kind-pill type-${noteKind}`;
-    typePill.textContent = getVisualTypeLabel(noteKind);
-    const folderPill = document.createElement('span');
-    folderPill.className = 'note-folder-pill';
-    folderPill.textContent = note.folder || 'Inbox';
-    folderPill.addEventListener('click', (e) => {
-      e.stopPropagation();
-      selectedFolderFilter = note.folder || 'Inbox';
-      renderNotes();
-    });
-    metaRow.appendChild(typePill);
-    metaRow.appendChild(folderPill);
-    surface.appendChild(metaRow);
+    const previewBody = document.createElement('div');
+    previewBody.className = 'note-card-preview-body';
+    surface.appendChild(previewBody);
 
     // 4. Content (Checklist vs Plain Text)
     note.type = getNoteType(note.text || '');
@@ -1492,7 +1499,7 @@ function renderGrid(gridContainer, notesArray) {
       urlRegex: URL_REGEX
     });
     if (contentEl) {
-      surface.appendChild(contentEl);
+      previewBody.appendChild(contentEl);
     }
 
     // 4.5 Audio Voice Note player rendering
@@ -1555,7 +1562,7 @@ function renderGrid(gridContainer, notesArray) {
       audioChip.appendChild(playBtn);
       audioChip.appendChild(visualizer);
       audioChip.appendChild(durationLabel);
-      surface.appendChild(audioChip);
+      previewBody.appendChild(audioChip);
     }
 
     // 5. Dynamic Tag Badges & Reminders rendering inside note cards
@@ -1609,7 +1616,7 @@ function renderGrid(gridContainer, notesArray) {
         });
         tagList.appendChild(badge);
       });
-      surface.appendChild(tagList);
+      previewBody.appendChild(tagList);
     }
 
     // 5.5 Link Preview Box rendering
@@ -1650,7 +1657,7 @@ function renderGrid(gridContainer, notesArray) {
           </div>
         `;
       }
-      surface.appendChild(previewBox);
+      previewBody.appendChild(previewBox);
     }
 
     // 6. Overflow Actions Menu

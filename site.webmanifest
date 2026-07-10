@@ -1,0 +1,19 @@
+{
+  "name": "AtlasNest",
+  "short_name": "AtlasNest",
+  "description": "A visual bookmarking and note-taking studio for links, voice notes, checklists, and quick ideas.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f3ee",
+  "theme_color": "#fbbc04",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
