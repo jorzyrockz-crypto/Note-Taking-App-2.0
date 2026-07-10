@@ -71,10 +71,10 @@ const STORAGE_KEYS = {
 };
 
 const APP_UPDATE_NOTE = {
-  id: 'release-atlasnest-v4',
+  id: 'release-atlasnest-v5',
   type: 'text',
-  title: 'AtlasNest Update #recipe-import',
-  text: '# AtlasNest recipe importer update\n\n1. AtlasNest now includes a real Recipe Builder import flow backed by a local Node server\n2. Recipe URLs are fetched and parsed for Schema.org Recipe JSON-LD, with OpenAI fallback support when structured data is incomplete\n3. Imported recipes are saved with structured `recipeData` plus generated cookbook note text for the board view\n4. Phones and tablets now use tap-to-expand note previews, while desktop keeps hover expansion\n5. Shared-link cards fall back to a branded preview image when remote thumbnails fail\n\nRun AtlasNest from `http://localhost:3000` to use recipe import, then save imported dishes straight into Kitchen Board.',
+  title: 'AtlasNest Update #recipe-parser',
+  text: '# AtlasNest recipe parser update\n\n1. Recipe import now supports WordPress Recipe Maker print pages directly, including links like Panlasang Pinoy `wprm_print` recipes\n2. The importer still checks Schema.org Recipe JSON-LD first, then falls back to HTML parsing, then OpenAI only when needed\n3. This means more recipe pages can import successfully even without JSON-LD or an OpenAI key\n4. Imported recipes still save structured `recipeData` plus generated cookbook note text for board rendering\n\nRun AtlasNest from `http://localhost:3000` to use recipe import, then save imported dishes straight into Kitchen Board.',
   color: 'orange',
   theme: 'summer',
   folder: 'Product Updates',

@@ -23,6 +23,15 @@ export async function importRecipeFromUrl(inputUrl) {
   let importMethod = 'jsonld';
 
   if (!isRecipeComplete(recipe)) {
+    const htmlRecipe = extractRecipeFromHtml(html, finalUrl);
+    if (isRecipeComplete(htmlRecipe)) {
+      if (recipe) warnings.push('Structured data was incomplete, so the importer used recipe page HTML parsing.');
+      recipe = htmlRecipe;
+      importMethod = 'html';
+    }
+  }
+
+  if (!isRecipeComplete(recipe)) {
     if (recipe) warnings.push('Structured data was missing fields, so the importer used AI fallback.');
     recipe = await extractRecipeWithLlm(html, finalUrl);
     importMethod = 'llm';
@@ -107,6 +116,15 @@ export function extractRecipeFromJsonLd(html, sourceUrl) {
   }
 
   return candidates.length > 0 ? normalizeRecipe(candidates[0], sourceUrl) : null;
+}
+
+export function extractRecipeFromHtml(html, sourceUrl) {
+  const $ = cheerio.load(html);
+
+  const wprmRecipe = extractWprmRecipe($, sourceUrl);
+  if (isRecipeComplete(wprmRecipe)) return wprmRecipe;
+
+  return null;
 }
 
 export async function extractRecipeWithLlm(html, sourceUrl) {
@@ -287,6 +305,66 @@ function isRecipeType(typeValue) {
   if (!typeValue) return false;
   if (Array.isArray(typeValue)) return typeValue.some(isRecipeType);
   return String(typeValue).toLowerCase() === 'recipe';
+}
+
+function extractWprmRecipe($, sourceUrl) {
+  const root = $('.wprm-recipe').first();
+  if (!root.length) return null;
+
+  const title = cleanInlineText(root.find('.wprm-recipe-name').first().text() || $('title').first().text());
+  const description = cleanInlineText(root.find('.wprm-recipe-summary').first().text());
+  const imageUrl = resolveUrl(
+    root.find('.wprm-recipe-image img').first().attr('src')
+      || root.find('.wprm-recipe-image img').first().attr('data-src')
+      || '',
+    sourceUrl
+  );
+
+  const ingredients = root.find('.wprm-recipe-ingredient').toArray()
+    .map((item) => {
+      const amount = cleanInlineText($(item).find('.wprm-recipe-ingredient-amount').text());
+      const unit = cleanInlineText($(item).find('.wprm-recipe-ingredient-unit').text());
+      const name = cleanInlineText($(item).find('.wprm-recipe-ingredient-name').text());
+      const notes = cleanInlineText($(item).find('.wprm-recipe-ingredient-notes').text());
+      return [amount, unit, name, notes].filter(Boolean).join(' ');
+    })
+    .filter(Boolean);
+
+  const instructions = root.find('.wprm-recipe-instruction').toArray()
+    .map((item) => {
+      const text = cleanInlineText($(item).find('.wprm-recipe-instruction-text').text());
+      const notes = cleanInlineText($(item).find('.wprm-recipe-instruction-notes').text());
+      return [text, notes].filter(Boolean).join(' ');
+    })
+    .filter(Boolean);
+
+  const prepTime = parseDurationToMinutes(extractWprmTime($, 'prep_time'));
+  const cookTime = parseDurationToMinutes(extractWprmTime($, 'cook_time'));
+  const servings = parseServings(
+    root.find('.wprm-recipe-servings').first().text()
+    || $('.wprm-recipe-adjustable-servings-container [data-servings]').attr('data-servings')
+    || $('.wprm-recipe-ingredients-container').first().attr('data-servings')
+  );
+
+  const recipe = {
+    title,
+    ingredients,
+    instructions
+  };
+
+  if (description) recipe.description = description;
+  if (imageUrl) recipe.image_url = imageUrl;
+  if (prepTime !== null) recipe.prep_time_minutes = prepTime;
+  if (cookTime !== null) recipe.cook_time_minutes = cookTime;
+  if (servings !== null) recipe.servings = servings;
+
+  return recipe;
+}
+
+function extractWprmTime($, key) {
+  const selector = `.wprm-recipe-${key}, .wprm-recipe-${key}-minutes, .wprm-recipe-${key.replace('_', '-')}-container .wprm-recipe-time`;
+  const value = cleanInlineText($(selector).first().text());
+  return value || null;
 }
 
 async function validateRemoteUrl(inputUrl) {
