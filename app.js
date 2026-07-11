@@ -4580,6 +4580,7 @@ function handleSharedLaunchData() {
   const sharedTitle = params.get('title') || '';
   const sharedText = params.get('text') || '';
   const sharedUrl = params.get('url') || '';
+  const sharedImage = params.get('image') || '';
   if (!sharedTitle && !sharedText && !sharedUrl) return;
 
   expandCreator();
@@ -4598,7 +4599,17 @@ function handleSharedLaunchData() {
   syncCreatorInputs();
   syncCreatorFolderInput(true);
   autoGrowTextarea.call(creatorText);
-  if (url) {
+
+  if (sharedImage) {
+    // Bookmarklet already supplied real scraped metadata (e.g. from a page
+    // that blocks server-side fetches, like Facebook/Instagram). Apply it
+    // directly instead of re-fetching via the backend, which would fail.
+    if (!creatorImage) {
+      creatorImage = sharedImage;
+      creatorImageBanner.style.display = 'block';
+    }
+    creatorLinkPreviewUrl = url || null;
+  } else if (url) {
     creatorLinkPreviewUrl = null;
     fetchCreatorLinkPreview(url);
   }
