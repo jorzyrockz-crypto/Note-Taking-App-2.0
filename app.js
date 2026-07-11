@@ -4489,9 +4489,19 @@ async function fetchLinkPreviewMetadata(url, signal) {
     body: JSON.stringify({ url }),
     signal
   });
-  const payload = await response.json().catch(() => ({}));
+  const rawText = await response.text();
+  let payload = {};
+  try {
+    payload = rawText ? JSON.parse(rawText) : {};
+  } catch (parseError) {
+    console.error('Link preview response was not JSON:', response.status, rawText.slice(0, 500));
+  }
   if (!response.ok) {
-    throw new Error(payload.error || 'Link parser failed.');
+    const fallback = payload.error
+      || (response.status === 504
+        ? 'The link preview took too long to load and timed out.'
+        : `Link parser failed (status ${response.status}).`);
+    throw new Error(fallback);
   }
   return payload;
 }
