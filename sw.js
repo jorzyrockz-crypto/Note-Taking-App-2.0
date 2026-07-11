@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlasnest-v3';
+const CACHE_NAME = 'atlasnest-v4';
 const APP_ASSETS = [
   './',
   './index.html',
@@ -85,9 +85,16 @@ async function handleShareTarget(event) {
       const cache = await caches.open(SHARE_CACHE);
       await cache.put(
         'shared-file',
-        new Response(file, { headers: { 'Content-Type': file.type || 'application/octet-stream' } })
+        new Response(file, {
+          headers: {
+            'Content-Type': file.type || 'application/octet-stream',
+            'X-AtlasNest-File-Name': encodeURIComponent(file.name || 'shared-file')
+          }
+        })
       );
       params.set('sharedFile', '1');
+      params.set('sharedFileType', file.type || 'application/octet-stream');
+      params.set('sharedFileName', file.name || 'shared-file');
     }
 
     return Response.redirect('./?' + params.toString(), 303);

@@ -2906,6 +2906,41 @@ function getSafeFileName(name = 'attachment') {
   return `${name}`.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'attachment';
 }
 
+function escapeHtml(value = '') {
+  return `${value}`
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function getAttachmentKind(file = {}) {
+  const type = (file.type || '').toLowerCase();
+  if (type.startsWith('image/')) return 'image';
+  if (type.startsWith('video/')) return 'video';
+  if (type.startsWith('audio/')) return 'audio';
+  return 'file';
+}
+
+function getAttachmentLabel(file = {}) {
+  const labels = { image: 'IMG', video: 'VID', audio: 'AUD', file: 'FILE' };
+  return labels[getAttachmentKind(file)] || 'FILE';
+}
+
+function getMediaKindFromUrl(url = '') {
+  const cleanUrl = `${url}`.split(/[?#]/)[0].toLowerCase();
+  if (/\.(mp4|webm|ogg|ogv|mov|m4v)$/.test(cleanUrl)) return 'video';
+  if (/\.(mp3|wav|m4a|aac|flac|oga|opus)$/.test(cleanUrl)) return 'audio';
+  return null;
+}
+
+async function dataUrlToFile(dataUrl, filename, type = '') {
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  return new File([blob], getSafeFileName(filename), { type: type || blob.type || 'application/octet-stream' });
+}
+
 function getDataUrlExtension(dataUrl = '', fallback = 'bin') {
   const match = dataUrl.match(/^data:([^;,]+)/);
   if (!match) return fallback;
@@ -2946,10 +2981,38 @@ async function shareNote(note) {
   const text = buildNoteShareText(note);
   if (navigator.share) {
     try {
-      await navigator.share({ title, text });
+      const shareFiles = [];
+      const attachments = normalizeNoteFiles(note.files);
+      for (const file of attachments.slice(0, 6)) {
+        try {
+          shareFiles.push(await dataUrlToFile(file.dataUrl, file.name, file.type));
+        } catch (error) {
+          console.warn('Could not prepare attachment for sharing:', file.name, error);
+        }
+      }
+      if (note.image) {
+        shareFiles.unshift(await dataUrlToFile(
+          note.image,
+          `${getSafeFileName(note.title || 'note-image')}.${getDataUrlExtension(note.image, 'jpg')}`,
+          'image/*'
+        ));
+      }
+      if (note.audio) {
+        shareFiles.push(await dataUrlToFile(
+          note.audio,
+          `${getSafeFileName(note.title || 'voice-note')}.${getDataUrlExtension(note.audio, 'webm')}`,
+          'audio/webm'
+        ));
+      }
+      const payload = { title, text };
+      if (shareFiles.length && navigator.canShare?.({ files: shareFiles })) {
+        payload.files = shareFiles;
+      }
+      await navigator.share(payload);
       return true;
     } catch (error) {
       if (error?.name === 'AbortError') return false;
+      console.warn('Native sharing failed, falling back to text copy:', error);
     }
   }
   await navigator.clipboard?.writeText(text);
@@ -2987,25 +3050,38 @@ function openImageViewer(src, title = 'Note image') {
 function openShareSheet(note) {
   document.querySelector('.share-sheet-overlay')?.remove();
   const files = normalizeNoteFiles(note.files);
+  const mediaSummary = [
+    files.length ? `${files.length} attachment${files.length === 1 ? '' : 's'}` : '',
+    note.image ? 'image' : '',
+    note.audio ? 'voice' : ''
+  ].filter(Boolean).join(' • ');
   const overlay = document.createElement('div');
   overlay.className = 'share-sheet-overlay visible';
   overlay.innerHTML = `
     <div class="share-sheet-card" role="dialog" aria-modal="true" aria-label="Share note">
-      <div class="share-sheet-handle"></div>
       <div class="share-sheet-header">
         <div>
-          <div class="share-sheet-kicker">Share</div>
           <h3>${cleanTitleTags(note.title || 'Untitled note')}</h3>
         </div>
         <button type="button" class="icon-btn share-sheet-close" aria-label="Close share sheet">✕</button>
       </div>
       <p>${files.length} attachment${files.length === 1 ? '' : 's'} • ${note.audio ? 'voice clip included' : 'text note'}</p>
       <div class="share-sheet-actions">
-        <button type="button" data-share-action="native">Share to apps</button>
-        <button type="button" data-share-action="copy">Copy text</button>
-        ${note.image ? '<button type="button" data-share-action="image">Download image</button>' : ''}
-        ${note.audio ? '<button type="button" data-share-action="audio">Download voice</button>' : ''}
+        <button type="button" data-share-action="native">Share</button>
+        <button type="button" data-share-action="copy">Copy</button>
+        ${note.image ? '<button type="button" data-share-action="image">Image</button>' : ''}
+        ${note.audio ? '<button type="button" data-share-action="audio">Voice</button>' : ''}
       </div>
+      ${files.length ? `
+        <div class="share-sheet-files">
+          ${files.map(file => `
+            <button type="button" data-share-file="${escapeHtml(file.id)}">
+              <span>${escapeHtml(file.name)}</span>
+              <small>${getAttachmentLabel(file)} - ${formatFileSize(file.size)}</small>
+            </button>
+          `).join('')}
+        </div>
+      ` : ''}
     </div>
   `;
   overlay.addEventListener('click', (e) => {
@@ -3022,17 +3098,23 @@ function openShareSheet(note) {
   overlay.querySelector('[data-share-action="audio"]')?.addEventListener('click', () => {
     downloadDataUrl(note.audio, `${getSafeFileName(note.title || 'voice-note')}.${getDataUrlExtension(note.audio, 'webm')}`);
   });
+  overlay.querySelectorAll('[data-share-file]').forEach(button => {
+    button.addEventListener('click', () => {
+      const file = files.find(entry => entry.id === button.dataset.shareFile);
+      if (file) downloadDataUrl(file.dataUrl, file.name);
+    });
+  });
   document.body.appendChild(overlay);
 }
 
 async function handleSelectedFiles(target, fileList) {
   const files = Array.from(fileList || []);
   if (!files.length) return;
-  const maxBytes = 2.5 * 1024 * 1024;
+  const maxBytes = 12 * 1024 * 1024;
   const prepared = [];
   for (const file of files.slice(0, 5)) {
     if (file.size > maxBytes) {
-      showToast({ title: 'File skipped', text: `${file.name} is larger than 2.5 MB.` });
+      showToast({ title: 'File skipped', text: `${file.name} is larger than 12 MB.` });
       continue;
     }
     try {
@@ -3070,17 +3152,36 @@ function renderNoteFileAttachments(container, note, options = {}) {
   const wrap = document.createElement('div');
   wrap.className = `file-attachment-list ${options.compact ? 'compact' : ''}`;
   files.forEach(file => {
+    const kind = getAttachmentKind(file);
     const chip = document.createElement('div');
-    chip.className = 'file-attachment-chip';
+    chip.className = `file-attachment-chip type-${kind}${kind === 'video' || kind === 'audio' ? ' has-media' : ''}`;
     chip.innerHTML = `
-      <span class="file-attachment-icon" aria-hidden="true">${file.type?.startsWith('image/') ? 'IMG' : 'FILE'}</span>
+      <span class="file-attachment-icon" aria-hidden="true">${getAttachmentLabel(file)}</span>
       <span class="file-attachment-copy">
-        <strong>${file.name}</strong>
+        <strong>${escapeHtml(file.name)}</strong>
         <small>${formatFileSize(file.size)}</small>
       </span>
       <button type="button" class="media-action-btn" data-file-download="${file.id}">Download</button>
       ${options.editable ? `<button type="button" class="media-action-btn danger" data-file-remove="${file.id}">Remove</button>` : ''}
     `;
+    if (kind === 'video') {
+      const player = document.createElement('video');
+      player.className = 'file-media-preview video-preview';
+      player.src = file.dataUrl;
+      player.controls = true;
+      player.preload = 'metadata';
+      player.playsInline = true;
+      player.addEventListener('click', (e) => e.stopPropagation());
+      chip.insertBefore(player, chip.querySelector('[data-file-download]'));
+    } else if (kind === 'audio') {
+      const player = document.createElement('audio');
+      player.className = 'file-media-preview audio-preview';
+      player.src = file.dataUrl;
+      player.controls = true;
+      player.preload = 'metadata';
+      player.addEventListener('click', (e) => e.stopPropagation());
+      chip.insertBefore(player, chip.querySelector('[data-file-download]'));
+    }
     chip.querySelector('[data-file-download]')?.addEventListener('click', (e) => {
       e.stopPropagation();
       downloadDataUrl(file.dataUrl, file.name);
@@ -3098,7 +3199,7 @@ function renderNoteFileAttachments(container, note, options = {}) {
       renderModalFileAttachments(note);
       renderNotes();
     });
-    if (file.type?.startsWith('image/')) {
+    if (kind === 'image') {
       chip.querySelector('.file-attachment-copy')?.addEventListener('click', (e) => {
         e.stopPropagation();
         openImageViewer(file.dataUrl, file.name);
@@ -3609,15 +3710,38 @@ function getTaskPreviewSchedule(note, dateKey = '') {
   return primaryReminder ? formatReminderDate(primaryReminder) : '';
 }
 
-function createReminderPreviewCard(note) {
+function getAgendaPreviewLines(note, dateKey = '') {
+  const inlineEntries = getTaskInlineReminderEntries(note)
+    .filter(entry => !dateKey || entry.dateKey === dateKey)
+    .map(entry => ({
+      label: entry.label,
+      reminder: entry.reminder,
+      completed: entry.completed
+    }));
+
+  if (inlineEntries.length) return inlineEntries;
+
+  const lines = `${note?.text || ''}`
+    .split('\n')
+    .map(line => stripChecklistInlineReminder(line.replace(/^- \[(?: |x)\]\s*/, '')).trim())
+    .filter(Boolean)
+    .slice(0, 3)
+    .map(label => ({ label: cleanTextTags(label), reminder: '' }));
+
+  if (lines.length) return lines;
+  return [{ label: cleanTextTags(note?.text || '').trim() || 'No preview yet.', reminder: '' }];
+}
+
+function createReminderPreviewCard(note, options = {}) {
+  const { dateKey = selectedCalendarDate } = options;
   const noteKind = getVisualNoteType(note);
   const card = document.createElement('button');
   card.type = 'button';
   card.className = 'productivity-reminder-card';
   card.setAttribute('data-note-kind', noteKind);
 
-  const previewText = cleanTextTags((note.text || '').replace(/^- \[(?: |x)\]\s*/gim, '')).replace(/\s+/g, ' ').trim();
-  const reminderLabel = note.reminder ? formatReminderDate(note.reminder) : formatCardTimestamp(note.updatedAt);
+  const agendaLines = getAgendaPreviewLines(note, dateKey);
+  const reminderLabel = note.reminder ? formatReminderDate(note.reminder) : (agendaLines[0]?.reminder ? formatReminderDate(agendaLines[0].reminder) : formatCardTimestamp(note.updatedAt));
 
   card.innerHTML = `
     <div class="productivity-reminder-top">
@@ -3625,7 +3749,14 @@ function createReminderPreviewCard(note) {
       <span class="note-kind-pill type-${noteKind}">${getVisualTypeLabel(noteKind)}</span>
     </div>
     <h4>${cleanTitleTags(note.title || 'Untitled note')}</h4>
-    ${previewText ? `<p>${previewText.slice(0, 120)}</p>` : '<p class="muted">No preview yet.</p>'}
+    <div class="productivity-agenda-lines">
+      ${agendaLines.map(line => `
+        <div class="productivity-agenda-line ${line.completed ? 'is-complete' : ''}">
+          <span>${escapeHtml(line.label)}</span>
+          ${line.reminder ? `<small>${formatReminderDate(line.reminder)}</small>` : ''}
+        </div>
+      `).join('')}
+    </div>
     <div class="productivity-reminder-meta">${reminderLabel}</div>
   `;
 
@@ -3781,6 +3912,14 @@ function renderProductivityPage() {
   const agendaNotes = dayCollections.agenda.filter(queryMatches);
   const todoNotes = dayCollections.todo.filter(queryMatches);
   const createdNotes = dayCollections.created.filter(queryMatches);
+  const agendaDisplayNotes = [...agendaNotes];
+  const agendaDisplayIds = new Set(agendaNotes.map(note => note.id));
+  todoNotes
+    .filter(note => !agendaDisplayIds.has(note.id) && getTaskInlineReminderDateKeys(note).includes(selectedCalendarDate))
+    .forEach(note => {
+      agendaDisplayIds.add(note.id);
+      agendaDisplayNotes.push(note);
+    });
 
   if (agendaLabel) agendaLabel.textContent = formatCalendarDayLabel(selectedCalendarDate);
   if (agendaMeta) {
@@ -3794,14 +3933,26 @@ function renderProductivityPage() {
       ? 'Only notes with reminders are shown here.'
       : 'No reminder notes are linked to this day.';
   }
+  if (agendaMeta) {
+    agendaMeta.textContent = `${agendaDisplayNotes.length} reminder${agendaDisplayNotes.length === 1 ? '' : 's'} • ${createdNotes.length} note${createdNotes.length === 1 ? '' : 's'} made`;
+  }
+  if (agendaCount) {
+    agendaCount.textContent = `${agendaDisplayNotes.length} reminder${agendaDisplayNotes.length === 1 ? '' : 's'}`;
+  }
+  if (agendaCaption) {
+    agendaCaption.textContent = agendaDisplayNotes.length > 0
+      ? 'Only notes with reminders are shown here.'
+      : 'No reminder notes are linked to this day.';
+  }
   if (dayStream) {
     dayStream.innerHTML = '';
-    agendaNotes.forEach(note => {
-      dayStream.appendChild(createReminderPreviewCard(note));
+    agendaDisplayNotes.forEach(note => {
+      dayStream.appendChild(createReminderPreviewCard(note, { dateKey: selectedCalendarDate }));
     });
   }
   if (dayEmpty) {
-    dayEmpty.style.display = agendaNotes.length === 0 ? 'block' : 'none';
+    const visibleAgendaCount = dayStream ? dayStream.children.length : agendaDisplayNotes.length;
+    dayEmpty.style.display = visibleAgendaCount === 0 ? 'block' : 'none';
   }
   if (notePillsContainer) {
     notePillsContainer.innerHTML = '';
@@ -4088,16 +4239,36 @@ function renderGrid(gridContainer, notesArray) {
     if (firstUrl) {
       const domain = extractDomain(firstUrl);
       const cleanDomain = domain.replace(/^www\./, '');
-      
-      const previewBox = document.createElement('a');
-      previewBox.href = firstUrl;
-      previewBox.target = '_blank';
-      previewBox.rel = 'noopener noreferrer';
-      previewBox.className = 'link-preview-box';
-      previewBox.addEventListener('click', (e) => e.stopPropagation());
-      
+      const mediaKind = getMediaKindFromUrl(firstUrl);
       const mockMeta = getLinkMetadata(firstUrl, note);
-      if (mockMeta) {
+
+      if (mediaKind) {
+        const mediaBox = document.createElement('div');
+        mediaBox.className = `link-preview-box media-link-preview type-${mediaKind}`;
+        mediaBox.addEventListener('click', (e) => e.stopPropagation());
+        const media = document.createElement(mediaKind);
+        media.className = 'link-media-player';
+        media.src = firstUrl;
+        media.controls = true;
+        media.preload = 'metadata';
+        if (mediaKind === 'video') media.playsInline = true;
+        mediaBox.innerHTML = `
+          <div class="link-preview-info">
+            <div class="link-preview-title">${mediaKind === 'video' ? 'Video link' : 'Audio link'}</div>
+            <a class="link-preview-url" href="${escapeHtml(firstUrl)}" target="_blank" rel="noopener noreferrer">Open source</a>
+          </div>
+        `;
+        mediaBox.prepend(media);
+        previewBody.appendChild(mediaBox);
+      } else {
+        const previewBox = document.createElement('a');
+        previewBox.href = firstUrl;
+        previewBox.target = '_blank';
+        previewBox.rel = 'noopener noreferrer';
+        previewBox.className = 'link-preview-box';
+        previewBox.addEventListener('click', (e) => e.stopPropagation());
+
+        if (mockMeta) {
         previewBox.className = 'link-preview-box rich';
         const cover = document.createElement('img');
         cover.className = 'link-preview-cover';
@@ -4111,27 +4282,28 @@ function renderGrid(gridContainer, notesArray) {
         const richContent = document.createElement('div');
         richContent.className = 'link-preview-rich-content';
         richContent.innerHTML = `
-          <div class="link-preview-domain">${cleanDomain}</div>
-          <div class="link-preview-rich-title">${mockMeta.title}</div>
-          <div class="link-preview-rich-desc">${mockMeta.description}</div>
+          <div class="link-preview-domain">${escapeHtml(cleanDomain)}</div>
+          <div class="link-preview-rich-title">${escapeHtml(mockMeta.title)}</div>
+          <div class="link-preview-rich-desc">${escapeHtml(mockMeta.description)}</div>
           <div class="link-preview-badge">
             <svg viewBox="0 0 24 24" style="width: 10px; height: 10px; margin-right: 2px;"><path fill="currentColor" d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
-            ${mockMeta.badge}
+            ${escapeHtml(mockMeta.badge)}
           </div>
         `;
         previewBox.appendChild(cover);
         previewBox.appendChild(richContent);
-      } else {
+        } else {
         previewBox.className = 'link-preview-box';
         previewBox.innerHTML = `
           <svg class="link-preview-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
           <div class="link-preview-info">
-            <div class="link-preview-title">${domain || 'Visit Link'}</div>
-            <div class="link-preview-url">${firstUrl}</div>
+            <div class="link-preview-title">${escapeHtml(domain || 'Visit Link')}</div>
+            <div class="link-preview-url">${escapeHtml(firstUrl)}</div>
           </div>
         `;
+        }
+        previewBody.appendChild(previewBox);
       }
-      previewBody.appendChild(previewBox);
     }
 
     // 6. Overflow Actions Menu
@@ -5004,9 +5176,24 @@ async function handleSharedLaunchData() {
       if (response) {
         const blob = await response.blob();
         const dataUrl = await blobToDataUrl(blob);
-        if (!creatorImage) {
+        const sharedType = response.headers.get('Content-Type') || params.get('sharedFileType') || blob.type || 'application/octet-stream';
+        const sharedName = decodeURIComponent(response.headers.get('X-AtlasNest-File-Name') || params.get('sharedFileName') || 'shared-file');
+        if (sharedType.startsWith('image/') && !creatorImage) {
           creatorImage = dataUrl;
           creatorImageBanner.style.display = 'block';
+        } else {
+          creatorFiles = [
+            ...normalizeNoteFiles(creatorFiles),
+            {
+              id: `file-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+              name: sharedName,
+              type: sharedType,
+              size: blob.size,
+              dataUrl,
+              addedAt: Date.now()
+            }
+          ];
+          renderCreatorFileAttachments();
         }
         await cache.delete('shared-file');
       }

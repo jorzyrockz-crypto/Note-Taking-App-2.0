@@ -19,7 +19,7 @@
       "files": [
         {
           "name": "sharedFile",
-          "accept": ["image/*"]
+          "accept": ["image/*", "video/*", "audio/*", "application/pdf", "text/*"]
         }
       ]
     }

@@ -1533,43 +1533,27 @@ body.dark-theme .note-card-menu-action:hover {
 
 @media screen and (min-width: 601px) {
   .note-card[data-has-image="true"] .note-surface {
-    display: grid;
-    grid-template-columns: minmax(0, 3fr) minmax(132px, 1fr);
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    display: flex;
+    flex-direction: column;
     gap: 12px;
-    align-items: stretch;
   }
 
   .note-card[data-has-image="true"] .card-image-banner {
-    grid-column: 1;
-    grid-row: 1 / 4;
     width: 100%;
-    height: 100%;
+    height: clamp(190px, 72%, 260px);
     min-height: 190px;
     margin: 0;
     border-radius: 16px;
     border: 1px solid rgba(148, 163, 184, 0.16);
   }
 
-  .note-card[data-has-image="true"] .note-title,
-  .note-card[data-has-image="true"] .note-card-preview-body,
-  .note-card[data-has-image="true"] .note-stamp {
-    grid-column: 2;
-  }
-
   .note-card[data-has-image="true"] .note-title {
-    align-self: start;
-    grid-row: 1;
-    margin-right: 0;
+    min-height: 0;
+    margin-right: 44px;
   }
 
   .note-card[data-has-image="true"] .note-card-preview-body {
-    grid-row: 2;
-    max-height: 132px;
-  }
-
-  .note-card[data-has-image="true"] .note-stamp {
-    grid-row: 3;
+    max-height: 96px;
   }
 }
 
@@ -2287,7 +2271,7 @@ body.dark-theme .brush-slider::-webkit-slider-runnable-track {
   }
 }
 
-/* Compact split-screen tablets should use the mobile drawer, not the rail. */
+/* Compact split-screen tablets should not let the rail consume card space. */
 @media screen and (max-width: 820px), screen and (max-width: 900px) and (max-aspect-ratio: 1/1) {
   .app-sidebar {
     display: none;
@@ -3228,6 +3212,14 @@ body.dark-theme .checklist-editor-row.is-drag-preview {
   grid-template-columns: 40px minmax(0, 1fr) auto auto;
 }
 
+.file-attachment-chip.has-media {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+}
+
+.file-attachment-list:not(.compact) .file-attachment-chip.has-media {
+  grid-template-columns: 40px minmax(0, 1fr) auto auto;
+}
+
 .file-attachment-icon {
   display: grid;
   place-items: center;
@@ -3261,6 +3253,44 @@ body.dark-theme .checklist-editor-row.is-drag-preview {
   color: var(--text-secondary);
   font-size: 10px;
   margin-top: 2px;
+}
+
+.file-media-preview {
+  grid-column: 1 / -1;
+  width: 100%;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.file-media-preview.video-preview {
+  max-height: 280px;
+  object-fit: contain;
+}
+
+.file-media-preview.audio-preview {
+  min-height: 40px;
+}
+
+.file-attachment-list.compact .file-media-preview.video-preview {
+  max-height: 180px;
+}
+
+.media-link-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: default;
+}
+
+.link-media-player {
+  width: 100%;
+  max-height: 260px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.08);
+}
+
+audio.link-media-player {
+  min-height: 40px;
 }
 
 .image-viewer-overlay,
@@ -3315,28 +3345,28 @@ body.dark-theme .checklist-editor-row.is-drag-preview {
 }
 
 .share-sheet-overlay {
-  align-items: flex-end;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(6px);
 }
 
 .share-sheet-card {
-  width: min(520px, 100%);
-  border-radius: 28px 28px 18px 18px;
-  padding: 14px;
+  width: min(360px, calc(100vw - 32px));
+  border-radius: 24px;
+  padding: 12px;
+  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.16);
 }
 
 .share-sheet-handle {
-  width: 56px;
-  height: 5px;
-  margin: 0 auto 14px;
-  border-radius: 999px;
-  background: rgba(148, 163, 184, 0.45);
+  display: none;
 }
 
 .share-sheet-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: 10px;
 }
 
 .share-sheet-kicker {
@@ -3348,44 +3378,91 @@ body.dark-theme .checklist-editor-row.is-drag-preview {
 }
 
 .share-sheet-header h3 {
-  margin-top: 4px;
-  font-size: 22px;
-  line-height: 1.1;
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.25;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .share-sheet-card p {
-  color: var(--text-secondary);
-  font-size: 13px;
-  margin: 10px 0 14px;
+  display: none;
 }
 
 .share-sheet-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .share-sheet-actions button {
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 18px;
-  background: rgba(248, 250, 252, 0.92);
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.78);
   color: var(--text-primary);
   cursor: pointer;
+  font-size: 13px;
   font-weight: 800;
-  padding: 14px 12px;
+  padding: 10px 12px;
+}
+
+.share-sheet-files {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.share-sheet-files button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.72);
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.share-sheet-files span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 800;
+}
+
+.share-sheet-files small {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 body.dark-theme .media-action-btn,
 body.dark-theme .file-attachment-chip,
-body.dark-theme .share-sheet-actions button {
+body.dark-theme .share-sheet-actions button,
+body.dark-theme .share-sheet-files button {
   background: rgba(17, 24, 39, 0.72);
   border-color: rgba(99, 114, 132, 0.28);
 }
 
 body.dark-theme .image-viewer-topbar,
 body.dark-theme .share-sheet-card {
-  background: rgba(24, 29, 38, 0.94);
+  background: rgba(24, 29, 38, 0.88);
   border-color: rgba(148, 163, 184, 0.18);
+}
+
+body.dark-theme .share-sheet-overlay {
+  background: rgba(0, 0, 0, 0.28);
 }
 
 @keyframes waveBounce {
@@ -4062,6 +4139,11 @@ body.dark-theme .share-sheet-card {
 }
 
 @media screen and (min-width: 601px) and (max-width: 820px) {
+  .app-sidebar,
+  .app-sidebar.sidebar-open {
+    display: none !important;
+  }
+
   .main-content-area,
   body.sidebar-pinned .main-content-area {
     margin-left: 0;
@@ -4076,7 +4158,7 @@ body.dark-theme .share-sheet-card {
   }
 
   .notes-grid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
     gap: 18px;
   }
 
@@ -4175,7 +4257,7 @@ body.dark-theme .share-sheet-card {
 
   .note-card[data-has-image="true"] .card-image-banner {
     width: calc(100% + 28px);
-    height: 140px;
+    height: clamp(150px, 42vw, 210px);
     min-height: 0;
     margin: -14px -14px 4px;
     border-radius: 16px 16px 0 0;
@@ -4819,8 +4901,16 @@ body.dark-theme .note-card[data-note-kind="image"] {
   display: flex;
   align-items: stretch;
   justify-content: space-between;
-  gap: 18px;
+  gap: 16px;
   width: 100%;
+  padding: clamp(16px, 2.5vw, 24px);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at 8% 12%, rgba(251, 188, 4, 0.2), transparent 34%),
+    linear-gradient(135deg, rgba(255, 250, 235, 0.92), rgba(241, 246, 255, 0.9));
+  box-shadow: 0 20px 46px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(18px);
 }
 
 .productivity-hero-copy,
@@ -4834,9 +4924,12 @@ body.dark-theme .note-card[data-note-kind="image"] {
 
 .productivity-hero-copy {
   flex: 1.3;
-  border-radius: 28px;
-  padding: 24px 24px 22px;
-  background-image: linear-gradient(135deg, rgba(251, 188, 4, 0.14), rgba(79, 134, 255, 0.1));
+  border: 0;
+  border-radius: 24px;
+  padding: clamp(10px, 1.8vw, 18px);
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 .productivity-eyebrow,
@@ -4863,21 +4956,28 @@ body.dark-theme .note-card[data-note-kind="image"] {
 }
 
 .productivity-summary {
-  min-width: 280px;
-  border-radius: 28px;
-  padding: 18px;
+  min-width: min(460px, 48%);
+  border: 0;
+  border-radius: 26px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+  align-content: stretch;
 }
 
 .productivity-stat {
   border-radius: 20px;
-  padding: 16px 14px;
-  background: rgba(248, 250, 252, 0.9);
+  padding: clamp(14px, 2vw, 20px) 14px;
+  background: rgba(255, 255, 255, 0.66);
+  border: 1px solid rgba(148, 163, 184, 0.12);
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-height: 116px;
 }
 
 .productivity-stat strong {
@@ -4892,7 +4992,8 @@ body.dark-theme .note-card[data-note-kind="image"] {
 }
 
 .productivity-stat.accent {
-  background: rgba(251, 188, 4, 0.16);
+  background: rgba(251, 188, 4, 0.2);
+  border-color: rgba(251, 188, 4, 0.16);
 }
 
 .productivity-layout {
@@ -5171,6 +5272,47 @@ body.dark-theme .note-card[data-note-kind="image"] {
 
 .productivity-reminder-card p.muted {
   opacity: 0.72;
+}
+
+.productivity-agenda-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.productivity-agenda-line {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.42);
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.35;
+  padding: 9px 10px;
+}
+
+.productivity-agenda-line span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.productivity-agenda-line small {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgba(79, 134, 255, 0.12);
+  color: #4169d8;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.productivity-agenda-line.is-complete {
+  opacity: 0.58;
+  text-decoration: line-through;
 }
 
 .productivity-reminder-meta {
@@ -5474,16 +5616,25 @@ body.dark-theme .note-card[data-note-kind="image"] {
   display: none;
 }
 
-body.dark-theme .productivity-hero-copy,
-body.dark-theme .productivity-summary,
+body.dark-theme .productivity-hero {
+  background:
+    radial-gradient(circle at 8% 12%, rgba(251, 188, 4, 0.16), transparent 34%),
+    linear-gradient(135deg, rgba(32, 38, 50, 0.94), rgba(20, 27, 42, 0.92));
+  border-color: rgba(99, 114, 132, 0.26);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.28);
+}
+
 body.dark-theme .productivity-panel {
   background: rgba(27, 33, 45, 0.86);
   border-color: rgba(99, 114, 132, 0.26);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.26);
 }
 
-body.dark-theme .productivity-hero-copy {
-  background-image: linear-gradient(135deg, rgba(251, 188, 4, 0.12), rgba(79, 134, 255, 0.14));
+body.dark-theme .productivity-hero-copy,
+body.dark-theme .productivity-summary {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 body.dark-theme .productivity-stat,
@@ -5491,10 +5642,16 @@ body.dark-theme .productivity-nav-btn,
 body.dark-theme .calendar-day,
 body.dark-theme .productivity-todo-item,
 body.dark-theme .productivity-note-card,
+body.dark-theme .productivity-agenda-line,
 body.dark-theme .productivity-empty,
 body.dark-theme .productivity-created-pill {
   background: rgba(17, 24, 39, 0.72);
   border-color: rgba(99, 114, 132, 0.26);
+}
+
+body.dark-theme .productivity-agenda-line small {
+  background: rgba(79, 134, 255, 0.18);
+  color: #9cc0ff;
 }
 
 body.dark-theme .calendar-day.is-selected .calendar-day-number-wrap {
@@ -5566,10 +5723,18 @@ body.dark-theme .productivity-note-card[data-note-kind="image"] {
 @media (max-width: 600px) {
   .productivity-hero {
     flex-direction: column;
+    border-radius: 28px;
   }
 
   .productivity-summary {
-    grid-template-columns: 1fr;
+    min-width: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .productivity-stat {
+    min-height: 86px;
+    padding: 12px 10px;
   }
 
   .productivity-layout {
@@ -5642,4 +5807,101 @@ body.dark-theme .productivity-note-card[data-note-kind="image"] {
   .productivity-hero {
     flex-direction: column;
   }
+}
+/* Page navigation: soft icon menu tiles inspired by the image source popover. */
+.app-sidebar {
+  --page-nav-tile-bg: rgba(255, 255, 255, 0.72);
+  --page-nav-tile-border: rgba(148, 163, 184, 0.16);
+  --page-nav-tile-shadow: 0 14px 34px rgba(15, 23, 42, 0.1);
+  --page-nav-active-bg: linear-gradient(135deg, rgba(251, 188, 4, 0.26), rgba(255, 255, 255, 0.86));
+  --page-nav-active-border: rgba(251, 188, 4, 0.34);
+}
+
+.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted) {
+  position: relative;
+  isolation: isolate;
+  z-index: 0;
+  min-height: 48px;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  margin: 4px 10px;
+  padding: 8px 10px;
+  background: transparent;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted)::before {
+  content: "";
+  position: absolute;
+  inset: 5px auto 5px 8px;
+  width: 38px;
+  border-radius: 14px;
+  background: var(--page-nav-tile-bg);
+  border: 1px solid var(--page-nav-tile-border);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  z-index: -1;
+  transition: inherit;
+}
+
+.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted):hover,
+.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted):focus-visible {
+  background: rgba(255, 255, 255, 0.42);
+  border-color: rgba(148, 163, 184, 0.16);
+  box-shadow: var(--page-nav-tile-shadow);
+  transform: translateX(2px);
+  outline: none;
+}
+
+.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted):hover::before,
+.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted):focus-visible::before {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(79, 134, 255, 0.22);
+}
+
+.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted).active,
+.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted).is-active,
+.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted)[aria-current="page"] {
+  background: var(--page-nav-active-bg);
+  border-color: var(--page-nav-active-border);
+  box-shadow: 0 16px 38px rgba(251, 188, 4, 0.16);
+}
+
+.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted).active::before,
+.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted).is-active::before,
+.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted)[aria-current="page"]::before {
+  background: #fff7d6;
+  border-color: rgba(251, 188, 4, 0.48);
+  box-shadow: 0 12px 26px rgba(251, 188, 4, 0.18);
+}
+
+body.dark-theme .app-sidebar {
+  --page-nav-tile-bg: rgba(30, 35, 46, 0.82);
+  --page-nav-tile-border: rgba(148, 163, 184, 0.16);
+  --page-nav-tile-shadow: 0 18px 42px rgba(0, 0, 0, 0.36);
+  --page-nav-active-bg: linear-gradient(135deg, rgba(251, 188, 4, 0.22), rgba(30, 35, 46, 0.92));
+  --page-nav-active-border: rgba(251, 188, 4, 0.28);
+}
+
+body.dark-theme .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted):hover,
+body.dark-theme .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted):focus-visible {
+  background: rgba(30, 35, 46, 0.56);
+  border-color: rgba(148, 163, 184, 0.14);
+}
+
+body.dark-theme .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted):hover::before,
+body.dark-theme .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted):focus-visible::before {
+  background: rgba(45, 52, 66, 0.95);
+  border-color: rgba(251, 188, 4, 0.2);
+}
+
+body.dark-theme .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted).active::before,
+body.dark-theme .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted).is-active::before,
+body.dark-theme .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted)[aria-current="page"]::before {
+  background: rgba(251, 188, 4, 0.18);
+  border-color: rgba(251, 188, 4, 0.34);
+  box-shadow: 0 14px 30px rgba(251, 188, 4, 0.1);
 }
