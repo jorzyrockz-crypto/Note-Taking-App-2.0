@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlasnest-v1';
+const CACHE_NAME = 'atlasnest-v2';
 const APP_ASSETS = [
   './',
   './index.html',

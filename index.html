@@ -126,7 +126,7 @@
                 <button class="icon-btn creator-palette-trigger" aria-label="Change color">
                   <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01l-.23-.25a.3.3 0 0 1-.03-.17c0-.09.06-.15.15-.15H15a6 6 0 0 0 6-6c0-4.97-4.03-9-9-9zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm4.5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>
                 </button>
-                <div class="color-picker-bubble" id="creator-color-picker">
+                <div class="color-picker-bubble v1-retired" id="creator-color-picker">
                   <!-- Generated Dynamically -->
                 </div>
               </div>
@@ -160,6 +160,11 @@
               <!-- Voice Note Button -->
               <button class="icon-btn" id="creator-voice-btn" aria-label="Add voice note" title="Record Voice">
                 <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+              </button>
+
+              <!-- Link Parser Button -->
+              <button class="icon-btn" id="creator-link-parser-btn" aria-label="Parse link" title="Parse Link">
+                <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
               </button>
 
               <!-- Recipe Importer Button -->
@@ -236,7 +241,7 @@
             <button class="icon-btn" id="modal-palette-btn" aria-label="Change note color">
               <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01l-.23-.25a.3.3 0 0 1-.03-.17c0-.09.06-.15.15-.15H15a6 6 0 0 0 6-6c0-4.97-4.03-9-9-9zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm4.5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>
             </button>
-            <div class="color-picker-bubble" id="modal-color-picker">
+            <div class="color-picker-bubble v1-retired" id="modal-color-picker">
               <!-- Generated Dynamically -->
             </div>
           </div>
@@ -315,6 +320,23 @@
           <input type="range" id="sketch-brush-size" min="2" max="25" value="6" class="brush-slider" aria-label="Brush size">
         </div>
       </div>
+    </div>
+  </div>
+
+  <div class="theme-picker-v2-overlay" id="theme-picker-v2">
+    <div class="theme-picker-v2-sheet">
+      <div class="theme-picker-v2-handle"></div>
+      <div class="theme-picker-v2-header">
+        <div>
+          <div class="theme-picker-v2-eyebrow">NOTE THEMES</div>
+          <h3 class="theme-picker-v2-title">Theme Picker</h3>
+        </div>
+        <button class="icon-btn" id="theme-picker-v2-close" aria-label="Close theme picker">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      <div class="theme-picker-v2-grid" id="theme-picker-v2-grid"></div>
+      <div class="theme-picker-v2-controls" id="theme-picker-v2-controls"></div>
     </div>
   </div>
 

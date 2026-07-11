@@ -6,6 +6,7 @@ import {
   isChecklistFormat,
   normalizeNoteType,
   plainToChecklist,
+  stripChecklistInlineReminder,
   renderNoteContent,
   renderTextWithLinks,
   syncNoteTypeEditor
@@ -46,18 +47,25 @@ let customFolders = [];
 let currentEditingNoteId = null;
 let creatorColor = 'default';
 let creatorTheme = null; // Pattern theme preset
+let creatorCustomTheme = null;
+let activeThemePickerContext = null;
 let creatorReminder = null; // Target ISO datetime string
 let creatorAudio = null;
 let creatorAudioDuration = null;
 let creatorPinned = false;
 let creatorImage = null; // Stores Base64 drawing/image upload
 let creatorFolder = '';
+let creatorFolders = [];
 let creatorAutoFolder = '';
+let creatorIntentType = null;
 let recipeImportDraft = null;
 let recipeEditingNoteId = null;
 let recipeImportWarnings = [];
 let recipeImportMethod = null;
 let recipeImportPending = false;
+let creatorLinkPreviewUrl = null;
+let creatorLinkPreviewTimer = null;
+let creatorLinkPreviewAbort = null;
 let selectedTagFilter = null; // Sidebar selected filter tag
 let selectedFolderFilter = null;
 let selectedTypeFilter = 'all';
@@ -67,14 +75,443 @@ let selectedProductivityDayView = 'agenda';
 let calendarCursorDate = new Date();
 let selectedCalendarDate = getLocalDateKey(new Date());
 let hasShownStorageWarning = false;
+const CUSTOM_THEME_ID = 'custom';
+const ENABLE_CUSTOM_THEME_UPLOAD = false;
+const DEFAULT_EMOJI_THEME_CONTROLS = Object.freeze({
+  opacity: 8,
+  size: 14,
+  spacing: 96
+});
+const emojiPatternCache = new Map();
+let globalEmojiThemeControls = { ...DEFAULT_EMOJI_THEME_CONTROLS };
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function numericSetting(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function rgbToHex(r, g, b) {
+  return `#${[r, g, b].map(channel => clamp(Math.round(channel), 0, 255).toString(16).padStart(2, '0')).join('')}`;
+}
+
+function rgbaFromRgb(r, g, b, alpha) {
+  return `rgba(${clamp(Math.round(r), 0, 255)}, ${clamp(Math.round(g), 0, 255)}, ${clamp(Math.round(b), 0, 255)}, ${alpha})`;
+}
+
+function getRelativeLuminance(r, g, b) {
+  const [rs, gs, bs] = [r, g, b].map(channel => {
+    const normalized = clamp(channel, 0, 255) / 255;
+    return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  return (0.2126 * rs) + (0.7152 * gs) + (0.0722 * bs);
+}
+
+function escapeCssUrl(url = '') {
+  return url.replace(/["\\\n\r]/g, match => `\\${match}`);
+}
+
+function escapeSvgText(text = '') {
+  return `${text}`
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function getEmojiThemeControls() {
+  return {
+    opacity: clamp(numericSetting(globalEmojiThemeControls.opacity, DEFAULT_EMOJI_THEME_CONTROLS.opacity), 0, 28),
+    size: clamp(numericSetting(globalEmojiThemeControls.size, DEFAULT_EMOJI_THEME_CONTROLS.size), 10, 34),
+    spacing: clamp(numericSetting(globalEmojiThemeControls.spacing, DEFAULT_EMOJI_THEME_CONTROLS.spacing), 64, 160)
+  };
+}
+
+function clearCustomThemeStyles(element) {
+  if (!element) return;
+  element.style.removeProperty('--custom-theme-image');
+  element.style.removeProperty('--note-theme-accent');
+  element.style.removeProperty('--note-theme-soft');
+  element.style.removeProperty('--note-theme-text');
+  element.style.removeProperty('--note-theme-muted-text');
+  element.style.removeProperty('--note-theme-surface');
+  element.style.removeProperty('--note-theme-header-scrim');
+}
+
+function applyNoteAppearance(element, noteLike = {}) {
+  if (!element) return;
+
+  const color = noteLike.color || 'default';
+  const theme = color !== 'default' ? null : (noteLike.theme || null);
+  const customTheme = theme === 'custom' ? noteLike.customTheme : null;
+
+  element.setAttribute('data-color', color);
+  if (theme) {
+    element.setAttribute('data-theme', theme);
+  } else {
+    element.removeAttribute('data-theme');
+  }
+
+  if (theme && theme !== CUSTOM_THEME_ID) {
+    applyGeneratedEmojiThemeStyles(element, theme);
+    clearCustomThemeStyles(element);
+  } else if (customTheme?.image) {
+    clearGeneratedEmojiThemeStyles(element);
+    element.style.setProperty('--custom-theme-image', `url("${escapeCssUrl(customTheme.image)}")`);
+    element.style.setProperty('--note-theme-accent', customTheme.accent || '#64748b');
+    element.style.setProperty('--note-theme-soft', customTheme.soft || 'rgba(100, 116, 139, 0.18)');
+    element.style.setProperty('--note-theme-text', customTheme.textColor || '#0f172a');
+    element.style.setProperty('--note-theme-muted-text', customTheme.mutedText || 'rgba(15, 23, 42, 0.62)');
+    element.style.setProperty('--note-theme-surface', customTheme.surface || 'rgba(255, 255, 255, 0.88)');
+    element.style.setProperty('--note-theme-header-scrim', customTheme.headerScrim || 'rgba(255, 255, 255, 0.18)');
+  } else {
+    clearGeneratedEmojiThemeStyles(element);
+    clearCustomThemeStyles(element);
+  }
+}
+
+function normalizeNoteAppearance(noteLike = {}) {
+  const color = noteLike.color || 'default';
+  if (color !== 'default') {
+    return {
+      ...noteLike,
+      color,
+      theme: null,
+      customTheme: null
+    };
+  }
+
+  const theme = noteLike.theme || null;
+  return {
+    ...noteLike,
+    color,
+    theme,
+    customTheme: theme === CUSTOM_THEME_ID ? (noteLike.customTheme || null) : null
+  };
+}
+
+function applyAppearanceSelection(noteLike = {}, type, value) {
+  if (type === 'color') {
+    noteLike.color = value;
+    noteLike.theme = null;
+    noteLike.customTheme = null;
+  } else if (type === 'theme') {
+    noteLike.color = 'default';
+    noteLike.theme = value === 'none' ? null : value;
+    noteLike.customTheme = null;
+  } else if (type === 'custom-theme') {
+    noteLike.color = 'default';
+    noteLike.theme = CUSTOM_THEME_ID;
+    noteLike.customTheme = value;
+  }
+
+  return Object.assign(noteLike, normalizeNoteAppearance(noteLike));
+}
+
+function getThemeSelectionFromContext() {
+  if (!activeThemePickerContext) return null;
+  if (activeThemePickerContext.type === 'creator') {
+    return creatorTheme || null;
+  }
+  if (activeThemePickerContext.note) {
+    return activeThemePickerContext.note.theme || null;
+  }
+  return null;
+}
+
+function loadEmojiThemeControls() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.emojiThemeControls);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return;
+    globalEmojiThemeControls = {
+      opacity: clamp(numericSetting(parsed.opacity, DEFAULT_EMOJI_THEME_CONTROLS.opacity), 0, 28),
+      size: clamp(numericSetting(parsed.size, DEFAULT_EMOJI_THEME_CONTROLS.size), 10, 34),
+      spacing: clamp(numericSetting(parsed.spacing, DEFAULT_EMOJI_THEME_CONTROLS.spacing), 64, 160)
+    };
+  } catch (error) {
+    globalEmojiThemeControls = { ...DEFAULT_EMOJI_THEME_CONTROLS };
+  }
+}
+
+function saveEmojiThemeControls() {
+  try {
+    localStorage.setItem(STORAGE_KEYS.emojiThemeControls, JSON.stringify(getEmojiThemeControls()));
+  } catch (error) {
+    console.warn('Unable to save emoji theme controls:', error);
+  }
+}
+
+function syncThemePickerControlValues() {
+  if (!themePickerV2Controls) return;
+  const controls = getEmojiThemeControls();
+  themePickerV2Controls.querySelectorAll('[data-control-key]').forEach(input => {
+    const key = input.getAttribute('data-control-key');
+    if (!(key in controls)) return;
+    input.value = controls[key];
+  });
+  themePickerV2Controls.querySelectorAll('[data-control-value]').forEach(output => {
+    const key = output.getAttribute('data-control-value');
+    if (key === 'opacity') output.textContent = `${controls.opacity}%`;
+    if (key === 'size') output.textContent = `${controls.size}px`;
+    if (key === 'spacing') output.textContent = `${controls.spacing}px`;
+  });
+}
+
+function applyThemePreviewCardStyles(card, themeId) {
+  if (!card || !themeId) return;
+  const preview = card.querySelector('.theme-picker-v2-card-preview');
+  if (!preview) return;
+  preview.style.backgroundImage = buildEmojiThemePattern(themeId);
+  preview.style.backgroundSize = `${getEmojiThemeControls().spacing}px ${getEmojiThemeControls().spacing}px`;
+}
+
+function syncEmojiThemePresentation() {
+  document.querySelectorAll('.theme-picker-v2-card[data-theme]').forEach(card => {
+    applyThemePreviewCardStyles(card, card.getAttribute('data-theme'));
+  });
+  document.querySelectorAll('.note-card[data-id]').forEach(card => {
+    const note = notes.find(entry => entry.id === card.getAttribute('data-id'));
+    if (note) applyNoteAppearance(card, note);
+  });
+  applyCreatorAppearance();
+  if (currentEditingNoteId) {
+    const note = notes.find(entry => entry.id === currentEditingNoteId);
+    if (note) applyNoteAppearance(editModalCard, note);
+  }
+  syncThemePickerControlValues();
+}
+
+function renderThemePickerV2Controls() {
+  if (!themePickerV2Controls) return;
+  const controls = getEmojiThemeControls();
+  themePickerV2Controls.innerHTML = `
+    <div class="theme-picker-v2-controls-copy">
+      <div class="theme-picker-v2-controls-title">Global Emoji Controls</div>
+      <p>These settings affect the emoji pattern only. Theme background colors stay unchanged.</p>
+    </div>
+    <label class="theme-picker-v2-control">
+      <span class="theme-picker-v2-control-top">
+        <strong>Emoji opacity</strong>
+        <span data-control-value="opacity">${controls.opacity}%</span>
+      </span>
+      <input type="range" min="0" max="28" step="1" value="${controls.opacity}" data-control-key="opacity">
+    </label>
+    <label class="theme-picker-v2-control">
+      <span class="theme-picker-v2-control-top">
+        <strong>Emoji resizer</strong>
+        <span data-control-value="size">${controls.size}px</span>
+      </span>
+      <input type="range" min="10" max="34" step="1" value="${controls.size}" data-control-key="size">
+    </label>
+    <label class="theme-picker-v2-control">
+      <span class="theme-picker-v2-control-top">
+        <strong>Emoji placement</strong>
+        <span data-control-value="spacing">${controls.spacing}px</span>
+      </span>
+      <input type="range" min="64" max="160" step="4" value="${controls.spacing}" data-control-key="spacing">
+    </label>
+  `;
+  themePickerV2Controls.querySelectorAll('[data-control-key]').forEach(input => {
+    input.addEventListener('input', () => {
+      const key = input.getAttribute('data-control-key');
+      globalEmojiThemeControls = {
+        ...getEmojiThemeControls(),
+        [key]: Number(input.value)
+      };
+      syncEmojiThemePresentation();
+      saveEmojiThemeControls();
+    });
+  });
+}
+
+function closeThemePickerV2() {
+  activeThemePickerContext = null;
+  themePickerV2?.classList.remove('visible');
+}
+
+function applyThemeSelectionFromPicker(themeId) {
+  if (!activeThemePickerContext) return;
+
+  if (activeThemePickerContext.type === 'creator') {
+    const normalized = applyAppearanceSelection({
+      color: 'default',
+      theme: creatorTheme,
+      customTheme: null
+    }, 'theme', themeId);
+    creatorColor = normalized.color;
+    creatorTheme = normalized.theme;
+    creatorCustomTheme = null;
+    applyCreatorAppearance();
+  } else if (activeThemePickerContext.type === 'modal' && activeThemePickerContext.note) {
+    applyAppearanceSelection(activeThemePickerContext.note, 'theme', themeId);
+    applyNoteAppearance(editModalCard, activeThemePickerContext.note);
+    saveToLocalStorage();
+    renderNotes();
+  } else if (activeThemePickerContext.type === 'note' && activeThemePickerContext.note) {
+    applyAppearanceSelection(activeThemePickerContext.note, 'theme', themeId);
+    saveToLocalStorage();
+    renderNotes();
+  }
+
+  closeThemePickerV2();
+}
+
+function renderThemePickerV2() {
+  if (!themePickerV2Grid) return;
+  themePickerV2Grid.innerHTML = '';
+  const activeTheme = getThemeSelectionFromContext();
+
+  const noThemeCard = document.createElement('button');
+  noThemeCard.type = 'button';
+  noThemeCard.className = `theme-picker-v2-card theme-picker-v2-card-none ${!activeTheme ? 'selected' : ''}`;
+  noThemeCard.innerHTML = `
+    <span class="theme-picker-v2-card-preview">
+      <span class="theme-picker-v2-card-preview-inner">Aa</span>
+    </span>
+    <span class="theme-picker-v2-card-meta">
+      <strong>No theme</strong>
+      <span>Plain note surface</span>
+    </span>
+  `;
+  noThemeCard.addEventListener('click', () => applyThemeSelectionFromPicker('none'));
+  themePickerV2Grid.appendChild(noThemeCard);
+
+  THEME_PRESETS.forEach(theme => {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = `theme-picker-v2-card ${activeTheme === theme.id ? 'selected' : ''}`;
+    option.setAttribute('data-theme', theme.id);
+    option.innerHTML = `
+      <span class="theme-picker-v2-card-preview">
+        <span class="theme-picker-v2-card-preview-inner">${theme.emoji}</span>
+      </span>
+      <span class="theme-picker-v2-card-meta">
+        <strong>${theme.title}</strong>
+        <span>Emoji theme</span>
+      </span>
+    `;
+    applyThemePreviewCardStyles(option, theme.id);
+    option.addEventListener('click', () => applyThemeSelectionFromPicker(theme.id));
+    themePickerV2Grid.appendChild(option);
+  });
+  renderThemePickerV2Controls();
+  syncThemePickerControlValues();
+}
+
+function openThemePickerV2(context) {
+  closeAllNoteCardMenus();
+  activeThemePickerContext = context;
+  renderThemePickerV2();
+  themePickerV2?.classList.add('visible');
+}
+
+function applyCreatorAppearance() {
+  applyNoteAppearance(noteCreator, {
+    color: creatorColor,
+    theme: creatorTheme,
+    customTheme: creatorCustomTheme
+  });
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+    reader.onerror = () => reject(new Error('Unable to read the selected image.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function buildCustomThemeFromImage(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) {
+        reject(new Error('Canvas is unavailable for theme extraction.'));
+        return;
+      }
+
+      const sampleSize = 24;
+      canvas.width = sampleSize;
+      canvas.height = sampleSize;
+      context.drawImage(img, 0, 0, sampleSize, sampleSize);
+
+      const { data } = context.getImageData(0, 0, sampleSize, sampleSize);
+      let totalWeight = 0;
+      let totalR = 0;
+      let totalG = 0;
+      let totalB = 0;
+
+      for (let index = 0; index < data.length; index += 4) {
+        const alpha = data[index + 3] / 255;
+        if (alpha < 0.2) continue;
+
+        const r = data[index];
+        const g = data[index + 1];
+        const b = data[index + 2];
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const saturation = max === 0 ? 0 : (max - min) / max;
+        const brightness = (r + g + b) / 765;
+        const weight = alpha * (0.45 + (saturation * 0.9) + ((1 - Math.abs(brightness - 0.58)) * 0.35));
+
+        totalWeight += weight;
+        totalR += r * weight;
+        totalG += g * weight;
+        totalB += b * weight;
+      }
+
+      const baseR = totalWeight ? totalR / totalWeight : 100;
+      const baseG = totalWeight ? totalG / totalWeight : 116;
+      const baseB = totalWeight ? totalB / totalWeight : 139;
+
+      const baseLuminance = getRelativeLuminance(baseR, baseG, baseB);
+      const accentBoost = baseLuminance < 0.32 ? 46 : baseLuminance < 0.52 ? 28 : 18;
+      const accentR = clamp((baseR * 0.88) + accentBoost, 0, 255);
+      const accentG = clamp((baseG * 0.88) + accentBoost, 0, 255);
+      const accentB = clamp((baseB * 0.88) + accentBoost, 0, 255);
+      const luminance = getRelativeLuminance(baseR, baseG, baseB);
+      const darkImage = luminance < 0.42;
+      const textColor = darkImage ? '#f8fafc' : '#0f172a';
+      const mutedText = darkImage ? 'rgba(248, 250, 252, 0.82)' : 'rgba(15, 23, 42, 0.68)';
+      const surface = darkImage ? 'rgba(15, 23, 42, 0.82)' : 'rgba(255, 255, 255, 0.9)';
+      const headerScrim = darkImage ? 'rgba(15, 23, 42, 0.56)' : 'rgba(255, 255, 255, 0.26)';
+
+      resolve({
+        image: dataUrl,
+        accent: rgbToHex(accentR, accentG, accentB),
+        soft: rgbaFromRgb(accentR, accentG, accentB, darkImage ? 0.28 : 0.22),
+        textColor,
+        mutedText,
+        surface,
+        headerScrim
+      });
+    };
+    img.onerror = () => reject(new Error('Unable to load the selected image.'));
+    img.src = dataUrl;
+  });
+}
+
+async function createCustomThemeFromFile(file) {
+  const dataUrl = await readFileAsDataUrl(file);
+  return buildCustomThemeFromImage(dataUrl);
+}
 
 const STORAGE_KEYS = {
   notes: 'keep_notes',
   folders: 'keep_folders',
   theme: 'keep_theme',
+  emojiThemeControls: 'keep_emoji_theme_controls',
   view: 'keep_view',
   starterSeeded: 'keep_starter_seeded',
-  updatesSeeded: 'keep_updates_seeded'
+  updatesSeeded: 'keep_updates_seeded',
+  functionDemoSeeded: 'keep_function_demo_seeded'
 };
 
 const APP_UPDATE_NOTE = {
@@ -193,6 +630,143 @@ const STARTER_NOTES = [
   }
 ];
 
+const FUNCTION_DEMO_NOTES = [
+  {
+    id: 'function-demo-link-parser',
+    title: 'Demo: Link parser and GitHub preview #link-parser',
+    text: 'Parse this link from the card menu or creator toolbar:\nhttps://github.com/jorzyrockz-crypto/Note-Taking-App-2.0\n\nExpected: title, preview, category, and bookmark intent can be refreshed.',
+    color: 'default',
+    theme: 'office',
+    folder: 'Developer Bookmarks',
+    folders: ['Developer Bookmarks', 'Inspiration Wall'],
+    pinned: true,
+    archived: false,
+    deleted: false,
+    image: null,
+    updatedAt: Date.now() - 11000
+  },
+  {
+    id: 'function-demo-social-save',
+    title: 'Demo: Social post share #social',
+    text: 'Shared post URL:\nhttps://www.facebook.com/share/p/1Beftwi1Yxz/\n\nUse Parse Link to test social intent and preview fallback behavior.',
+    color: 'default',
+    theme: 'office',
+    folder: 'Social Saves',
+    folders: ['Social Saves', 'Inbox'],
+    pinned: false,
+    archived: false,
+    deleted: false,
+    image: null,
+    updatedAt: Date.now() - 12000
+  },
+  {
+    id: 'function-demo-recipe-builder',
+    title: 'Demo: Recipe builder note #recipe',
+    text: 'Crispy demo toast with herb butter.\nPrep: 5 min | Cook: 8 min | Servings: 2\nIngredients:\n- [ ] 2 slices sourdough\n- [ ] 1 tbsp butter\n- [ ] Fresh herbs\n\nInstructions:\n1. Toast bread until golden.\n2. Mix butter and herbs.\n3. Spread and serve warm.',
+    type: 'recipe',
+    color: 'default',
+    theme: 'food',
+    folder: 'Kitchen Board',
+    folders: ['Kitchen Board', 'Action Lists'],
+    pinned: false,
+    archived: false,
+    deleted: false,
+    image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=900&auto=format&fit=crop',
+    recipeData: {
+      title: 'Crispy Demo Toast',
+      description: 'A small recipe note for testing recipe cards, image banners, and the Recipe Builder menu action.',
+      image_url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=900&auto=format&fit=crop',
+      prep_time_minutes: 5,
+      cook_time_minutes: 8,
+      servings: 2,
+      ingredients: ['2 slices sourdough', '1 tbsp butter', 'Fresh herbs'],
+      instructions: ['Toast bread until golden.', 'Mix butter and herbs.', 'Spread and serve warm.']
+    },
+    recipeImportWarnings: [],
+    recipeImportMethod: 'demo',
+    recipeSourceUrl: 'https://example.com/demo-toast-recipe',
+    updatedAt: Date.now() - 13000
+  },
+  {
+    id: 'function-demo-checklist-reminders',
+    title: 'Demo: Checklist with inline reminders #tasks',
+    text: '- [ ] Draft release notes {{reminder:2026-07-11T19:30}}\n- [x] Test drag reorder\n- [ ] Review mobile sidebar {{reminder:2026-07-12T09:00}}\n- [ ] Open Parse Link button from creator',
+    color: 'default',
+    theme: 'school',
+    folder: 'Action Lists',
+    folders: ['Action Lists', 'Product Updates'],
+    pinned: false,
+    archived: false,
+    deleted: false,
+    image: null,
+    reminder: new Date(Date.now() + 7200000).toISOString(),
+    reminderTriggered: false,
+    updatedAt: Date.now() - 14000
+  },
+  {
+    id: 'function-demo-voice',
+    title: 'Demo: Voice memo note #voice',
+    text: 'This demo voice note checks audio chips, voice category filtering, and the note editor audio preview.',
+    type: 'voice',
+    audio: 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAAD',
+    audioDuration: '0:05',
+    color: 'default',
+    theme: 'celebration',
+    folder: 'Voice Memos',
+    folders: ['Voice Memos', 'Inbox'],
+    pinned: false,
+    archived: false,
+    deleted: false,
+    image: null,
+    updatedAt: Date.now() - 15000
+  },
+  {
+    id: 'function-demo-visual',
+    title: 'Demo: Visual moodboard #image',
+    text: 'Image note for banner previews, visual filtering, and image modal behavior.',
+    type: 'image',
+    color: 'default',
+    theme: 'holiday',
+    folder: 'Moodboard',
+    folders: ['Moodboard', 'Inspiration Wall'],
+    pinned: false,
+    archived: false,
+    deleted: false,
+    image: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=900&auto=format&fit=crop',
+    updatedAt: Date.now() - 16000
+  },
+  {
+    id: 'function-demo-archive',
+    title: 'Demo: Archived reference #archive',
+    text: 'This note starts in Archive to verify archive page, restore action, and filtering do not show it in active notes.',
+    color: 'grey',
+    theme: null,
+    folder: 'Product Updates',
+    folders: ['Product Updates'],
+    pinned: false,
+    archived: true,
+    archivedAt: Date.now() - 17000,
+    deleted: false,
+    image: null,
+    updatedAt: Date.now() - 17000
+  },
+  {
+    id: 'function-demo-delete',
+    title: 'Demo: Deleted note #delete-page',
+    text: 'This note starts in Delete Page to verify restore and delete-forever actions.',
+    color: 'red',
+    theme: null,
+    folder: 'Inbox',
+    folders: ['Inbox'],
+    pinned: false,
+    archived: false,
+    deleted: true,
+    deletedAt: Date.now() - 18000,
+    image: null,
+    updatedAt: Date.now() - 18000
+  }
+];
+
 // ==========================================================================
 // 2. DOM Elements & References
 // ==========================================================================
@@ -218,6 +792,7 @@ const creatorImageBtn = document.getElementById('creator-image-btn');
 const creatorImageInput = document.getElementById('creator-image-input');
 const creatorListBtn = document.getElementById('creator-list-btn');
 const creatorListToggleBtn = document.getElementById('creator-list-toggle');
+const creatorLinkParserBtn = document.getElementById('creator-link-parser-btn');
 const creatorDrawBtn = document.getElementById('creator-palette-draw');
 const creatorDrawToggleBtn = document.getElementById('creator-draw-toggle');
 
@@ -233,7 +808,13 @@ const creatorWrapper = document.querySelector('.creator-wrapper');
 const notesFeed = document.querySelector('.notes-feed');
 let sidebarFoldersList = null;
 let sidebarProductivity = null;
+let sidebarArchive = null;
+let sidebarDeleted = null;
 let creatorFolderInput = null;
+let creatorFolderField = null;
+let creatorFolderTrigger = null;
+let creatorFolderOptions = null;
+let creatorFolderCustomInput = null;
 let folderSuggestions = null;
 let feedFilterRow = null;
 let menuPanel = null;
@@ -249,6 +830,10 @@ const modalPin = document.getElementById('modal-pin');
 const modalDelete = document.getElementById('modal-delete');
 const modalClose = document.getElementById('modal-close');
 const modalColorPicker = document.getElementById('modal-color-picker');
+const themePickerV2 = document.getElementById('theme-picker-v2');
+const themePickerV2Grid = document.getElementById('theme-picker-v2-grid');
+const themePickerV2Controls = document.getElementById('theme-picker-v2-controls');
+const themePickerV2Close = document.getElementById('theme-picker-v2-close');
 const modalImageBanner = document.getElementById('modal-image-banner');
 const modalImgPreview = document.getElementById('modal-img-preview');
 const modalRemoveImg = document.getElementById('modal-remove-img');
@@ -404,6 +989,34 @@ function enhanceShell() {
   }
   sidebarProductivity = document.getElementById('sidebar-productivity');
 
+  if (sidebar && !document.getElementById('sidebar-archive')) {
+    const archiveItem = document.createElement('div');
+    archiveItem.className = 'sidebar-item';
+    archiveItem.id = 'sidebar-archive';
+    archiveItem.setAttribute('title', 'Archive');
+    archiveItem.setAttribute('aria-label', 'Archive');
+    archiveItem.innerHTML = `
+      <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M20.54 5.23 19.15 3.55A2 2 0 0 0 17.61 3H6.39a2 2 0 0 0-1.54.55L3.46 5.23A2 2 0 0 0 3 6.5V19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.5a2 2 0 0 0-.46-1.27ZM6.24 5h11.52l.81 1H5.43l.81-1ZM12 17l-4-4h2.5v-3h3v3H16l-4 4Z"/></svg>
+      <span class="sidebar-label">Archive</span>
+    `;
+    sidebar.insertBefore(archiveItem, sidebar.querySelector('.sidebar-divider') || null);
+  }
+  sidebarArchive = document.getElementById('sidebar-archive');
+
+  if (sidebar && !document.getElementById('sidebar-deleted')) {
+    const deletedItem = document.createElement('div');
+    deletedItem.className = 'sidebar-item';
+    deletedItem.id = 'sidebar-deleted';
+    deletedItem.setAttribute('title', 'Delete Page');
+    deletedItem.setAttribute('aria-label', 'Delete Page');
+    deletedItem.innerHTML = `
+      <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7Zm3-4h6l1 2h4v2H4V5h4l1-2Z"/></svg>
+      <span class="sidebar-label">Delete Page</span>
+    `;
+    sidebar.insertBefore(deletedItem, sidebar.querySelector('.sidebar-divider') || null);
+  }
+  sidebarDeleted = document.getElementById('sidebar-deleted');
+
   if (sidebar && !document.getElementById('sidebar-folders-list')) {
     const divider = document.createElement('div');
     divider.className = 'sidebar-divider';
@@ -426,15 +1039,24 @@ function enhanceShell() {
     metaRow.className = 'creator-meta-row';
     metaRow.innerHTML = `
       <div class="creator-folder-field">
-        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M10 4l2 2h8v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h4z"/></svg>
-        <input type="text" id="creator-folder" list="folder-suggestions" placeholder="Add to a group">
+        <div class="creator-folder-label">Categories</div>
+        <button type="button" class="creator-folder-trigger" id="creator-folder-trigger" aria-expanded="false"></button>
+        <div class="creator-folder-options" id="creator-folder-options"></div>
+        <label class="creator-folder-custom">
+          <span class="creator-folder-custom-icon">${getFolderIconSvg('folder')}</span>
+          <input type="text" id="creator-folder-custom" placeholder="Add category" autocomplete="off">
+        </label>
+        <input type="hidden" id="creator-folder">
       </div>
-      <datalist id="folder-suggestions"></datalist>
     `;
     chipsContainer.insertAdjacentElement('afterend', metaRow);
   }
 
+  creatorFolderField = document.querySelector('.creator-folder-field');
   creatorFolderInput = document.getElementById('creator-folder');
+  creatorFolderTrigger = document.getElementById('creator-folder-trigger');
+  creatorFolderOptions = document.getElementById('creator-folder-options');
+  creatorFolderCustomInput = document.getElementById('creator-folder-custom');
   folderSuggestions = document.getElementById('folder-suggestions');
 
   if (creatorWrapper && !document.getElementById('feed-filter-row')) {
@@ -554,6 +1176,10 @@ function setActiveSidebarPage(page) {
   clearSidebarActiveStates();
   if (page === 'productivity') {
     sidebarProductivity?.classList.add('active');
+  } else if (page === 'archive') {
+    sidebarArchive?.classList.add('active');
+  } else if (page === 'deleted') {
+    sidebarDeleted?.classList.add('active');
   } else {
     sidebarAllNotes?.classList.add('active');
   }
@@ -565,6 +1191,10 @@ function setActivePage(page) {
     selectedTagFilter = null;
     selectedFolderFilter = null;
     setActiveSidebarPage('productivity');
+  } else if (page === 'archive' || page === 'deleted') {
+    selectedTagFilter = null;
+    selectedFolderFilter = null;
+    setActiveSidebarPage(page);
   } else {
     setActiveSidebarPage('notes');
   }
@@ -625,6 +1255,87 @@ function renderAppView() {
   }
 }
 
+function isDeletedNote(note) {
+  return note?.deleted === true;
+}
+
+function isArchivedNote(note) {
+  return note?.archived === true && !isDeletedNote(note);
+}
+
+function isActiveNote(note) {
+  return !isArchivedNote(note) && !isDeletedNote(note);
+}
+
+function getPageNotes(page) {
+  if (page === 'archive') {
+    return notes.filter(note => isArchivedNote(note));
+  }
+  if (page === 'deleted') {
+    return notes.filter(note => isDeletedNote(note));
+  }
+  return notes.filter(note => isActiveNote(note));
+}
+
+function archiveNote(id) {
+  const note = notes.find(n => n.id === id);
+  if (!note || isDeletedNote(note)) return;
+  note.archived = true;
+  note.archivedAt = Date.now();
+  note.deleted = false;
+  note.deletedAt = null;
+  note.updatedAt = Date.now();
+  saveToLocalStorage();
+  closeAllNoteCardMenus();
+  renderNotes();
+}
+
+function restoreArchivedNote(id) {
+  const note = notes.find(n => n.id === id);
+  if (!note) return;
+  note.archived = false;
+  note.archivedAt = null;
+  note.deleted = false;
+  note.deletedAt = null;
+  note.updatedAt = Date.now();
+  saveToLocalStorage();
+  closeAllNoteCardMenus();
+  renderNotes();
+}
+
+function trashNote(id) {
+  const note = notes.find(n => n.id === id);
+  if (!note) return;
+  note.deleted = true;
+  note.deletedAt = Date.now();
+  note.archived = false;
+  note.archivedAt = null;
+  note.updatedAt = Date.now();
+  saveToLocalStorage();
+  closeAllNoteCardMenus();
+  renderNotes();
+}
+
+function restoreDeletedNote(id) {
+  const note = notes.find(n => n.id === id);
+  if (!note) return;
+  note.deleted = false;
+  note.deletedAt = null;
+  note.archived = false;
+  note.archivedAt = null;
+  note.updatedAt = Date.now();
+  saveToLocalStorage();
+  closeAllNoteCardMenus();
+  renderNotes();
+}
+
+function deleteNotePermanently(id) {
+  notes = notes.filter(n => n.id !== id);
+  saveToLocalStorage();
+  closeAllNoteCardMenus();
+  renderNotes();
+}
+
 // ==========================================================================
 // 3. Core Initialization & Event Listeners
 // ==========================================================================
@@ -632,12 +1343,14 @@ function renderAppView() {
 document.addEventListener('DOMContentLoaded', () => {
   enhanceShell();
   initTheme();
+  loadEmojiThemeControls();
   initViewLayout();
   initData();
   setupEventHandlers();
   buildColorPickers();
   initCanvasDrawEngine();
   renderAppView();
+  handleSharedLaunchData();
 
   registerServiceWorker();
   
@@ -740,8 +1453,15 @@ function initData() {
 
   loadedNotes = loadedNotes.map((note, index) => ({
     ...note,
-    folder: note.folder || inferDefaultFolder(note, index)
-  }));
+    folder: note.folder || inferDefaultFolder(note, index),
+    archived: note.archived === true,
+    archivedAt: typeof note.archivedAt === 'number' ? note.archivedAt : null,
+    deleted: note.deleted === true,
+    deletedAt: typeof note.deletedAt === 'number' ? note.deletedAt : null
+  })).map((note, index) => {
+    setNoteFolders(note, getNoteFolders(note, inferDefaultFolder(note, index)));
+    return normalizeNoteAppearance(note);
+  });
 
   const hasSeededUpdates = localStorage.getItem(STORAGE_KEYS.updatesSeeded) === 'true';
   const hasUpdateNote = loadedNotes.some(note => note.id === APP_UPDATE_NOTE.id);
@@ -750,13 +1470,24 @@ function initData() {
     loadedNotes = loadedNotes.filter((note, index, arr) => arr.findIndex(other => other.id === note.id) === index);
     localStorage.setItem(STORAGE_KEYS.updatesSeeded, 'true');
   }
+
+  const hasSeededFunctionDemoNotes = localStorage.getItem(STORAGE_KEYS.functionDemoSeeded) === 'true';
+  const hasAllFunctionDemoNotes = FUNCTION_DEMO_NOTES.every(demoNote => loadedNotes.some(note => note.id === demoNote.id));
+  if (!hasSeededFunctionDemoNotes || !hasAllFunctionDemoNotes) {
+    loadedNotes.unshift(...FUNCTION_DEMO_NOTES.map(demoNote => normalizeNoteType({ ...demoNote })));
+    loadedNotes = loadedNotes.filter((note, index, arr) => arr.findIndex(other => other.id === note.id) === index);
+    localStorage.setItem(STORAGE_KEYS.functionDemoSeeded, 'true');
+  }
+  loadedNotes.forEach((note, index) => {
+    setNoteFolders(note, getNoteFolders(note, inferDefaultFolder(note, index)));
+  });
   
   // Sort notes by updatedAt descending to keep new notes at the top
   loadedNotes.sort((a, b) => b.updatedAt - a.updatedAt);
   
   notes = loadedNotes;
   customFolders = sanitizeFolderList(loadedFolders);
-  notes.forEach(note => registerFolder(note.folder));
+  notes.forEach(registerNoteFolders);
   saveToLocalStorage();
 }
 
@@ -827,16 +1558,38 @@ function setupEventHandlers() {
     setActivePage('productivity');
   });
 
-  if (creatorFolderInput) {
-    creatorFolderInput.addEventListener('input', () => {
-      creatorFolder = creatorFolderInput.value.trim();
-      if (creatorFolder && creatorFolder !== creatorAutoFolder) {
-        creatorAutoFolder = '';
-      }
+  sidebarArchive?.addEventListener('click', () => {
+    setActivePage('archive');
+  });
+
+  sidebarDeleted?.addEventListener('click', () => {
+    setActivePage('deleted');
+  });
+
+  if (creatorFolderTrigger && !creatorFolderTrigger.dataset.bound) {
+    creatorFolderTrigger.addEventListener('click', () => {
+      if (isInlineCreatorFolderPicker()) return;
+      const willOpen = !creatorFolderField?.classList.contains('is-open');
+      creatorFolderField?.classList.toggle('is-open', willOpen);
+      creatorFolderTrigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
     });
-    creatorFolderInput.addEventListener('blur', () => {
-      syncCreatorFolderInput();
+    creatorFolderTrigger.dataset.bound = 'true';
+  }
+  if (creatorFolderCustomInput && !creatorFolderCustomInput.dataset.bound) {
+    creatorFolderCustomInput.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      const customFolder = creatorFolderCustomInput.value.trim();
+      if (!customFolder) return;
+      setCreatorFolderValue([...getSelectedFolders(creatorFolders.length ? creatorFolders : decodeFolderSelection(creatorFolderInput?.value || '')), customFolder]);
+      closeCreatorFolderPicker();
     });
+    creatorFolderCustomInput.addEventListener('blur', () => {
+      const customFolder = creatorFolderCustomInput.value.trim();
+      if (!customFolder) return;
+      setCreatorFolderValue([...getSelectedFolders(creatorFolders.length ? creatorFolders : decodeFolderSelection(creatorFolderInput?.value || '')), customFolder]);
+    });
+    creatorFolderCustomInput.dataset.bound = 'true';
   }
 
   if (feedFilterRow) {
@@ -903,9 +1656,19 @@ function setupEventHandlers() {
       syncCreatorInputs();
     }
     syncCreatorFolderInput();
+    scheduleCreatorLinkPreview();
   });
   creatorTitle.addEventListener('input', () => {
     syncCreatorFolderInput();
+    scheduleCreatorLinkPreview();
+  });
+  creatorText.addEventListener('paste', () => {
+    expandCreator();
+    setTimeout(() => scheduleCreatorLinkPreview(80), 0);
+  });
+  creatorTitle.addEventListener('paste', () => {
+    expandCreator();
+    setTimeout(() => scheduleCreatorLinkPreview(80), 0);
   });
   creatorText.addEventListener('keydown', handleRichListEditing);
   modalText.addEventListener('input', autoGrowTextarea);
@@ -922,7 +1685,7 @@ function setupEventHandlers() {
   const paletteTrigger = document.querySelector('.creator-palette-trigger');
   paletteTrigger.addEventListener('click', (e) => {
     e.stopPropagation();
-    creatorColorPicker.classList.toggle('visible');
+    openThemePickerV2({ type: 'creator' });
   });
 
   // Creator reminder trigger
@@ -986,6 +1749,10 @@ function setupEventHandlers() {
 
   // Creator Image upload trigger
   creatorImageBtn.addEventListener('click', () => creatorImageInput.click());
+  creatorLinkParserBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    parseCreatorLinkManually();
+  });
   creatorImageInput.addEventListener('change', (e) => {
     handleImageUpload(e.target.files[0], (base64) => {
       creatorImage = base64;
@@ -1021,7 +1788,7 @@ function setupEventHandlers() {
   // Click outside Note Creator auto-saves
   document.addEventListener('click', (e) => {
     if (creatorExpanded.style.display !== 'none' && !noteCreator.contains(e.target)) {
-      if (!e.target.closest('.color-picker-bubble') && !e.target.closest('.reminder-trigger-wrapper') && !e.target.closest('.edit-modal-overlay')) {
+      if (!e.target.closest('#theme-picker-v2') && !e.target.closest('.color-picker-bubble') && !e.target.closest('.reminder-trigger-wrapper') && !e.target.closest('.edit-modal-overlay')) {
         saveCreatorNote();
         collapseCreator();
       }
@@ -1039,6 +1806,9 @@ function setupEventHandlers() {
 
     if (!e.target.closest('.modal-folder-field')) {
       closeModalFolderPicker();
+    }
+    if (!e.target.closest('.creator-folder-field')) {
+      closeCreatorFolderPicker();
     }
 
   });
@@ -1065,7 +1835,12 @@ function setupEventHandlers() {
   // Modal Delete note
   modalDelete.addEventListener('click', () => {
     if (currentEditingNoteId) {
-      deleteNote(currentEditingNoteId);
+      const note = notes.find(n => n.id === currentEditingNoteId);
+      if (note?.deleted) {
+        deleteNotePermanently(currentEditingNoteId);
+      } else {
+        trashNote(currentEditingNoteId);
+      }
       closeEditModal();
     }
   });
@@ -1073,7 +1848,20 @@ function setupEventHandlers() {
   // Modal Color picker toggle
   document.getElementById('modal-palette-btn').addEventListener('click', (e) => {
     e.stopPropagation();
-    modalColorPicker.classList.toggle('visible');
+    const note = notes.find(n => n.id === currentEditingNoteId);
+    if (note) {
+      openThemePickerV2({ type: 'modal', note });
+    }
+  });
+
+  themePickerV2Close?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeThemePickerV2();
+  });
+  themePickerV2?.addEventListener('click', (e) => {
+    if (e.target === themePickerV2) {
+      closeThemePickerV2();
+    }
   });
 
   // Modal Checklist convert trigger
@@ -1167,40 +1955,98 @@ function setupEventHandlers() {
 // ==========================================================================
 
 const THEME_PRESETS = [
-  { id: 'plants', emoji: '🌿', title: 'Plants' },
-  { id: 'animals', emoji: '🦊', title: 'Animals' },
-  { id: 'spring', emoji: '🌸', title: 'Spring' },
-  { id: 'summer', emoji: '☀️', title: 'Summer' },
-  { id: 'autumn', emoji: '🍂', title: 'Autumn' },
-  { id: 'winter', emoji: '❄️', title: 'Winter' }
+  { id: 'plants', emoji: '🌿', title: 'Plants', emojis: ['🌿', '🍃', '🪴'] },
+  { id: 'animals', emoji: '🦊', title: 'Animals', emojis: ['🦊', '🐾', '🦉'] },
+  { id: 'spring', emoji: '🌸', title: 'Spring', emojis: ['🌸', '🦋', '🌼'] },
+  { id: 'summer', emoji: '☀️', title: 'Summer', emojis: ['☀️', '🌴', '🍹'] },
+  { id: 'autumn', emoji: '🍂', title: 'Autumn', emojis: ['🍂', '🍁', '☕'] },
+  { id: 'winter', emoji: '❄️', title: 'Winter', emojis: ['❄️', '☃️', '🧤'] },
+  { id: 'school', emoji: '🎓', title: 'School', emojis: ['🎓', '📚', '✏️'] },
+  { id: 'office', emoji: '💼', title: 'Office', emojis: ['💼', '📎', '🗂️'] },
+  { id: 'food', emoji: '🍜', title: 'Food', emojis: ['🍜', '🍽️', '🥢'] },
+  { id: 'holiday', emoji: '🏖️', title: 'Holiday', emojis: ['🏖️', '✈️', '🧳'] },
+  { id: 'celebration', emoji: '🎉', title: 'Celebration', emojis: ['🎉', '🎊', '✨'] }
 ];
 
+function getThemePreset(themeId) {
+  return THEME_PRESETS.find(theme => theme.id === themeId) || null;
+}
+
+function buildEmojiThemePattern(themeId, controls = getEmojiThemeControls()) {
+  const preset = getThemePreset(themeId);
+  if (!preset) return 'none';
+
+  const safeControls = {
+    opacity: clamp(numericSetting(controls.opacity, DEFAULT_EMOJI_THEME_CONTROLS.opacity), 0, 28),
+    size: clamp(numericSetting(controls.size, DEFAULT_EMOJI_THEME_CONTROLS.size), 10, 34),
+    spacing: clamp(numericSetting(controls.spacing, DEFAULT_EMOJI_THEME_CONTROLS.spacing), 64, 160)
+  };
+  const cacheKey = `${themeId}:${safeControls.opacity}:${safeControls.size}:${safeControls.spacing}`;
+  if (emojiPatternCache.has(cacheKey)) {
+    return emojiPatternCache.get(cacheKey);
+  }
+
+  const tile = safeControls.spacing;
+  const baseSize = safeControls.size;
+  const alpha = clamp(safeControls.opacity / 100, 0, 0.28).toFixed(3);
+  const emojis = preset.emojis?.length ? preset.emojis : [preset.emoji];
+  const placements = [
+    { x: 0.14, y: 0.24, scale: 1.32, rotate: -16, emoji: emojis[0] || preset.emoji },
+    { x: 0.74, y: 0.19, scale: 0.72, rotate: 14, emoji: emojis[1] || emojis[0] || preset.emoji },
+    { x: 0.48, y: 0.58, scale: 1.04, rotate: -7, emoji: emojis[2] || emojis[0] || preset.emoji },
+    { x: 0.2, y: 0.84, scale: 0.58, rotate: 20, emoji: emojis[1] || emojis[0] || preset.emoji },
+    { x: 0.84, y: 0.78, scale: 0.9, rotate: -22, emoji: emojis[2] || emojis[0] || preset.emoji }
+  ];
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${tile}" height="${tile}" viewBox="0 0 ${tile} ${tile}">
+      ${placements.map(entry => {
+        const fontSize = (baseSize * entry.scale).toFixed(2);
+        const x = (tile * entry.x).toFixed(2);
+        const y = (tile * entry.y).toFixed(2);
+        return `<text x="${x}" y="${y}" font-size="${fontSize}" opacity="${alpha}" transform="rotate(${entry.rotate} ${x} ${y})">${escapeSvgText(entry.emoji)}</text>`;
+      }).join('')}
+    </svg>
+  `.trim();
+  const url = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+  emojiPatternCache.set(cacheKey, url);
+  return url;
+}
+
+function applyGeneratedEmojiThemeStyles(element, themeId) {
+  if (!element || !themeId || themeId === CUSTOM_THEME_ID) return;
+  const controls = getEmojiThemeControls();
+  element.style.setProperty('--theme-pattern', buildEmojiThemePattern(themeId, controls));
+  element.style.setProperty('--note-theme-pattern-size', `${controls.spacing}px ${controls.spacing}px`);
+}
+
+function clearGeneratedEmojiThemeStyles(element) {
+  if (!element) return;
+  element.style.removeProperty('--theme-pattern');
+  element.style.removeProperty('--note-theme-pattern-size');
+}
+
 function buildColorPickers() {
-  buildColorGrid(creatorColorPicker, creatorColor, creatorTheme, (type, value) => {
-    if (type === 'color') {
-      creatorColor = value;
-      creatorTheme = null;
-      noteCreator.setAttribute('data-color', value);
-      noteCreator.removeAttribute('data-theme');
-    } else {
-      creatorColor = 'default';
-      creatorTheme = value === 'none' ? null : value;
-      noteCreator.setAttribute('data-color', 'default');
-      if (creatorTheme) {
-        noteCreator.setAttribute('data-theme', creatorTheme);
-      } else {
-        noteCreator.removeAttribute('data-theme');
-      }
-    }
+  applyCreatorAppearance();
+  buildColorGrid(creatorColorPicker, creatorColor, creatorTheme, creatorCustomTheme, async (type, value) => {
+    const normalized = applyAppearanceSelection({
+      color: creatorColor,
+      theme: creatorTheme,
+      customTheme: creatorCustomTheme
+    }, type, value);
+    creatorColor = normalized.color;
+    creatorTheme = normalized.theme;
+    creatorCustomTheme = normalized.customTheme;
+    applyCreatorAppearance();
     creatorColorPicker.classList.remove('visible');
   });
 }
 
-function buildColorGrid(container, activeColor, activeTheme, onSelect) {
+function buildColorGrid(container, activeColor, activeTheme, activeCustomTheme, onSelect) {
   container.innerHTML = '';
 
   const clearSelection = () => {
-    container.querySelectorAll('.color-option, .picker-clear-button').forEach(el => el.classList.remove('selected'));
+    container.querySelectorAll('.color-option, .picker-clear-button, .custom-theme-preview').forEach(el => el.classList.remove('selected'));
   };
 
   const header = document.createElement('div');
@@ -1224,7 +2070,49 @@ function buildColorGrid(container, activeColor, activeTheme, onSelect) {
     onSelect('theme', 'none');
   });
   header.appendChild(clearThemeButton);
+
+  const uploadThemeButton = document.createElement('button');
+  uploadThemeButton.type = 'button';
+  uploadThemeButton.className = 'picker-clear-button picker-upload-button';
+  uploadThemeButton.textContent = activeTheme === CUSTOM_THEME_ID ? 'Replace image' : 'Upload image';
+  uploadThemeButton.title = 'Upload a custom note background';
+  if (ENABLE_CUSTOM_THEME_UPLOAD) {
+    header.appendChild(uploadThemeButton);
+  }
   container.appendChild(header);
+
+  const uploadInput = document.createElement('input');
+  uploadInput.type = 'file';
+  uploadInput.accept = 'image/*';
+  uploadInput.style.display = 'none';
+  uploadInput.addEventListener('change', async () => {
+    const [file] = Array.from(uploadInput.files || []);
+    if (!file) return;
+    try {
+      uploadThemeButton.disabled = true;
+      uploadThemeButton.textContent = 'Analyzing...';
+      const customTheme = await createCustomThemeFromFile(file);
+      clearSelection();
+      onSelect('custom-theme', customTheme);
+    } catch (error) {
+      console.warn('Unable to create custom theme:', error);
+      showToast({
+        title: 'Theme upload failed',
+        text: 'The background could not be processed. Try another image.'
+      });
+    } finally {
+      uploadThemeButton.disabled = false;
+      uploadThemeButton.textContent = activeTheme === CUSTOM_THEME_ID ? 'Replace image' : 'Upload image';
+      uploadInput.value = '';
+    }
+  });
+  if (ENABLE_CUSTOM_THEME_UPLOAD) {
+    uploadThemeButton.addEventListener('click', (e) => {
+      e.stopPropagation();
+      uploadInput.click();
+    });
+    container.appendChild(uploadInput);
+  }
 
   const colorRow = document.createElement('div');
   colorRow.className = 'picker-row picker-row-colors';
@@ -1251,6 +2139,23 @@ function buildColorGrid(container, activeColor, activeTheme, onSelect) {
 
   const themeRow = document.createElement('div');
   themeRow.className = 'picker-row picker-row-themes';
+
+  if (activeTheme === CUSTOM_THEME_ID && activeCustomTheme?.image) {
+    const customPreview = document.createElement('button');
+    customPreview.type = 'button';
+    customPreview.className = 'custom-theme-preview selected';
+    customPreview.title = 'Custom uploaded theme';
+    customPreview.style.setProperty('--custom-theme-image', `url("${escapeCssUrl(activeCustomTheme.image)}")`);
+    customPreview.style.setProperty('--custom-theme-accent', activeCustomTheme.accent || '#64748b');
+    customPreview.innerHTML = '<span class="custom-theme-preview-badge">Custom</span>';
+    customPreview.addEventListener('click', (e) => {
+      e.stopPropagation();
+      clearSelection();
+      customPreview.classList.add('selected');
+      onSelect('custom-theme', activeCustomTheme);
+    });
+    themeRow.appendChild(customPreview);
+  }
 
   THEME_PRESETS.forEach(theme => {
     const option = document.createElement('button');
@@ -1296,21 +2201,29 @@ function collapseCreator() {
   creatorTitle.value = '';
   creatorText.value = '';
   creatorText.style.height = 'auto';
+  creatorLinkPreviewUrl = null;
+  clearTimeout(creatorLinkPreviewTimer);
+  creatorLinkPreviewAbort?.abort();
+  creatorLinkPreviewAbort = null;
   
   creatorColor = 'default';
   creatorTheme = null; // Reset pattern theme
+  creatorCustomTheme = null;
   creatorReminder = null; // Reset reminder
   creatorAudio = null; // Reset audio
   creatorFolder = '';
+  creatorFolders = [];
   creatorAutoFolder = '';
+  creatorIntentType = null;
   creatorAudioDuration = null;
   creatorPinned = false;
   creatorImage = null;
   
-  noteCreator.setAttribute('data-color', 'default');
-  noteCreator.removeAttribute('data-theme');
+  applyCreatorAppearance();
   creatorPin.classList.remove('pinned');
   if (creatorFolderInput) creatorFolderInput.value = '';
+  if (creatorFolderCustomInput) creatorFolderCustomInput.value = '';
+  closeCreatorFolderPicker();
   creatorImageBanner.style.display = 'none';
   creatorImgPreview.src = '';
   creatorImageInput.value = '';
@@ -1319,22 +2232,16 @@ function collapseCreator() {
   renderCreatorAudioPreview();
   
   // Rebuild creator picker to clear selection styling
-  buildColorGrid(creatorColorPicker, creatorColor, creatorTheme, (type, value) => {
-    if (type === 'color') {
-      creatorColor = value;
-      creatorTheme = null;
-      noteCreator.setAttribute('data-color', value);
-      noteCreator.removeAttribute('data-theme');
-    } else {
-      creatorColor = 'default';
-      creatorTheme = value === 'none' ? null : value;
-      noteCreator.setAttribute('data-color', 'default');
-      if (creatorTheme) {
-        noteCreator.setAttribute('data-theme', creatorTheme);
-      } else {
-        noteCreator.removeAttribute('data-theme');
-      }
-    }
+  buildColorGrid(creatorColorPicker, creatorColor, creatorTheme, creatorCustomTheme, (type, value) => {
+    const normalized = applyAppearanceSelection({
+      color: creatorColor,
+      theme: creatorTheme,
+      customTheme: creatorCustomTheme
+    }, type, value);
+    creatorColor = normalized.color;
+    creatorTheme = normalized.theme;
+    creatorCustomTheme = normalized.customTheme;
+    applyCreatorAppearance();
     creatorColorPicker.classList.remove('visible');
   });
   creatorColorPicker.classList.remove('visible');
@@ -1349,26 +2256,30 @@ function saveCreatorNote() {
     return;
   }
   
-  const newNote = {
+  const selectedFolders = decodeFolderSelection(creatorFolderInput?.value || '');
+  const newNote = normalizeNoteAppearance(setNoteFolders({
     id: 'note-' + Date.now(),
-    type: getNoteType(text),
+    type: creatorIntentType || getNoteType(text),
     title: title,
     text: text,
     color: creatorColor,
     theme: creatorTheme,
+    customTheme: creatorTheme === CUSTOM_THEME_ID ? creatorCustomTheme : null,
     reminder: creatorReminder,
     reminderTriggered: false,
     audio: creatorAudio,
     audioDuration: creatorAudioDuration,
-    folder: creatorFolderInput?.value.trim() || creatorFolder || 'Inbox',
     pinned: creatorPinned,
     archived: false,
+    archivedAt: null,
+    deleted: false,
+    deletedAt: null,
     image: creatorImage,
     createdAt: Date.now(),
     updatedAt: Date.now()
-  };
+  }, selectedFolders));
   
-  registerFolder(newNote.folder);
+  registerNoteFolders(newNote);
   notes.unshift(newNote);
   saveToLocalStorage();
   renderNotes();
@@ -1403,6 +2314,76 @@ function sanitizeFolderList(folderNames = []) {
         .filter(Boolean)
     )
   ).sort((a, b) => a.localeCompare(b));
+}
+
+function sanitizeFolderSelection(folderNames = []) {
+  const seen = new Set();
+  const folders = [];
+  folderNames.map(sanitizeFolderName).filter(Boolean).forEach(folder => {
+    if (seen.has(folder)) return;
+    seen.add(folder);
+    folders.push(folder);
+  });
+  return folders;
+}
+
+function getNoteFolders(note = {}, fallbackFolder = 'Inbox') {
+  const folders = Array.isArray(note.folders) ? note.folders : [];
+  const normalizedFolders = sanitizeFolderSelection([
+    ...folders,
+    note.folder
+  ]);
+  if (normalizedFolders.length > 0) return normalizedFolders;
+  const fallback = sanitizeFolderName(fallbackFolder) || 'Inbox';
+  return [fallback];
+}
+
+function getPrimaryFolder(note = {}, fallbackFolder = 'Inbox') {
+  return getNoteFolders(note, fallbackFolder)[0] || 'Inbox';
+}
+
+function getFolderSummaryLabel(note = {}, fallbackFolder = 'Inbox') {
+  const folders = getNoteFolders(note, fallbackFolder);
+  const primaryFolder = folders[0] || 'Inbox';
+  return folders.length > 1 ? `${primaryFolder} +${folders.length - 1}` : primaryFolder;
+}
+
+function setNoteFolders(note, folderNames = []) {
+  if (!note) return note;
+  const folders = sanitizeFolderSelection(folderNames);
+  const normalizedFolders = folders.length > 0 ? folders : ['Inbox'];
+  note.folders = normalizedFolders;
+  note.folder = normalizedFolders[0];
+  return note;
+}
+
+function noteHasFolder(note, folderName) {
+  const normalizedFolder = sanitizeFolderName(folderName);
+  if (!normalizedFolder) return false;
+  return getNoteFolders(note).includes(normalizedFolder);
+}
+
+function registerNoteFolders(note) {
+  getNoteFolders(note).forEach(registerFolder);
+}
+
+function encodeFolderSelection(folderNames = []) {
+  return JSON.stringify(getSelectedFolders(folderNames));
+}
+
+function decodeFolderSelection(value = '') {
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return getSelectedFolders(parsed);
+  } catch (error) {
+    // Fall through to legacy single-value parsing.
+  }
+  return getSelectedFolders([value]);
+}
+
+function getSelectedFolders(folderNames = []) {
+  const folders = sanitizeFolderSelection(folderNames);
+  return folders.length > 0 ? folders : ['Inbox'];
 }
 
 function registerFolder(folderName) {
@@ -1463,7 +2444,7 @@ function getAllFolders() {
   return sanitizeFolderList([
     ...DEFAULT_FOLDERS.map(folder => folder.name),
     ...customFolders,
-    ...notes.map(note => note.folder || 'Inbox')
+    ...notes.flatMap(note => getNoteFolders(note))
   ]);
 }
 
@@ -1499,7 +2480,7 @@ function renderFolderDrawer() {
 
   getAllFolders().forEach(folder => {
     const folderMeta = getFolderMeta(folder);
-    const relatedNotes = notes.filter(note => (note.folder || 'Inbox') === folder && !note.archived);
+    const relatedNotes = notes.filter(note => noteHasFolder(note, folder) && isActiveNote(note));
     const item = document.createElement('button');
     item.className = `folder-drawer-item ${selectedFolderFilter === folder ? 'active' : ''}`;
     item.innerHTML = `
@@ -1542,6 +2523,86 @@ function renderFolderSuggestions() {
   });
 }
 
+function isInlineCreatorFolderPicker() {
+  return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
+}
+
+function closeCreatorFolderPicker() {
+  if (isInlineCreatorFolderPicker()) return;
+  creatorFolderField?.classList.remove('is-open');
+  creatorFolderTrigger?.setAttribute('aria-expanded', 'false');
+}
+
+function setCreatorFolderValue(folderNames, options = {}) {
+  const normalizedFolders = getSelectedFolders(Array.isArray(folderNames) ? folderNames : [folderNames]);
+  if (creatorFolderInput) creatorFolderInput.value = encodeFolderSelection(normalizedFolders);
+  creatorFolders = normalizedFolders;
+  creatorFolder = normalizedFolders[0] || 'Inbox';
+  normalizedFolders.forEach(registerFolder);
+  if (options.isAuto) {
+    creatorAutoFolder = creatorFolder;
+  } else if (creatorFolder !== creatorAutoFolder) {
+    creatorAutoFolder = '';
+  }
+  if (creatorFolderCustomInput && !options.preserveDraft) {
+    creatorFolderCustomInput.value = '';
+  }
+  renderCreatorFolderPicker(normalizedFolders);
+}
+
+function toggleCreatorFolder(folder) {
+  const normalizedFolder = sanitizeFolderName(folder);
+  if (!normalizedFolder) return;
+  const currentFolders = getSelectedFolders(creatorFolders.length ? creatorFolders : decodeFolderSelection(creatorFolderInput?.value || ''));
+  const isAdding = !currentFolders.includes(normalizedFolder);
+  if (isAdding && currentFolders.length === 1 && currentFolders[0] === creatorAutoFolder) {
+    setCreatorFolderValue([normalizedFolder], { preserveDraft: true });
+    return;
+  }
+  const nextFolders = currentFolders.includes(normalizedFolder)
+    ? currentFolders.filter(entry => entry !== normalizedFolder)
+    : [...currentFolders, normalizedFolder];
+  setCreatorFolderValue(nextFolders.length ? nextFolders : ['Inbox'], { preserveDraft: true });
+}
+
+function renderCreatorFolderPicker(selectedFolders) {
+  if (!creatorFolderField || !creatorFolderTrigger || !creatorFolderOptions) return;
+
+  const currentFolders = getSelectedFolders(Array.isArray(selectedFolders) ? selectedFolders : [selectedFolders]);
+  const primaryFolder = currentFolders[0] || 'Inbox';
+  const primaryMeta = getFolderMeta(primaryFolder);
+  const extraCount = Math.max(currentFolders.length - 1, 0);
+
+  creatorFolderTrigger.innerHTML = `
+    <span class="creator-folder-pill note-folder-pill" style="--folder-accent: ${primaryMeta.accent}; --folder-soft: ${primaryMeta.soft};">
+      <span class="creator-folder-pill-icon">${getFolderIconSvg(primaryMeta.icon)}</span>
+      <span class="creator-folder-pill-text">${primaryFolder}</span>
+      ${extraCount ? `<span class="folder-pill-count">+${extraCount}</span>` : ''}
+    </span>
+    <span class="creator-folder-trigger-chevron" aria-hidden="true">&#9662;</span>
+  `;
+  creatorFolderTrigger.setAttribute('aria-label', `Selected categories: ${currentFolders.join(', ')}`);
+
+  creatorFolderOptions.innerHTML = '';
+  getAllFolders().forEach(folder => {
+    const optionMeta = getFolderMeta(folder);
+    const isActive = currentFolders.includes(folder);
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = `creator-folder-option ${isActive ? 'active' : ''}`;
+    option.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    option.innerHTML = `
+      <span class="folder-option-check">${isActive ? '&#10003;' : ''}</span>
+      <span class="creator-folder-option-icon" style="--folder-accent: ${optionMeta.accent}; --folder-soft: ${optionMeta.soft};">${getFolderIconSvg(optionMeta.icon)}</span>
+      <span class="creator-folder-option-label">${folder}</span>
+    `;
+    option.addEventListener('click', () => {
+      toggleCreatorFolder(folder);
+    });
+    creatorFolderOptions.appendChild(option);
+  });
+}
+
 function isInlineModalFolderPicker() {
   return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
 }
@@ -1552,43 +2613,59 @@ function closeModalFolderPicker() {
   modalFolderTrigger?.setAttribute('aria-expanded', 'false');
 }
 
-function setModalFolderValue(folderName, options = {}) {
-  const normalizedFolder = sanitizeFolderName(folderName) || 'Inbox';
-  if (modalFolderInput) modalFolderInput.value = normalizedFolder;
+function setModalFolderValue(folderNames, options = {}) {
+  const normalizedFolders = getSelectedFolders(Array.isArray(folderNames) ? folderNames : [folderNames]);
+  if (modalFolderInput) modalFolderInput.value = encodeFolderSelection(normalizedFolders);
+  normalizedFolders.forEach(registerFolder);
   if (modalFolderCustomInput && !options.preserveDraft) {
     modalFolderCustomInput.value = '';
   }
-  renderModalFolderPicker(normalizedFolder);
+  renderModalFolderPicker(normalizedFolders);
 }
 
-function renderModalFolderPicker(selectedFolder) {
+function toggleModalFolder(folder) {
+  const normalizedFolder = sanitizeFolderName(folder);
+  if (!normalizedFolder) return;
+  const currentFolders = getSelectedFolders(decodeFolderSelection(modalFolderInput?.value || ''));
+  const nextFolders = currentFolders.includes(normalizedFolder)
+    ? currentFolders.filter(entry => entry !== normalizedFolder)
+    : [...currentFolders, normalizedFolder];
+  setModalFolderValue(nextFolders.length ? nextFolders : ['Inbox'], { preserveDraft: true });
+}
+
+function renderModalFolderPicker(selectedFolders) {
   if (!modalFolderField || !modalFolderTrigger || !modalFolderOptions) return;
 
-  const currentFolder = sanitizeFolderName(selectedFolder) || 'Inbox';
-  const folderMeta = getFolderMeta(currentFolder);
+  const currentFolders = getSelectedFolders(Array.isArray(selectedFolders) ? selectedFolders : [selectedFolders]);
+  const primaryFolder = currentFolders[0] || 'Inbox';
+  const primaryMeta = getFolderMeta(primaryFolder);
+  const extraCount = Math.max(currentFolders.length - 1, 0);
 
   modalFolderTrigger.innerHTML = `
-    <span class="modal-folder-pill note-folder-pill" style="--folder-accent: ${folderMeta.accent}; --folder-soft: ${folderMeta.soft};">
-      <span class="modal-folder-pill-icon">${getFolderIconSvg(folderMeta.icon)}</span>
-      <span class="modal-folder-pill-text">${currentFolder}</span>
+    <span class="modal-folder-pill note-folder-pill" style="--folder-accent: ${primaryMeta.accent}; --folder-soft: ${primaryMeta.soft};">
+      <span class="modal-folder-pill-icon">${getFolderIconSvg(primaryMeta.icon)}</span>
+      <span class="modal-folder-pill-text">${primaryFolder}</span>
+      ${extraCount ? `<span class="folder-pill-count">+${extraCount}</span>` : ''}
     </span>
     <span class="modal-folder-trigger-chevron" aria-hidden="true">&#9662;</span>
   `;
-  modalFolderTrigger.setAttribute('aria-label', `Selected category: ${currentFolder}`);
+  modalFolderTrigger.setAttribute('aria-label', `Selected categories: ${currentFolders.join(', ')}`);
 
   modalFolderOptions.innerHTML = '';
   getAllFolders().forEach(folder => {
     const optionMeta = getFolderMeta(folder);
+    const isActive = currentFolders.includes(folder);
     const option = document.createElement('button');
     option.type = 'button';
-    option.className = `modal-folder-option ${folder === currentFolder ? 'active' : ''}`;
+    option.className = `modal-folder-option ${isActive ? 'active' : ''}`;
+    option.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     option.innerHTML = `
+      <span class="folder-option-check">${isActive ? '&#10003;' : ''}</span>
       <span class="modal-folder-option-icon" style="--folder-accent: ${optionMeta.accent}; --folder-soft: ${optionMeta.soft};">${getFolderIconSvg(optionMeta.icon)}</span>
       <span class="modal-folder-option-label">${folder}</span>
     `;
     option.addEventListener('click', () => {
-      setModalFolderValue(folder);
-      closeModalFolderPicker();
+      toggleModalFolder(folder);
     });
     modalFolderOptions.appendChild(option);
   });
@@ -1618,25 +2695,28 @@ function getSuggestedCreatorFolder() {
 function syncCreatorFolderInput(force = false) {
   if (!creatorFolderInput) return;
 
-  const currentValue = creatorFolderInput.value.trim();
+  const currentFolders = decodeFolderSelection(creatorFolderInput.value || '');
+  const currentValue = currentFolders.join('|');
   const suggestedFolder = getSuggestedCreatorFolder();
-  const shouldAutofill = force || !currentValue || currentValue === creatorAutoFolder;
+  const shouldAutofill = force || !creatorFolderInput.value || (currentFolders.length === 1 && currentFolders[0] === creatorAutoFolder);
 
   if (shouldAutofill) {
-    creatorFolderInput.value = suggestedFolder;
-    creatorFolder = suggestedFolder;
-    creatorAutoFolder = suggestedFolder;
+    setCreatorFolderValue([suggestedFolder], { isAuto: true });
     return;
   }
 
-  creatorFolder = currentValue;
+  setCreatorFolderValue(currentValue ? currentFolders : ['Inbox'], { preserveDraft: true });
 }
 
 function closeAllNoteCardMenus() {
   document.querySelectorAll('.note-card-menu.open').forEach(menu => {
     menu.classList.remove('open');
+    menu.classList.remove('theme-picker-open');
   });
   document.querySelectorAll('.note-card-menu-panel .color-picker-bubble.visible').forEach(picker => {
+    picker.classList.remove('visible');
+  });
+  document.querySelectorAll('.note-card-menu > .color-picker-bubble.visible').forEach(picker => {
     picker.classList.remove('visible');
   });
 }
@@ -1644,7 +2724,7 @@ function closeAllNoteCardMenus() {
 function scanUniqueTags() {
   const tagsSet = new Set();
   notes.forEach(note => {
-    if (note.archived) return;
+    if (!isActiveNote(note)) return;
     const words = `${note.title} ${note.text}`.split(/[\s,]+/);
     words.forEach(word => {
       // Find hashtags like #work or #urgent (strictly letters/numbers)
@@ -1881,22 +2961,23 @@ function renderNotes() {
 }
 
 function renderNotesPage() {
-  currentPage = 'notes';
   creatorWrapper.style.display = '';
   if (feedFilterRow) feedFilterRow.style.display = '';
   if (notesFeed) notesFeed.style.display = '';
   if (productivityPage) productivityPage.style.display = 'none';
-  if (!selectedFolderFilter && !selectedTagFilter) {
+  if (currentPage !== 'notes') {
+    setActiveSidebarPage(currentPage);
+  } else if (!selectedFolderFilter && !selectedTagFilter) {
     setActiveSidebarPage('notes');
   }
 
   const query = searchInput.value.toLowerCase().trim();
+  const pageNotes = getPageNotes(currentPage);
   
   // Apply Search + Tag filters
-  const filteredNotes = notes.filter(note => {
-    if (note.archived) return false;
+  const filteredNotes = pageNotes.filter(note => {
     
-    if (selectedFolderFilter && (note.folder || 'Inbox') !== selectedFolderFilter) return false;
+    if (selectedFolderFilter && !noteHasFolder(note, selectedFolderFilter)) return false;
 
     // Tag filter matching
     if (selectedTagFilter) {
@@ -1933,8 +3014,16 @@ function renderNotesPage() {
   // Handle Empty State
   if (filteredNotes.length === 0) {
     emptyState.style.display = 'flex';
-    emptyState.querySelector('.empty-text').textContent = 
-      query !== '' ? 'No matching notes found' : (selectedTagFilter ? `No notes tagged #${selectedTagFilter}` : 'Notes you add appear here');
+    let emptyCopy = 'Notes you add appear here';
+    if (currentPage === 'archive') {
+      emptyCopy = 'Archived notes appear here';
+    } else if (currentPage === 'deleted') {
+      emptyCopy = 'Deleted notes appear here until you restore or remove them forever';
+    } else if (selectedTagFilter) {
+      emptyCopy = `No notes tagged #${selectedTagFilter}`;
+    }
+    emptyState.querySelector('.empty-text').textContent =
+      query !== '' ? 'No matching notes found' : emptyCopy;
   } else {
     emptyState.style.display = 'none';
   }
@@ -1956,7 +3045,7 @@ function getLocalDateKey(dateInput) {
 
 function getReminderNotes(noteList = notes) {
   return (noteList || [])
-    .filter(note => !note.archived && note.reminder && !Number.isNaN(new Date(note.reminder).getTime()))
+    .filter(note => isActiveNote(note) && note.reminder && !Number.isNaN(new Date(note.reminder).getTime()))
     .sort((a, b) => new Date(a.reminder).getTime() - new Date(b.reminder).getTime());
 }
 
@@ -1971,7 +3060,7 @@ function getChecklistStats(note) {
 }
 
 function isTaskNote(note) {
-  if (!note || note.archived) return false;
+  if (!note || !isActiveNote(note)) return false;
   const noteKind = getVisualNoteType(note);
   if (noteKind === 'checklist') return true;
   const tags = extractHashtags(`${note.title || ''} ${note.text || ''}`);
@@ -1986,15 +3075,20 @@ function isTaskCompleted(note) {
 }
 
 function getTaskNotes(noteList = notes) {
-  return (noteList || []).filter(note => !note.archived && isTaskNote(note));
+  return (noteList || []).filter(note => isActiveNote(note) && isTaskNote(note));
 }
 
 function getProductivityDates(noteList = notes) {
-  return getReminderNotes(noteList).reduce((acc, note) => {
-    const dateKey = getLocalDateKey(note.reminder);
-    if (!dateKey) return acc;
-    if (!acc[dateKey]) acc[dateKey] = [];
-    acc[dateKey].push(note);
+  return (noteList || []).filter(note => isActiveNote(note)).reduce((acc, note) => {
+    const reminderKeys = new Set();
+    const noteReminderKey = getNoteReminderDateKey(note);
+    if (noteReminderKey) reminderKeys.add(noteReminderKey);
+    getTaskInlineReminderDateKeys(note).forEach(dateKey => reminderKeys.add(dateKey));
+
+    reminderKeys.forEach(dateKey => {
+      if (!acc[dateKey]) acc[dateKey] = [];
+      acc[dateKey].push(note);
+    });
     return acc;
   }, {});
 }
@@ -2019,10 +3113,47 @@ function getNoteReminderDateKey(note) {
   return note?.reminder ? getLocalDateKey(note.reminder) : '';
 }
 
+function getTaskInlineReminderEntries(note) {
+  if (!note || !isTaskNote(note)) return [];
+  return `${note.text || ''}`
+    .split('\n')
+    .map(line => {
+      const isChecklistLine = line.startsWith('- [ ] ') || line.startsWith('- [x] ');
+      if (!isChecklistLine) return null;
+      const rawContent = line.substring(6);
+      const reminder = extractChecklistInlineReminder(rawContent);
+      if (!reminder) return null;
+      const label = cleanTextTags(stripChecklistInlineReminder(rawContent)).trim();
+      return {
+        reminder,
+        dateKey: getLocalDateKey(reminder),
+        label: label || cleanTitleTags(note.title || 'Untitled task'),
+        completed: line.startsWith('- [x] ')
+      };
+    })
+    .filter(entry => entry && entry.dateKey);
+}
+
+function getTaskInlineReminderDateKeys(note) {
+  return [...new Set(getTaskInlineReminderEntries(note).map(entry => entry.dateKey))];
+}
+
+function getTaskPrimaryReminder(note) {
+  if (note?.reminder) return note.reminder;
+  const taskEntries = getTaskInlineReminderEntries(note)
+    .slice()
+    .sort((a, b) => new Date(a.reminder).getTime() - new Date(b.reminder).getTime());
+  return taskEntries[0]?.reminder || '';
+}
+
 function getDayCollections(dateKey) {
-  const relevantNotes = notes.filter(note => !note.archived);
+  const relevantNotes = notes.filter(note => isActiveNote(note));
   const agenda = relevantNotes.filter(note => getNoteReminderDateKey(note) === dateKey);
-  const todo = relevantNotes.filter(note => isTaskNote(note) && (getNoteReminderDateKey(note) === dateKey || getNoteCreatedDateKey(note) === dateKey));
+  const todo = relevantNotes.filter(note => isTaskNote(note) && (
+    getNoteReminderDateKey(note) === dateKey ||
+    getTaskInlineReminderDateKeys(note).includes(dateKey) ||
+    getNoteCreatedDateKey(note) === dateKey
+  ));
   const created = relevantNotes.filter(note => getNoteCreatedDateKey(note) === dateKey);
   return {
     agenda,
@@ -2044,7 +3175,8 @@ function getDayDotTypes(dateKey) {
 }
 
 function getTaskSortWeight(note) {
-  const reminderDate = note.reminder ? new Date(note.reminder) : null;
+  const primaryReminder = getTaskPrimaryReminder(note);
+  const reminderDate = primaryReminder ? new Date(primaryReminder) : null;
   const now = new Date();
   const todayKey = getLocalDateKey(now);
   const reminderKey = reminderDate && !Number.isNaN(reminderDate.getTime()) ? getLocalDateKey(reminderDate) : null;
@@ -2066,7 +3198,7 @@ function getFilteredProductivityTasks() {
       return `${note.title || ''} ${note.text || ''}`.toLowerCase().includes(query);
     })
     .filter(note => {
-      const reminderKey = note.reminder ? getLocalDateKey(note.reminder) : '';
+      const reminderKey = getTaskPrimaryReminder(note) ? getLocalDateKey(getTaskPrimaryReminder(note)) : '';
       const completed = isTaskCompleted(note);
       switch (selectedProductivityTaskFilter) {
         case 'today':
@@ -2084,8 +3216,10 @@ function getFilteredProductivityTasks() {
     .sort((a, b) => {
       const weightDiff = getTaskSortWeight(a) - getTaskSortWeight(b);
       if (weightDiff !== 0) return weightDiff;
-      const aTime = a.reminder ? new Date(a.reminder).getTime() : Number.MAX_SAFE_INTEGER;
-      const bTime = b.reminder ? new Date(b.reminder).getTime() : Number.MAX_SAFE_INTEGER;
+      const aPrimaryReminder = getTaskPrimaryReminder(a);
+      const bPrimaryReminder = getTaskPrimaryReminder(b);
+      const aTime = aPrimaryReminder ? new Date(aPrimaryReminder).getTime() : Number.MAX_SAFE_INTEGER;
+      const bTime = bPrimaryReminder ? new Date(bPrimaryReminder).getTime() : Number.MAX_SAFE_INTEGER;
       if (aTime !== bTime) return aTime - bTime;
       return (b.updatedAt || 0) - (a.updatedAt || 0);
     });
@@ -2103,9 +3237,16 @@ function formatCalendarDayLabel(dateKey) {
 function getTaskPreviewLabel(note) {
   const lines = `${note?.text || ''}`
     .split('\n')
-    .map(line => line.replace(/^- \[(?: |x)\]\s*/, '').trim())
+    .map(line => stripChecklistInlineReminder(line.replace(/^- \[(?: |x)\]\s*/, '')).trim())
     .filter(Boolean);
   return cleanTextTags(lines[0] || note?.title || 'Untitled task');
+}
+
+function getTaskPreviewSchedule(note, dateKey = '') {
+  const inlineMatch = getTaskInlineReminderEntries(note).find(entry => entry.dateKey === dateKey);
+  if (inlineMatch?.reminder) return formatReminderDate(inlineMatch.reminder);
+  const primaryReminder = getTaskPrimaryReminder(note);
+  return primaryReminder ? formatReminderDate(primaryReminder) : '';
 }
 
 function createReminderPreviewCard(note) {
@@ -2129,11 +3270,7 @@ function createReminderPreviewCard(note) {
   `;
 
   card.addEventListener('click', () => {
-    if (note.recipeData) {
-      openRecipeModal(note);
-    } else {
-      openEditModal(note);
-    }
+    openEditModal(note);
   });
 
   return card;
@@ -2151,7 +3288,7 @@ function createProductivityNoteCard(note, options = {}) {
   card.setAttribute('data-note-kind', noteKind);
 
   const previewText = cleanTextTags((note.text || '').replace(/^- \[(?: |x)\]\s*/gim, '')).replace(/\s+/g, ' ').trim();
-  const folderLabel = note.folder || getVisualTypeLabel(noteKind);
+  const folderLabel = getFolderSummaryLabel(note, getVisualTypeLabel(noteKind));
   const reminderLabel = note.reminder ? formatReminderDate(note.reminder) : '';
   const progressLabel = stats.total > 0
     ? `${stats.completed}/${stats.total} complete`
@@ -2181,11 +3318,7 @@ function createProductivityNoteCard(note, options = {}) {
   `;
 
   card.addEventListener('click', () => {
-    if (note.recipeData) {
-      openRecipeModal(note);
-    } else {
-      openEditModal(note);
-    }
+    openEditModal(note);
   });
   return card;
 }
@@ -2318,11 +3451,7 @@ function renderProductivityPage() {
       pill.className = `productivity-created-pill type-${getVisualNoteType(note)}`;
       pill.textContent = cleanTitleTags(note.title || 'Untitled note');
       pill.addEventListener('click', () => {
-        if (note.recipeData) {
-          openRecipeModal(note);
-        } else {
-          openEditModal(note);
-        }
+        openEditModal(note);
       });
       notePillsContainer.appendChild(pill);
     });
@@ -2350,7 +3479,12 @@ function renderProductivityPage() {
             <button class="productivity-todo-item ${isTaskCompleted(note) ? 'is-complete' : ''}" type="button" data-note-id="${note.id}">
               <span class="productivity-todo-bullet"></span>
               <span class="productivity-todo-copy">
-                <strong>${cleanTitleTags(note.title || 'Untitled task')}</strong>
+                <span class="productivity-todo-copy-top">
+                  <strong>${cleanTitleTags(note.title || 'Untitled task')}</strong>
+                  ${getTaskPreviewSchedule(note, selectedCalendarDate)
+                    ? `<span class="productivity-todo-schedule">${getTaskPreviewSchedule(note, selectedCalendarDate)}</span>`
+                    : ''}
+                </span>
                 <span>${getTaskPreviewLabel(note)}</span>
               </span>
             </button>
@@ -2376,20 +3510,15 @@ function renderGrid(gridContainer, notesArray) {
     const card = document.createElement('div');
     const noteKind = getVisualNoteType(note);
     card.className = 'note-card';
-    card.setAttribute('data-color', note.color);
+    applyNoteAppearance(card, note);
     card.setAttribute('data-note-kind', noteKind);
-    if (note.theme) {
-      card.setAttribute('data-theme', note.theme);
-    } else {
-      card.removeAttribute('data-theme');
-    }
     card.setAttribute('data-id', note.id);
 
     const boardHeader = document.createElement('div');
     boardHeader.className = 'note-board-header';
     const boardTitle = document.createElement('span');
     boardTitle.className = 'note-board-title';
-    boardTitle.textContent = note.folder || getVisualTypeLabel(noteKind);
+    boardTitle.textContent = getFolderSummaryLabel(note, getVisualTypeLabel(noteKind));
     const boardHeaderMeta = document.createElement('div');
     boardHeaderMeta.className = 'note-board-meta';
     const boardAccent = document.createElement('span');
@@ -2630,9 +3759,6 @@ function renderGrid(gridContainer, notesArray) {
     }
 
     // 6. Overflow Actions Menu
-    const colorBtnWrapper = document.createElement('div');
-    colorBtnWrapper.className = 'color-palette-trigger-wrapper note-card-menu-item note-card-menu-theme';
-    
     const colorBtn = document.createElement('button');
     colorBtn.className = 'note-card-menu-action';
     colorBtn.setAttribute('aria-label', 'Change note theme');
@@ -2640,78 +3766,112 @@ function renderGrid(gridContainer, notesArray) {
       <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01l-.23-.25a.3.3 0 0 1-.03-.17c0-.09.06-.15.15-.15H15a6 6 0 0 0 6-6c0-4.97-4.03-9-9-9zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm4.5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>
       <span>Theme</span>
     `;
-    
-    const picker = document.createElement('div');
-    picker.className = 'color-picker-bubble note-card-theme-picker';
-    
     colorBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      document.querySelectorAll('.color-picker-bubble').forEach(p => {
-        if (p !== picker) p.classList.remove('visible');
+      openThemePickerV2({ type: 'note', note });
+    });
+    menuPanelEl.appendChild(colorBtn);
+
+    if (getFirstUrlFromSharedText(note.title || '', note.text || '', note.recipeSourceUrl || '')) {
+      const parseLinkBtn = document.createElement('button');
+      parseLinkBtn.className = 'note-card-menu-action';
+      parseLinkBtn.setAttribute('aria-label', 'Parse link metadata');
+      parseLinkBtn.innerHTML = `
+        <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+        <span>Parse Link</span>
+      `;
+      parseLinkBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        parseExistingNoteLink(note);
       });
-      // Rebuild dynamically to ensure it is in sync
-      buildColorGrid(picker, note.color, note.theme, (type, value) => {
-        if (type === 'color') {
-          note.color = value;
-          note.theme = null;
-        } else {
-          note.color = 'default';
-          note.theme = value === 'none' ? null : value;
-        }
+      menuPanelEl.appendChild(parseLinkBtn);
+    }
+
+    if (note.recipeData) {
+      const recipeBuilderBtn = document.createElement('button');
+      recipeBuilderBtn.className = 'note-card-menu-action';
+      recipeBuilderBtn.setAttribute('aria-label', 'Open recipe builder');
+      recipeBuilderBtn.innerHTML = `
+        <svg viewBox="0 0 24 24"><path d="M7 2h2v8a2 2 0 1 1-2 0V2Zm8 0h2v7h1v2h-1v11h-2V11h-1V9h1V2Zm-5 12h4v2h-4v6H8v-6H4v-2h4v-2h2v2Z"/></svg>
+        <span>Recipe Builder</span>
+      `;
+      recipeBuilderBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllNoteCardMenus();
+        openRecipeModal(note);
+      });
+      menuPanelEl.appendChild(recipeBuilderBtn);
+    }
+
+    if (!note.deleted) {
+      const pinBtn = document.createElement('button');
+      pinBtn.className = 'note-card-menu-action';
+      pinBtn.setAttribute('aria-label', note.pinned ? 'Unpin note' : 'Pin note');
+      pinBtn.innerHTML = `
+        <svg viewBox="0 0 24 24">
+          <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zM9.8 4h4.4v8H9.8V4z" />
+        </svg>
+        <span>${note.pinned ? 'Unpin' : 'Pin'}</span>
+      `;
+      pinBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        note.pinned = !note.pinned;
         saveToLocalStorage();
-        picker.classList.remove('visible');
+        closeAllNoteCardMenus();
         renderNotes();
       });
-      picker.classList.toggle('visible');
-    });
+      menuPanelEl.appendChild(pinBtn);
+    }
 
-    // Initial build
-    buildColorGrid(picker, note.color, note.theme, (type, value) => {
-      if (type === 'color') {
-        note.color = value;
-        note.theme = null;
-      } else {
-        note.color = 'default';
-        note.theme = value === 'none' ? null : value;
-      }
-      saveToLocalStorage();
-      picker.classList.remove('visible');
-      renderNotes();
-    });
+    const archiveBtn = document.createElement('button');
+    archiveBtn.className = 'note-card-menu-action';
+    if (note.deleted) {
+      archiveBtn.setAttribute('aria-label', 'Restore note');
+      archiveBtn.innerHTML = `
+        <svg viewBox="0 0 24 24"><path d="M12 5V2L7 7l5 5V9c3.31 0 6 2.69 6 6a6 6 0 0 1-6 6 6 6 0 0 1-5.65-4H4.26A8 8 0 0 0 12 23a8 8 0 0 0 0-16Z"/></svg>
+        <span>Restore</span>
+      `;
+      archiveBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        restoreDeletedNote(note.id);
+      });
+    } else if (note.archived) {
+      archiveBtn.setAttribute('aria-label', 'Restore from archive');
+      archiveBtn.innerHTML = `
+        <svg viewBox="0 0 24 24"><path d="M12 5V2L7 7l5 5V9c3.31 0 6 2.69 6 6a6 6 0 0 1-6 6 6 6 0 0 1-5.65-4H4.26A8 8 0 0 0 12 23a8 8 0 0 0 0-16Z"/></svg>
+        <span>Restore</span>
+      `;
+      archiveBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        restoreArchivedNote(note.id);
+      });
+    } else {
+      archiveBtn.setAttribute('aria-label', 'Archive note');
+      archiveBtn.innerHTML = `
+        <svg viewBox="0 0 24 24"><path d="M20.54 5.23 19.15 3.55A2 2 0 0 0 17.61 3H6.39a2 2 0 0 0-1.54.55L3.46 5.23A2 2 0 0 0 3 6.5V19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.5a2 2 0 0 0-.46-1.27ZM6.24 5h11.52l.81 1H5.43l.81-1ZM12 17l-4-4h2.5v-3h3v3H16l-4 4Z"/></svg>
+        <span>Archive</span>
+      `;
+      archiveBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        archiveNote(note.id);
+      });
+    }
+    menuPanelEl.appendChild(archiveBtn);
 
-    colorBtnWrapper.appendChild(colorBtn);
-    colorBtnWrapper.appendChild(picker);
-    menuPanelEl.appendChild(colorBtnWrapper);
-
-    const pinBtn = document.createElement('button');
-    pinBtn.className = 'note-card-menu-action';
-    pinBtn.setAttribute('aria-label', note.pinned ? 'Unpin note' : 'Pin note');
-    pinBtn.innerHTML = `
-      <svg viewBox="0 0 24 24">
-        <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zM9.8 4h4.4v8H9.8V4z" />
-      </svg>
-      <span>${note.pinned ? 'Unpin' : 'Pin'}</span>
-    `;
-    pinBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      note.pinned = !note.pinned;
-      saveToLocalStorage();
-      closeAllNoteCardMenus();
-      renderNotes();
-    });
-    menuPanelEl.appendChild(pinBtn);
-
-    // Delete Button
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'note-card-menu-action danger';
-    deleteBtn.setAttribute('aria-label', 'Delete note');
+    deleteBtn.setAttribute('aria-label', note.deleted ? 'Delete forever' : 'Move note to delete page');
     deleteBtn.innerHTML = `
       <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-      <span>Delete</span>
+      <span>${note.deleted ? 'Delete Forever' : 'Delete Page'}</span>
     `;
     deleteBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      deleteNote(note.id);
+      if (note.deleted) {
+        deleteNotePermanently(note.id);
+      } else {
+        trashNote(note.id);
+      }
     });
     menuPanelEl.appendChild(deleteBtn);
 
@@ -2740,11 +3900,7 @@ function renderGrid(gridContainer, notesArray) {
           }
           card.classList.remove('touch-expanded');
         }
-        if (note.recipeData) {
-          openRecipeModal(note);
-        } else {
-          openEditModal(note);
-        }
+        openEditModal(note);
       }
     });
 
@@ -2875,12 +4031,12 @@ function openEditModal(note) {
     const folderField = document.createElement('div');
     folderField.className = 'modal-folder-field';
     folderField.innerHTML = `
-      <div class="modal-folder-label">Category</div>
+      <div class="modal-folder-label">Categories</div>
       <button type="button" class="modal-folder-trigger" id="modal-folder-trigger" aria-expanded="false"></button>
       <div class="modal-folder-options" id="modal-folder-options"></div>
       <label class="modal-folder-custom">
         <span class="modal-folder-custom-icon">${getFolderIconSvg('folder')}</span>
-        <input type="text" id="modal-folder-custom" placeholder="New category" autocomplete="off">
+        <input type="text" id="modal-folder-custom" placeholder="Add category" autocomplete="off">
       </label>
       <input type="hidden" id="modal-folder">
     `;
@@ -2908,32 +4064,29 @@ function openEditModal(note) {
       event.preventDefault();
       const customFolder = modalFolderCustomInput.value.trim();
       if (!customFolder) return;
-      setModalFolderValue(customFolder, { preserveDraft: false });
+      setModalFolderValue([...getSelectedFolders(decodeFolderSelection(modalFolderInput?.value || '')), customFolder], { preserveDraft: false });
       closeModalFolderPicker();
     });
     modalFolderCustomInput.addEventListener('blur', () => {
       const customFolder = modalFolderCustomInput.value.trim();
       if (!customFolder) return;
-      setModalFolderValue(customFolder, { preserveDraft: false });
+      setModalFolderValue([...getSelectedFolders(decodeFolderSelection(modalFolderInput?.value || '')), customFolder], { preserveDraft: false });
     });
     modalFolderCustomInput.dataset.bound = 'true';
   }
   
   modalTitle.value = note.title;
   modalText.value = note.text;
-  setModalFolderValue(note.folder || 'Inbox');
+  setModalFolderValue(getNoteFolders(note));
   closeModalFolderPicker();
   
   syncModalInputs(note);
   renderModalAudioPreview(note);
   
-  editModalCard.setAttribute('data-color', note.color);
-  if (note.theme) {
-    editModalCard.setAttribute('data-theme', note.theme);
-  } else {
-    editModalCard.removeAttribute('data-theme');
-  }
+  applyNoteAppearance(editModalCard, note);
   modalPin.classList.toggle('pinned', note.pinned);
+  modalDelete.setAttribute('aria-label', note.deleted ? 'Delete forever' : 'Move note to delete page');
+  modalDelete.setAttribute('title', note.deleted ? 'Delete forever' : 'Move to delete page');
 
   // Setup modal banner preview
   if (note.image) {
@@ -2949,22 +4102,9 @@ function openEditModal(note) {
   renderModalReminderChip(note);
   
   // Rebuild modal color picker dynamically
-  buildColorGrid(modalColorPicker, note.color, note.theme, (type, value) => {
-    if (type === 'color') {
-      note.color = value;
-      note.theme = null;
-      editModalCard.setAttribute('data-color', value);
-      editModalCard.removeAttribute('data-theme');
-    } else {
-      note.color = 'default';
-      note.theme = value === 'none' ? null : value;
-      editModalCard.setAttribute('data-color', 'default');
-      if (note.theme) {
-        editModalCard.setAttribute('data-theme', note.theme);
-      } else {
-        editModalCard.removeAttribute('data-theme');
-      }
-    }
+  buildColorGrid(modalColorPicker, note.color, note.theme, note.customTheme, (type, value) => {
+    applyAppearanceSelection(note, type, value);
+    applyNoteAppearance(editModalCard, note);
     saveToLocalStorage();
     renderNotes();
     modalColorPicker.classList.remove('visible');
@@ -3054,12 +4194,12 @@ function closeEditModal() {
       const text = modalText.value.trim();
       
       if (isNoteEffectivelyEmpty(title, text, note.image, note.audio)) {
-        deleteNote(currentEditingNoteId);
+        trashNote(currentEditingNoteId);
       } else {
         note.title = title;
         note.text = text;
-        note.folder = modalFolderInput?.value.trim() || 'Inbox';
-        registerFolder(note.folder);
+        setNoteFolders(note, decodeFolderSelection(modalFolderInput?.value || ''));
+        registerNoteFolders(note);
         note.type = note.recipeData ? 'recipe' : getNoteType(text);
         note.updatedAt = Date.now();
         saveToLocalStorage();
@@ -3074,9 +4214,7 @@ function closeEditModal() {
 }
 
 function deleteNote(id) {
-  notes = notes.filter(n => n.id !== id);
-  saveToLocalStorage();
-  renderNotes();
+  trashNote(id);
 }
 
 // ==========================================================================
@@ -3108,6 +4246,9 @@ function toggleViewLayout() {
 
 function saveToLocalStorage() {
   try {
+    notes.forEach((note, index) => {
+      setNoteFolders(note, getNoteFolders(note, inferDefaultFolder(note, index)));
+    });
     localStorage.setItem(STORAGE_KEYS.notes, JSON.stringify(notes));
     localStorage.setItem(STORAGE_KEYS.folders, JSON.stringify(customFolders));
     hasShownStorageWarning = false;
@@ -3261,12 +4402,198 @@ function getFirstUrlInText(text) {
   return matches ? matches[0] : null;
 }
 
+function getFirstUrlFromSharedText(...values) {
+  return getFirstUrlInText(values.filter(Boolean).join(' '));
+}
+
 function extractDomain(urlStr) {
   try {
     return new URL(urlStr).hostname;
   } catch (e) {
     return '';
   }
+}
+
+function buildAutofillTextFromPreview(preview, url) {
+  const parts = [];
+  if (preview?.description) parts.push(preview.description);
+  if (url) parts.push(url);
+  return parts.join('\n\n').trim();
+}
+
+function shouldApplyLinkPreview(url) {
+  if (!url || creatorLinkPreviewUrl === url) return false;
+  return creatorExpanded.style.display !== 'none';
+}
+
+function applyCreatorLinkPreview(preview, sourceUrl) {
+  if (!preview || sourceUrl !== getFirstUrlFromSharedText(creatorTitle.value, creatorText.value)) return;
+
+  const intent = preview.intent || {};
+  if (!creatorTitle.value.trim() && preview.title) {
+    creatorTitle.value = preview.title;
+  }
+
+  const previewText = buildAutofillTextFromPreview(preview, sourceUrl);
+  if (!creatorText.value.trim() && previewText) {
+    creatorText.value = previewText;
+  } else if (creatorText.value.trim() === sourceUrl && previewText) {
+    creatorText.value = previewText;
+  }
+
+  if (!creatorImage && preview.image) {
+    creatorImage = preview.image;
+    creatorImgPreview.src = preview.image;
+    creatorImageBanner.style.display = 'block';
+  }
+
+  if (intent.folder) {
+    setCreatorFolderValue([intent.folder], { preserveDraft: true });
+  }
+
+  if (intent.noteType) {
+    creatorIntentType = intent.noteType;
+  }
+
+  if (intent.theme && creatorColor === 'default' && !creatorTheme) {
+    creatorTheme = intent.theme;
+    creatorCustomTheme = null;
+    applyCreatorAppearance();
+  }
+
+  syncCreatorInputs();
+  syncCreatorFolderInput();
+  autoGrowTextarea.call(creatorText);
+}
+
+async function fetchCreatorLinkPreview(url) {
+  if (!shouldApplyLinkPreview(url)) return;
+  creatorLinkPreviewUrl = url;
+  creatorLinkPreviewAbort?.abort();
+  creatorLinkPreviewAbort = new AbortController();
+
+  try {
+    const preview = await fetchLinkPreviewMetadata(url, creatorLinkPreviewAbort.signal);
+    applyCreatorLinkPreview(preview, url);
+  } catch (error) {
+    if (error?.name !== 'AbortError') {
+      console.warn('Link preview unavailable:', getRecipeImporterUnavailableMessage(), error);
+    }
+  }
+}
+
+async function fetchLinkPreviewMetadata(url, signal) {
+  const response = await fetch('/api/link-preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+    signal
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || 'Link parser failed.');
+  }
+  return payload;
+}
+
+async function parseCreatorLinkManually() {
+  expandCreator();
+  const url = getFirstUrlFromSharedText(creatorTitle.value, creatorText.value);
+  if (!url) {
+    showToast({ title: 'No link found', text: 'Paste a URL in the title or note body first.' });
+    return;
+  }
+  creatorLinkPreviewUrl = null;
+  try {
+    await fetchCreatorLinkPreview(url);
+    showToast({ title: 'Link parsed', text: 'Title, notes, image, and category were updated where empty.' });
+  } catch (error) {
+    showToast({ title: 'Link parser unavailable', text: getRecipeImporterUnavailableMessage() });
+  }
+}
+
+function applyLinkPreviewToNote(note, preview, sourceUrl) {
+  if (!note || !preview) return;
+  const intent = preview.intent || {};
+  const previewText = buildAutofillTextFromPreview(preview, sourceUrl);
+
+  if (!note.title?.trim() && preview.title) {
+    note.title = preview.title;
+  }
+  if ((!note.text?.trim() || note.text.trim() === sourceUrl) && previewText) {
+    note.text = previewText;
+  }
+  if (!note.image && preview.image) {
+    note.image = preview.image;
+  }
+  if (intent.folder) {
+    setNoteFolders(note, [...getNoteFolders(note), intent.folder]);
+    registerNoteFolders(note);
+  }
+  if (intent.noteType) {
+    note.type = intent.noteType;
+  }
+  if (intent.theme && note.color === 'default' && !note.theme) {
+    note.theme = intent.theme;
+  }
+  note.updatedAt = Date.now();
+}
+
+async function parseExistingNoteLink(note) {
+  const url = getFirstUrlFromSharedText(note?.title || '', note?.text || '', note?.recipeSourceUrl || '');
+  if (!url) {
+    showToast({ title: 'No link found', text: 'This note does not contain a URL to parse.' });
+    return;
+  }
+
+  try {
+    const preview = await fetchLinkPreviewMetadata(url);
+    applyLinkPreviewToNote(note, preview, url);
+    saveToLocalStorage();
+    closeAllNoteCardMenus();
+    renderNotes();
+    showToast({ title: 'Link parsed', text: 'The note was enriched with available metadata.' });
+  } catch (error) {
+    showToast({ title: 'Link parser unavailable', text: error.message || getRecipeImporterUnavailableMessage() });
+  }
+}
+
+function scheduleCreatorLinkPreview(delay = 350) {
+  clearTimeout(creatorLinkPreviewTimer);
+  const url = getFirstUrlFromSharedText(creatorTitle.value, creatorText.value);
+  if (!url || !shouldApplyLinkPreview(url)) return;
+  creatorLinkPreviewTimer = setTimeout(() => fetchCreatorLinkPreview(url), delay);
+}
+
+function handleSharedLaunchData() {
+  const params = new URLSearchParams(window.location.search);
+  const sharedTitle = params.get('title') || '';
+  const sharedText = params.get('text') || '';
+  const sharedUrl = params.get('url') || '';
+  if (!sharedTitle && !sharedText && !sharedUrl) return;
+
+  expandCreator();
+  if (!creatorTitle.value.trim() && sharedTitle) {
+    creatorTitle.value = sharedTitle;
+  }
+
+  const url = getFirstUrlFromSharedText(sharedUrl, sharedText);
+  const bodyParts = [];
+  if (sharedText && sharedText !== sharedTitle) bodyParts.push(sharedText);
+  if (sharedUrl && !sharedText.includes(sharedUrl)) bodyParts.push(sharedUrl);
+  if (!creatorText.value.trim()) {
+    creatorText.value = bodyParts.join('\n\n').trim();
+  }
+
+  syncCreatorInputs();
+  syncCreatorFolderInput(true);
+  autoGrowTextarea.call(creatorText);
+  if (url) {
+    creatorLinkPreviewUrl = null;
+    fetchCreatorLinkPreview(url);
+  }
+
+  window.history.replaceState({}, document.title, window.location.pathname);
 }
 
 function getVisualTypeLabel(kind) {
@@ -3798,6 +5125,31 @@ function renderRecipeImportError(message) {
   els.error.style.display = 'block';
 }
 
+async function verifyRecipeImporterAvailable() {
+  try {
+    const response = await fetch('/api/health', {
+      method: 'GET',
+      cache: 'no-store'
+    });
+    if (!response.ok) return false;
+    const payload = await response.json().catch(() => ({}));
+    return payload?.recipeImporter === true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function getRecipeImporterUnavailableMessage() {
+  const { protocol, hostname, origin } = window.location;
+  if (protocol === 'file:') {
+    return 'Recipe import requires the AtlasNest server. Start the app with npm start and open http://localhost:3000.';
+  }
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'Recipe import needs the AtlasNest server running on this device. If you are on a phone or tablet, open the computer LAN address shown by npm start instead of localhost.';
+  }
+  return `Recipe import could not reach the AtlasNest backend at ${origin}. Make sure npm start is running on the host computer, both devices are on the same Wi-Fi, and the firewall allows port 3000.`;
+}
+
 const MOCK_RECIPE_DATABASE = {
   'salmon': {
     title: '🍽️ Recipe: Creamy Garlic Tuscan Salmon #cooking',
@@ -3890,6 +5242,9 @@ function legacyHandleRecipeImportAction() {
     theme: 'plants',
     pinned: false,
     archived: false,
+    archivedAt: null,
+    deleted: false,
+    deletedAt: null,
     image: image,
     updatedAt: Date.now()
   };
@@ -3912,8 +5267,8 @@ async function handleRecipeImportAction() {
     renderRecipeImportError('Paste a cooking website URL first.');
     return;
   }
-  if (window.location.protocol === 'file:') {
-    renderRecipeImportError('Recipe import requires the AtlasNest server. Start the app with npm start and open http://localhost:3000.');
+  if (!(await verifyRecipeImporterAvailable())) {
+    renderRecipeImportError(getRecipeImporterUnavailableMessage());
     return;
   }
 
@@ -3941,7 +5296,7 @@ async function handleRecipeImportAction() {
     recipeImportWarnings = Array.isArray(payload.meta?.warnings) ? payload.meta.warnings : [];
     populateRecipeBuilderForm(payload.recipe);
   } catch (error) {
-    renderRecipeImportError(error.message || 'Recipe import failed.');
+    renderRecipeImportError(error.message || getRecipeImporterUnavailableMessage());
     els.retryBtn.style.display = 'inline-flex';
   } finally {
     recipeImportPending = false;
@@ -4010,44 +5365,51 @@ function saveRecipeDraftToNotes() {
   const image = recipe.image_url || null;
   const recipeSourceUrl = getRecipeFormElements().url.value.trim();
   const existingNote = recipeEditingNoteId ? notes.find(note => note.id === recipeEditingNoteId) : null;
+  let savedRecipeNote = existingNote;
 
   if (existingNote) {
     existingNote.type = 'recipe';
     existingNote.title = recipe.title;
     existingNote.text = text;
-    existingNote.folder = 'Kitchen Board';
+    setNoteFolders(existingNote, ['Kitchen Board']);
     existingNote.image = image;
     existingNote.recipeData = recipe;
     existingNote.recipeImportWarnings = [...recipeImportWarnings];
     existingNote.recipeImportMethod = recipeImportMethod;
     existingNote.recipeSourceUrl = recipeSourceUrl;
     existingNote.updatedAt = Date.now();
-    registerFolder(existingNote.folder);
+    registerNoteFolders(existingNote);
   } else {
-    const newNote = {
+    const newNote = setNoteFolders({
       id: `note-${Date.now()}`,
       type: 'recipe',
       title: recipe.title,
       text,
-      folder: 'Kitchen Board',
       color: 'default',
       theme: 'plants',
       pinned: false,
       archived: false,
+      archivedAt: null,
+      deleted: false,
+      deletedAt: null,
       image,
       recipeData: recipe,
       recipeImportWarnings: [...recipeImportWarnings],
       recipeImportMethod,
       recipeSourceUrl,
       updatedAt: Date.now()
-    };
-    registerFolder(newNote.folder);
+    }, ['Kitchen Board']);
+    registerNoteFolders(newNote);
     notes.unshift(newNote);
+    savedRecipeNote = newNote;
   }
 
   saveToLocalStorage();
   renderNotes();
   closeRecipeModal();
+  if (savedRecipeNote) {
+    openEditModal(savedRecipeNote);
+  }
   showToast({
     title: existingNote ? 'Recipe updated' : 'Recipe saved',
     text: existingNote ? 'Recipe changes were saved to Kitchen Board.' : 'Imported recipe was added to Kitchen Board.'

@@ -8,6 +8,8 @@ import {
 let checklistFocusIndex = null;
 let checklistFocusIsNew = false;
 let draggedChecklistIndex = null;
+let draggedChecklistDropPosition = 'before';
+let checklistDragPreview = null;
 
 function normalizeChecklistLine(line = '') {
   if (line.startsWith('- [ ] ') || line.startsWith('- [x] ')) return line;
@@ -22,6 +24,18 @@ function moveChecklistLine(lines, fromIndex, toIndex) {
   const [moved] = nextLines.splice(fromIndex, 1);
   nextLines.splice(toIndex, 0, moved);
   return nextLines;
+}
+
+function cleanupChecklistDragState(container) {
+  draggedChecklistIndex = null;
+  draggedChecklistDropPosition = 'before';
+  container.querySelectorAll('.checklist-editor-row').forEach(item => {
+    item.classList.remove('is-drop-target', 'is-drop-before', 'is-drop-after', 'is-dragging');
+  });
+  if (checklistDragPreview) {
+    checklistDragPreview.remove();
+    checklistDragPreview = null;
+  }
 }
 
 function formatInlineReminder(reminder) {
@@ -85,13 +99,17 @@ export function renderChecklistNoteContent(note, options) {
       label.className = `checklist-text ${checked ? 'checked' : ''}`;
       label.appendChild(renderTextWithLinksFromApp(cleanText));
 
+      const content = document.createElement('div');
+      content.className = 'checklist-content';
+      content.appendChild(label);
+
       row.appendChild(checkbox);
-      row.appendChild(label);
+      row.appendChild(content);
       if (inlineReminder) {
         const reminderChip = document.createElement('span');
         reminderChip.className = 'checklist-inline-reminder';
         reminderChip.textContent = formatInlineReminder(inlineReminder);
-        row.appendChild(reminderChip);
+        content.appendChild(reminderChip);
       }
 
       if (checked) {
@@ -182,26 +200,41 @@ export function syncChecklistEditor(container, rawText, onChange) {
     row.addEventListener('dragover', (event) => {
       event.preventDefault();
       if (draggedChecklistIndex === null || draggedChecklistIndex === index) return;
+      const bounds = row.getBoundingClientRect();
+      const isAfter = (event.clientY - bounds.top) > (bounds.height / 2);
+      draggedChecklistDropPosition = isAfter ? 'after' : 'before';
+      container.querySelectorAll('.checklist-editor-row').forEach(item => {
+        if (item !== row) {
+          item.classList.remove('is-drop-target', 'is-drop-before', 'is-drop-after');
+        }
+      });
       row.classList.add('is-drop-target');
+      row.classList.toggle('is-drop-before', !isAfter);
+      row.classList.toggle('is-drop-after', isAfter);
     });
 
     row.addEventListener('dragleave', () => {
-      row.classList.remove('is-drop-target');
+      row.classList.remove('is-drop-target', 'is-drop-before', 'is-drop-after');
     });
 
     row.addEventListener('drop', (event) => {
       event.preventDefault();
-      row.classList.remove('is-drop-target');
       if (draggedChecklistIndex === null || draggedChecklistIndex === index) return;
-      lines = moveChecklistLine(lines, draggedChecklistIndex, index);
-      checklistFocusIndex = index;
-      draggedChecklistIndex = null;
+      let targetIndex = index;
+      if (draggedChecklistDropPosition === 'after') {
+        targetIndex += 1;
+      }
+      if (draggedChecklistIndex < targetIndex) {
+        targetIndex -= 1;
+      }
+      lines = moveChecklistLine(lines, draggedChecklistIndex, targetIndex);
+      checklistFocusIndex = targetIndex;
+      cleanupChecklistDragState(container);
       onChange(lines.join('\n'));
     });
 
     row.addEventListener('dragend', () => {
-      draggedChecklistIndex = null;
-      container.querySelectorAll('.checklist-editor-row').forEach(item => item.classList.remove('is-drop-target', 'is-dragging'));
+      cleanupChecklistDragState(container);
     });
 
     const activateRow = () => {
@@ -224,8 +257,17 @@ export function syncChecklistEditor(container, rawText, onChange) {
     dragHandle.addEventListener('dragstart', (event) => {
       draggedChecklistIndex = index;
       row.classList.add('is-dragging');
+      draggedChecklistDropPosition = 'before';
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/plain', String(index));
+      checklistDragPreview = row.cloneNode(true);
+      checklistDragPreview.classList.add('checklist-editor-row', 'is-drag-preview');
+      checklistDragPreview.style.width = `${row.offsetWidth}px`;
+      checklistDragPreview.style.position = 'fixed';
+      checklistDragPreview.style.top = '-9999px';
+      checklistDragPreview.style.left = '-9999px';
+      document.body.appendChild(checklistDragPreview);
+      event.dataTransfer.setDragImage(checklistDragPreview, 24, 20);
     });
 
     const checkbox = document.createElement('div');
