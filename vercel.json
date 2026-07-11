@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "api/link-preview.js": {
+      "maxDuration": 15
+    },
+    "api/recipes/import.js": {
+      "maxDuration": 20
+    }
+  }
+}
