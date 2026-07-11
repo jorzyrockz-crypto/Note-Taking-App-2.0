@@ -3,7 +3,7 @@ import net from 'node:net';
 import * as cheerio from 'cheerio';
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 AtlasNestLinkPreview/1.0';
-const FETCH_TIMEOUT_MS = 10000;
+const FETCH_TIMEOUT_MS = 8000;
 const MAX_HTML_BYTES = 800000;
 
 export class LinkPreviewError extends Error {
