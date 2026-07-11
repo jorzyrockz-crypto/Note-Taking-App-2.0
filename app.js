@@ -790,6 +790,7 @@ const creatorImgPreview = document.getElementById('creator-img-preview');
 const creatorRemoveImg = document.getElementById('creator-remove-img');
 const creatorImageBtn = document.getElementById('creator-image-btn');
 const creatorImageInput = document.getElementById('creator-image-input');
+const creatorCameraInput = document.getElementById('creator-camera-input');
 const creatorListBtn = document.getElementById('creator-list-btn');
 const creatorListToggleBtn = document.getElementById('creator-list-toggle');
 const creatorLinkParserBtn = document.getElementById('creator-link-parser-btn');
@@ -839,6 +840,7 @@ const modalImgPreview = document.getElementById('modal-img-preview');
 const modalRemoveImg = document.getElementById('modal-remove-img');
 const modalImageBtn = document.getElementById('modal-image-btn');
 const modalImageInput = document.getElementById('modal-image-input');
+const modalCameraInput = document.getElementById('modal-camera-input');
 const modalListBtn = document.getElementById('modal-list-btn');
 const modalDrawBtn = document.getElementById('modal-draw-btn');
 const modalTagsContainer = document.getElementById('modal-tags-container');
@@ -1498,8 +1500,9 @@ function setupEventHandlers() {
   if (menuBtn && sidebar) {
     menuBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (window.innerWidth < 600) {
+      if (window.innerWidth <= 900) {
         sidebar.classList.toggle('sidebar-open');
+        document.body.classList.remove('sidebar-pinned');
       } else {
         document.body.classList.toggle('sidebar-pinned');
       }
@@ -1598,6 +1601,7 @@ function setupEventHandlers() {
         selectedTypeFilter = btn.getAttribute('data-type-filter') || 'all';
         feedFilterRow.querySelectorAll('.filter-pill').forEach(pill => pill.classList.remove('active'));
         btn.classList.add('active');
+        btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
         renderAppView();
       });
     });
@@ -1747,19 +1751,22 @@ function setupEventHandlers() {
     openDrawingWorkspace('creator');
   });
 
-  // Creator Image upload trigger
-  creatorImageBtn.addEventListener('click', () => creatorImageInput.click());
+  // Creator image source picker
+  creatorImageBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openImageSourcePicker('creator', creatorImageBtn);
+  });
   creatorLinkParserBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
     parseCreatorLinkManually();
   });
   creatorImageInput.addEventListener('change', (e) => {
-    handleImageUpload(e.target.files[0], (base64) => {
-      creatorImage = base64;
-      creatorImgPreview.src = base64;
-      creatorImageBanner.style.display = 'block';
-      syncCreatorFolderInput();
-    });
+    handleSelectedImageFile('creator', e.target.files[0]);
+    e.target.value = '';
+  });
+  creatorCameraInput?.addEventListener('change', (e) => {
+    handleSelectedImageFile('creator', e.target.files[0]);
+    e.target.value = '';
   });
 
   // Remove Creator image banner
@@ -1769,6 +1776,7 @@ function setupEventHandlers() {
     creatorImageBanner.style.display = 'none';
     creatorImgPreview.src = '';
     creatorImageInput.value = ''; // reset file input
+    if (creatorCameraInput) creatorCameraInput.value = '';
     syncCreatorFolderInput();
   });
 
@@ -1920,19 +1928,18 @@ function setupEventHandlers() {
     }
   });
 
-  // Modal Image upload trigger
-  modalImageBtn.addEventListener('click', () => modalImageInput.click());
+  // Modal image source picker
+  modalImageBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openImageSourcePicker('modal', modalImageBtn);
+  });
   modalImageInput.addEventListener('change', (e) => {
-    handleImageUpload(e.target.files[0], (base64) => {
-      const note = notes.find(n => n.id === currentEditingNoteId);
-      if (note) {
-        note.image = base64;
-        modalImgPreview.src = base64;
-        modalImageBanner.style.display = 'block';
-        saveToLocalStorage();
-        renderNotes();
-      }
-    });
+    handleSelectedImageFile('modal', e.target.files[0]);
+    e.target.value = '';
+  });
+  modalCameraInput?.addEventListener('change', (e) => {
+    handleSelectedImageFile('modal', e.target.files[0]);
+    e.target.value = '';
   });
 
   // Remove Modal image banner
@@ -1944,10 +1951,12 @@ function setupEventHandlers() {
       modalImageBanner.style.display = 'none';
       modalImgPreview.src = '';
       modalImageInput.value = '';
+      if (modalCameraInput) modalCameraInput.value = '';
       saveToLocalStorage();
       renderNotes();
     }
   });
+  document.addEventListener('click', closeImageSourcePicker);
 }
 
 // ==========================================================================
@@ -2227,6 +2236,7 @@ function collapseCreator() {
   creatorImageBanner.style.display = 'none';
   creatorImgPreview.src = '';
   creatorImageInput.value = '';
+  if (creatorCameraInput) creatorCameraInput.value = '';
   
   renderCreatorReminderChip();
   renderCreatorAudioPreview();
@@ -2765,6 +2775,81 @@ function renderSidebarTags() {
 // ==========================================================================
 // 8. Image Handling & Compression
 // ==========================================================================
+
+function closeImageSourcePicker() {
+  document.querySelectorAll('.image-source-popover').forEach(popover => popover.remove());
+}
+
+function openImageSourcePicker(target, anchor) {
+  closeImageSourcePicker();
+
+  const uploadInput = target === 'creator' ? creatorImageInput : modalImageInput;
+  const cameraInput = target === 'creator' ? creatorCameraInput : modalCameraInput;
+  if (!uploadInput) return;
+
+  const popover = document.createElement('div');
+  popover.className = 'image-source-popover';
+  popover.innerHTML = `
+    <button type="button" data-image-source="upload">
+      <span class="image-source-icon" aria-hidden="true">+</span>
+      <span>
+        <strong>Upload image</strong>
+        <small>Choose from files or gallery</small>
+      </span>
+    </button>
+    <button type="button" data-image-source="camera">
+      <span class="image-source-icon" aria-hidden="true"></span>
+      <span>
+        <strong>Use camera</strong>
+        <small>Take a new photo</small>
+      </span>
+    </button>
+  `;
+
+  popover.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const action = e.target.closest('[data-image-source]')?.getAttribute('data-image-source');
+    if (action === 'upload') {
+      closeImageSourcePicker();
+      uploadInput.click();
+    }
+    if (action === 'camera') {
+      closeImageSourcePicker();
+      (cameraInput || uploadInput).click();
+    }
+  });
+
+  document.body.appendChild(popover);
+  const rect = anchor.getBoundingClientRect();
+  const width = Math.min(260, window.innerWidth - 24);
+  const left = Math.max(12, Math.min(window.innerWidth - width - 12, rect.left));
+  const top = Math.max(12, Math.min(window.innerHeight - 146, rect.bottom + 10));
+  popover.style.width = `${width}px`;
+  popover.style.left = `${left}px`;
+  popover.style.top = `${top}px`;
+}
+
+function handleSelectedImageFile(target, file) {
+  if (!file) return;
+  handleImageUpload(file, (base64) => {
+    if (target === 'creator') {
+      creatorImage = base64;
+      creatorImgPreview.src = base64;
+      creatorImageBanner.style.display = 'block';
+      syncCreatorFolderInput();
+      return;
+    }
+
+    const note = notes.find(n => n.id === currentEditingNoteId);
+    if (note) {
+      note.image = base64;
+      modalImgPreview.src = base64;
+      modalImageBanner.style.display = 'block';
+      saveToLocalStorage();
+      renderNotes();
+    }
+  });
+}
 
 function handleImageUpload(file, onCompressComplete) {
   if (!file) return;
@@ -5504,7 +5589,9 @@ function ensureVoiceRecordingIndicators() {
         <span></span>
         <span></span>
       </span>
+      <button type="button" class="voice-recording-stop">Stop</button>
     `;
+    indicator.querySelector('.voice-recording-stop')?.addEventListener('click', stopVoiceRecording);
     host.appendChild(indicator);
   });
 }

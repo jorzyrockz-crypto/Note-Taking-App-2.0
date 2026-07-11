@@ -581,6 +581,100 @@ body.dark-theme .creator-image-banner {
   background-color: rgba(0, 0, 0, 0.8) !important;
 }
 
+.image-source-popover {
+  position: fixed;
+  z-index: 5000;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-light);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(18px);
+}
+
+body.dark-theme .image-source-popover {
+  background: rgba(24, 29, 38, 0.96);
+  border-color: rgba(148, 163, 184, 0.16);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+}
+
+.image-source-popover button {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 10px;
+  text-align: left;
+}
+
+.image-source-popover button:hover,
+.image-source-popover button:focus-visible {
+  background: rgba(79, 134, 255, 0.1);
+  outline: none;
+}
+
+.image-source-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(79, 134, 255, 0.18), rgba(251, 188, 4, 0.18));
+  color: var(--accent-color);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.image-source-icon:empty::before {
+  content: '';
+  width: 18px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  box-shadow: 0 -4px 0 -2px currentColor;
+}
+
+.image-source-popover strong,
+.image-source-popover small {
+  display: block;
+}
+
+.image-source-popover strong {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.image-source-popover small {
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+@media (max-width: 600px) {
+  .image-source-popover {
+    left: 12px !important;
+    right: 12px;
+    top: auto !important;
+    bottom: 18px;
+    width: auto !important;
+    border-radius: 22px;
+    padding: 12px;
+  }
+
+  .image-source-popover button {
+    padding: 12px;
+  }
+}
+
 .creator-collapsed {
   display: flex;
   align-items: center;
@@ -760,8 +854,33 @@ body.dark-theme .creator-image-banner {
   overflow-y: hidden;
   padding: 2px 4px 12px;
   scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.48) transparent;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x;
+}
+
+.theme-picker-v2-grid::-webkit-scrollbar {
+  height: 8px;
+}
+
+.theme-picker-v2-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.theme-picker-v2-grid::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.48);
+  border-radius: 999px;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .theme-picker-v2-grid {
+    scrollbar-width: none;
+  }
+
+  .theme-picker-v2-grid::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .theme-picker-v2-card {
@@ -1181,6 +1300,7 @@ body.dark-theme .tag-badge:hover {
 }
 
 .notes-grid {
+  --note-card-collapsed-height: 304px;
   display: grid;
   grid-template-columns: repeat(auto-fit, 260px);
   justify-content: center;
@@ -1197,6 +1317,11 @@ body.dark-theme .tag-badge:hover {
   width: 100%;
 }
 
+.notes-grid.list-view .note-card {
+  height: auto;
+  min-height: 0;
+}
+
 /* ==========================================================================
    Note Card Component (Banners)
    ========================================================================== */
@@ -1210,13 +1335,20 @@ body.dark-theme .tag-badge:hover {
   flex-direction: column;
   gap: 10px;
   transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-  min-height: 100px;
+  height: var(--note-card-collapsed-height, 304px);
+  min-height: var(--note-card-collapsed-height, 304px);
   cursor: pointer;
   overflow: visible;
   width: 100%;
   margin: 0;
   break-inside: auto;
   align-self: start;
+}
+
+.note-card:hover,
+.note-card:focus-within,
+.note-card.touch-expanded {
+  height: auto;
 }
 
 .note-card:hover {
@@ -1390,7 +1522,9 @@ body.dark-theme .note-card-menu-action:hover {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
   position: relative;
 }
 
@@ -1925,6 +2059,23 @@ body.dark-theme .brush-slider::-webkit-slider-runnable-track {
   }
   .sidebar-label, .sidebar-section-title {
     display: none;
+  }
+
+  .app-sidebar.sidebar-open {
+    width: 240px !important;
+    z-index: 250;
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.25);
+    background-color: var(--bg-app);
+  }
+
+  .app-sidebar.sidebar-open .sidebar-label,
+  .app-sidebar.sidebar-open .sidebar-section-title {
+    display: block !important;
+    opacity: 1 !important;
+  }
+
+  body.sidebar-pinned .main-content-area {
+    margin-left: 70px;
   }
 }
 
@@ -2836,6 +2987,29 @@ body.dark-theme .checklist-editor-row.is-drag-preview {
   animation-delay: 0.36s;
 }
 
+.voice-recording-stop {
+  border: 0;
+  border-radius: 999px;
+  background: #ea4335;
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  padding: 9px 12px;
+  text-transform: uppercase;
+  box-shadow: 0 8px 18px rgba(234, 67, 53, 0.22);
+}
+
+.voice-recording-stop:hover,
+.voice-recording-stop:focus-visible {
+  background: #d93025;
+  outline: none;
+  transform: translateY(-1px);
+}
+
 .icon-btn.voice-recording-active {
   background: rgba(234, 67, 53, 0.12);
   box-shadow: 0 0 0 1px rgba(234, 67, 53, 0.18);
@@ -2843,6 +3017,16 @@ body.dark-theme .checklist-editor-row.is-drag-preview {
 
 .icon-btn.voice-recording-idle {
   opacity: 0.52;
+}
+
+@media (max-width: 600px) {
+  .voice-recording-indicator {
+    flex-wrap: wrap;
+  }
+
+  .voice-recording-stop {
+    margin-left: auto;
+  }
 }
 
 .audio-player-chip {
@@ -3488,10 +3672,10 @@ body.dark-theme .checklist-editor-row.is-drag-preview {
   width: 100%;
   max-width: 1200px;
   display: flex;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
   justify-content: center;
-  padding: 0 16px 18px;
+  padding: 0 16px 20px;
   margin: 0 auto;
 }
 
@@ -3523,10 +3707,16 @@ body.dark-theme .checklist-editor-row.is-drag-preview {
     flex-wrap: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
-    padding: 0 12px 16px;
-    gap: 8px;
-    justify-content: center;
-    scroll-snap-type: x proximity;
+    width: calc(100% + 24px);
+    max-width: none;
+    margin: -4px -12px 0;
+    padding: 4px 18px 18px;
+    gap: 10px;
+    justify-content: flex-start;
+    scroll-padding-inline: 18px;
+    scroll-snap-type: x mandatory;
+    touch-action: pan-x;
+    -webkit-overflow-scrolling: touch;
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
@@ -3537,7 +3727,8 @@ body.dark-theme .checklist-editor-row.is-drag-preview {
 
   .feed-filter-row .filter-pill {
     flex: 0 0 auto;
-    scroll-snap-align: start;
+    min-height: 36px;
+    scroll-snap-align: center;
     white-space: nowrap;
   }
 
@@ -3568,9 +3759,22 @@ body.dark-theme .checklist-editor-row.is-drag-preview {
 }
 
 @media screen and (min-width: 769px) and (max-width: 900px) {
+  .main-content-area {
+    margin-left: 70px;
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .notes-feed {
+    width: 100%;
+    max-width: min(100%, 720px);
+  }
+
   .notes-grid {
-    grid-template-columns: repeat(3, minmax(0, 204px));
+    grid-template-columns: repeat(auto-fit, minmax(188px, 1fr));
     justify-content: center;
+    width: 100%;
+    max-width: 100%;
   }
 }
 
@@ -3633,6 +3837,7 @@ body.dark-theme .checklist-editor-row.is-drag-preview {
 
   .notes-grid,
   .notes-grid.list-view {
+    --note-card-collapsed-height: 276px;
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -3849,7 +4054,9 @@ body.dark-theme .checklist-editor-row.is-drag-preview {
   border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: 20px;
   padding: 16px;
+  flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -4384,10 +4591,7 @@ body.dark-theme .note-card[data-note-kind="image"] {
 
 .productivity-todo-panel {
   grid-area: todo;
-  padding: 0;
-  background: transparent;
-  border: none;
-  box-shadow: none;
+  gap: 14px;
 }
 
 .productivity-agenda-panel {
@@ -4792,13 +4996,10 @@ body.dark-theme .note-card[data-note-kind="image"] {
 }
 
 .productivity-todo-widget {
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.76);
-  padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
 }
 
 .productivity-todo-widget-head {
@@ -4828,8 +5029,8 @@ body.dark-theme .note-card[data-note-kind="image"] {
 .productivity-todo-item {
   width: 100%;
   border: 1px solid rgba(148, 163, 184, 0.16);
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.92), rgba(241, 245, 249, 0.86));
+  border-radius: 20px;
+  background: rgba(248, 250, 252, 0.88);
   padding: 12px 14px;
   display: flex;
   align-items: flex-start;
@@ -4958,6 +5159,7 @@ body.dark-theme .productivity-hero-copy {
 body.dark-theme .productivity-stat,
 body.dark-theme .productivity-nav-btn,
 body.dark-theme .calendar-day,
+body.dark-theme .productivity-todo-item,
 body.dark-theme .productivity-note-card,
 body.dark-theme .productivity-empty,
 body.dark-theme .productivity-created-pill {
