@@ -54,6 +54,7 @@ let creatorAudio = null;
 let creatorAudioDuration = null;
 let creatorPinned = false;
 let creatorImage = null; // Stores Base64 drawing/image upload
+let creatorFiles = [];
 let creatorFolder = '';
 let creatorFolders = [];
 let creatorAutoFolder = '';
@@ -791,6 +792,8 @@ const creatorRemoveImg = document.getElementById('creator-remove-img');
 const creatorImageBtn = document.getElementById('creator-image-btn');
 const creatorImageInput = document.getElementById('creator-image-input');
 const creatorCameraInput = document.getElementById('creator-camera-input');
+const creatorFileBtn = document.getElementById('creator-file-btn');
+const creatorFileInput = document.getElementById('creator-file-input');
 const creatorListBtn = document.getElementById('creator-list-btn');
 const creatorListToggleBtn = document.getElementById('creator-list-toggle');
 const creatorLinkParserBtn = document.getElementById('creator-link-parser-btn');
@@ -841,6 +844,9 @@ const modalRemoveImg = document.getElementById('modal-remove-img');
 const modalImageBtn = document.getElementById('modal-image-btn');
 const modalImageInput = document.getElementById('modal-image-input');
 const modalCameraInput = document.getElementById('modal-camera-input');
+const modalFileBtn = document.getElementById('modal-file-btn');
+const modalFileInput = document.getElementById('modal-file-input');
+const modalShareBtn = document.getElementById('modal-share-btn');
 const modalListBtn = document.getElementById('modal-list-btn');
 const modalDrawBtn = document.getElementById('modal-draw-btn');
 const modalTagsContainer = document.getElementById('modal-tags-container');
@@ -1764,8 +1770,20 @@ function setupEventHandlers() {
     handleSelectedImageFile('creator', e.target.files[0]);
     e.target.value = '';
   });
+  creatorImgPreview?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (creatorImage) openImageViewer(creatorImage, creatorTitle.value.trim() || 'Draft image');
+  });
   creatorCameraInput?.addEventListener('change', (e) => {
     handleSelectedImageFile('creator', e.target.files[0]);
+    e.target.value = '';
+  });
+  creatorFileBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    creatorFileInput?.click();
+  });
+  creatorFileInput?.addEventListener('change', async (e) => {
+    await handleSelectedFiles('creator', e.target.files);
     e.target.value = '';
   });
 
@@ -1940,6 +1958,19 @@ function setupEventHandlers() {
   modalCameraInput?.addEventListener('change', (e) => {
     handleSelectedImageFile('modal', e.target.files[0]);
     e.target.value = '';
+  });
+  modalFileBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    modalFileInput?.click();
+  });
+  modalFileInput?.addEventListener('change', async (e) => {
+    await handleSelectedFiles('modal', e.target.files);
+    e.target.value = '';
+  });
+  modalShareBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const note = notes.find(n => n.id === currentEditingNoteId);
+    if (note) openShareSheet(note);
   });
 
   // Remove Modal image banner
@@ -2227,6 +2258,7 @@ function collapseCreator() {
   creatorAudioDuration = null;
   creatorPinned = false;
   creatorImage = null;
+  creatorFiles = [];
   
   applyCreatorAppearance();
   creatorPin.classList.remove('pinned');
@@ -2237,9 +2269,11 @@ function collapseCreator() {
   creatorImgPreview.src = '';
   creatorImageInput.value = '';
   if (creatorCameraInput) creatorCameraInput.value = '';
+  if (creatorFileInput) creatorFileInput.value = '';
   
   renderCreatorReminderChip();
   renderCreatorAudioPreview();
+  renderCreatorFileAttachments();
   
   // Rebuild creator picker to clear selection styling
   buildColorGrid(creatorColorPicker, creatorColor, creatorTheme, creatorCustomTheme, (type, value) => {
@@ -2262,7 +2296,7 @@ function saveCreatorNote() {
   const text = creatorText.value.trim();
   
   // Don't save if completely empty (allow save when audio or image exists)
-  if (isNoteEffectivelyEmpty(title, text, creatorImage, creatorAudio)) {
+  if (isNoteEffectivelyEmpty(title, text, creatorImage, creatorAudio, creatorFiles)) {
     return;
   }
   
@@ -2285,6 +2319,7 @@ function saveCreatorNote() {
     deleted: false,
     deletedAt: null,
     image: creatorImage,
+    files: normalizeNoteFiles(creatorFiles),
     createdAt: Date.now(),
     updatedAt: Date.now()
   }, selectedFolders));
@@ -2849,6 +2884,246 @@ function handleSelectedImageFile(target, file) {
       renderNotes();
     }
   });
+}
+
+function normalizeNoteFiles(files = []) {
+  return Array.isArray(files) ? files.filter(file => file && file.dataUrl && file.name) : [];
+}
+
+function formatFileSize(bytes = 0) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return 'Unknown size';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let size = bytes;
+  let unit = 0;
+  while (size >= 1024 && unit < units.length - 1) {
+    size /= 1024;
+    unit += 1;
+  }
+  return `${size >= 10 || unit === 0 ? Math.round(size) : size.toFixed(1)} ${units[unit]}`;
+}
+
+function getSafeFileName(name = 'attachment') {
+  return `${name}`.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'attachment';
+}
+
+function getDataUrlExtension(dataUrl = '', fallback = 'bin') {
+  const match = dataUrl.match(/^data:([^;,]+)/);
+  if (!match) return fallback;
+  const mime = match[1].toLowerCase();
+  if (mime.includes('jpeg')) return 'jpg';
+  if (mime.includes('png')) return 'png';
+  if (mime.includes('webp')) return 'webp';
+  if (mime.includes('gif')) return 'gif';
+  if (mime.includes('wav')) return 'wav';
+  if (mime.includes('mpeg')) return 'mp3';
+  if (mime.includes('webm')) return 'webm';
+  if (mime.includes('pdf')) return 'pdf';
+  return mime.split('/').pop() || fallback;
+}
+
+function downloadDataUrl(dataUrl, filename) {
+  if (!dataUrl) return;
+  const link = document.createElement('a');
+  link.href = dataUrl;
+  link.download = getSafeFileName(filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function buildNoteShareText(note) {
+  const parts = [];
+  if (note.title) parts.push(cleanTitleTags(note.title));
+  if (note.text) parts.push(cleanTextTags(note.text));
+  const files = normalizeNoteFiles(note.files);
+  if (files.length) parts.push(`Attachments: ${files.map(file => file.name).join(', ')}`);
+  if (note.audio) parts.push(`Voice note: ${note.audioDuration || 'recorded clip'}`);
+  return parts.filter(Boolean).join('\n\n') || 'AtlasNest note';
+}
+
+async function shareNote(note) {
+  const title = cleanTitleTags(note.title || 'AtlasNest note');
+  const text = buildNoteShareText(note);
+  if (navigator.share) {
+    try {
+      await navigator.share({ title, text });
+      return true;
+    } catch (error) {
+      if (error?.name === 'AbortError') return false;
+    }
+  }
+  await navigator.clipboard?.writeText(text);
+  showToast({ title: 'Note copied', text: 'Sharing is not available here, so the note text was copied.' });
+  return false;
+}
+
+function openImageViewer(src, title = 'Note image') {
+  if (!src) return;
+  document.querySelector('.image-viewer-overlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.className = 'image-viewer-overlay visible';
+  overlay.innerHTML = `
+    <div class="image-viewer-card" role="dialog" aria-modal="true" aria-label="Image preview">
+      <div class="image-viewer-topbar">
+        <strong>${title}</strong>
+        <div>
+          <button type="button" class="text-btn image-viewer-download">Download</button>
+          <button type="button" class="text-btn image-viewer-close">Close</button>
+        </div>
+      </div>
+      <img src="${src}" alt="${title}">
+    </div>
+  `;
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay || e.target.closest('.image-viewer-close')) overlay.remove();
+  });
+  overlay.querySelector('.image-viewer-download')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    downloadDataUrl(src, `${getSafeFileName(title)}.${getDataUrlExtension(src, 'jpg')}`);
+  });
+  document.body.appendChild(overlay);
+}
+
+function openShareSheet(note) {
+  document.querySelector('.share-sheet-overlay')?.remove();
+  const files = normalizeNoteFiles(note.files);
+  const overlay = document.createElement('div');
+  overlay.className = 'share-sheet-overlay visible';
+  overlay.innerHTML = `
+    <div class="share-sheet-card" role="dialog" aria-modal="true" aria-label="Share note">
+      <div class="share-sheet-handle"></div>
+      <div class="share-sheet-header">
+        <div>
+          <div class="share-sheet-kicker">Share</div>
+          <h3>${cleanTitleTags(note.title || 'Untitled note')}</h3>
+        </div>
+        <button type="button" class="icon-btn share-sheet-close" aria-label="Close share sheet">✕</button>
+      </div>
+      <p>${files.length} attachment${files.length === 1 ? '' : 's'} • ${note.audio ? 'voice clip included' : 'text note'}</p>
+      <div class="share-sheet-actions">
+        <button type="button" data-share-action="native">Share to apps</button>
+        <button type="button" data-share-action="copy">Copy text</button>
+        ${note.image ? '<button type="button" data-share-action="image">Download image</button>' : ''}
+        ${note.audio ? '<button type="button" data-share-action="audio">Download voice</button>' : ''}
+      </div>
+    </div>
+  `;
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay || e.target.closest('.share-sheet-close')) overlay.remove();
+  });
+  overlay.querySelector('[data-share-action="native"]')?.addEventListener('click', () => shareNote(note));
+  overlay.querySelector('[data-share-action="copy"]')?.addEventListener('click', async () => {
+    await navigator.clipboard?.writeText(buildNoteShareText(note));
+    showToast({ title: 'Copied', text: 'Note text copied to clipboard.' });
+  });
+  overlay.querySelector('[data-share-action="image"]')?.addEventListener('click', () => {
+    downloadDataUrl(note.image, `${getSafeFileName(note.title || 'note-image')}.${getDataUrlExtension(note.image, 'jpg')}`);
+  });
+  overlay.querySelector('[data-share-action="audio"]')?.addEventListener('click', () => {
+    downloadDataUrl(note.audio, `${getSafeFileName(note.title || 'voice-note')}.${getDataUrlExtension(note.audio, 'webm')}`);
+  });
+  document.body.appendChild(overlay);
+}
+
+async function handleSelectedFiles(target, fileList) {
+  const files = Array.from(fileList || []);
+  if (!files.length) return;
+  const maxBytes = 2.5 * 1024 * 1024;
+  const prepared = [];
+  for (const file of files.slice(0, 5)) {
+    if (file.size > maxBytes) {
+      showToast({ title: 'File skipped', text: `${file.name} is larger than 2.5 MB.` });
+      continue;
+    }
+    try {
+      prepared.push({
+        id: `file-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        name: file.name,
+        type: file.type || 'application/octet-stream',
+        size: file.size,
+        dataUrl: await readFileAsDataUrl(file),
+        addedAt: Date.now()
+      });
+    } catch (error) {
+      showToast({ title: 'File error', text: `Could not attach ${file.name}.` });
+    }
+  }
+  if (!prepared.length) return;
+  if (target === 'creator') {
+    creatorFiles = [...normalizeNoteFiles(creatorFiles), ...prepared];
+    renderCreatorFileAttachments();
+    return;
+  }
+  const note = notes.find(n => n.id === currentEditingNoteId);
+  if (note) {
+    note.files = [...normalizeNoteFiles(note.files), ...prepared];
+    note.updatedAt = Date.now();
+    saveToLocalStorage();
+    renderModalFileAttachments(note);
+    renderNotes();
+  }
+}
+
+function renderNoteFileAttachments(container, note, options = {}) {
+  const files = normalizeNoteFiles(note.files);
+  if (!container || !files.length) return;
+  const wrap = document.createElement('div');
+  wrap.className = `file-attachment-list ${options.compact ? 'compact' : ''}`;
+  files.forEach(file => {
+    const chip = document.createElement('div');
+    chip.className = 'file-attachment-chip';
+    chip.innerHTML = `
+      <span class="file-attachment-icon" aria-hidden="true">${file.type?.startsWith('image/') ? 'IMG' : 'FILE'}</span>
+      <span class="file-attachment-copy">
+        <strong>${file.name}</strong>
+        <small>${formatFileSize(file.size)}</small>
+      </span>
+      <button type="button" class="media-action-btn" data-file-download="${file.id}">Download</button>
+      ${options.editable ? `<button type="button" class="media-action-btn danger" data-file-remove="${file.id}">Remove</button>` : ''}
+    `;
+    chip.querySelector('[data-file-download]')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      downloadDataUrl(file.dataUrl, file.name);
+    });
+    chip.querySelector('[data-file-remove]')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (note === creatorFileDraft) {
+        creatorFiles = normalizeNoteFiles(creatorFiles).filter(entry => entry.id !== file.id);
+        renderCreatorFileAttachments();
+        return;
+      }
+      note.files = normalizeNoteFiles(note.files).filter(entry => entry.id !== file.id);
+      note.updatedAt = Date.now();
+      saveToLocalStorage();
+      renderModalFileAttachments(note);
+      renderNotes();
+    });
+    if (file.type?.startsWith('image/')) {
+      chip.querySelector('.file-attachment-copy')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openImageViewer(file.dataUrl, file.name);
+      });
+    }
+    wrap.appendChild(chip);
+  });
+  container.appendChild(wrap);
+}
+
+const creatorFileDraft = {};
+
+function renderCreatorFileAttachments() {
+  const container = document.getElementById('creator-chips-container');
+  if (!container) return;
+  container.querySelectorAll('.file-attachment-list').forEach(el => el.remove());
+  creatorFileDraft.files = creatorFiles;
+  renderNoteFileAttachments(container, creatorFileDraft, { editable: true });
+}
+
+function renderModalFileAttachments(note) {
+  const container = document.getElementById('modal-tags-container');
+  if (!container) return;
+  container.querySelectorAll('.file-attachment-list').forEach(el => el.remove());
+  renderNoteFileAttachments(container, note, { editable: true });
 }
 
 function handleImageUpload(file, onCompressComplete) {
@@ -3597,6 +3872,7 @@ function renderGrid(gridContainer, notesArray) {
     card.className = 'note-card';
     applyNoteAppearance(card, note);
     card.setAttribute('data-note-kind', noteKind);
+    if (note.image) card.setAttribute('data-has-image', 'true');
     card.setAttribute('data-id', note.id);
 
     const boardHeader = document.createElement('div');
@@ -3623,6 +3899,10 @@ function renderGrid(gridContainer, notesArray) {
       const banner = document.createElement('div');
       banner.className = 'card-image-banner';
       banner.innerHTML = `<img src="${bannerImage}" alt="Note banner">`;
+      banner.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openImageViewer(bannerImage, cleanTitleTags(note.title || 'Note image'));
+      });
       surface.appendChild(banner);
     }
 
@@ -3734,8 +4014,19 @@ function renderGrid(gridContainer, notesArray) {
       audioChip.appendChild(playBtn);
       audioChip.appendChild(visualizer);
       audioChip.appendChild(durationLabel);
+      const downloadAudioBtn = document.createElement('button');
+      downloadAudioBtn.className = 'media-action-btn';
+      downloadAudioBtn.type = 'button';
+      downloadAudioBtn.textContent = 'Download';
+      downloadAudioBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        downloadDataUrl(note.audio, `${getSafeFileName(note.title || 'voice-note')}.${getDataUrlExtension(note.audio, 'webm')}`);
+      });
+      audioChip.appendChild(downloadAudioBtn);
       previewBody.appendChild(audioChip);
     }
+
+    renderNoteFileAttachments(previewBody, note, { compact: true });
 
     // 5. Dynamic Tag Badges & Reminders rendering inside note cards
     const tags = extractHashtags(`${note.title} ${note.text}`);
@@ -3889,6 +4180,20 @@ function renderGrid(gridContainer, notesArray) {
     }
 
     if (!note.deleted) {
+      const shareBtn = document.createElement('button');
+      shareBtn.className = 'note-card-menu-action';
+      shareBtn.setAttribute('aria-label', 'Share note');
+      shareBtn.innerHTML = `
+        <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7a3.2 3.2 0 0 0 0-1.39l7.05-4.11A3 3 0 1 0 15 5c0 .22.02.43.07.64L8.02 9.75a3 3 0 1 0 0 4.5l7.12 4.17c-.04.18-.06.37-.06.58a2.92 2.92 0 1 0 2.92-2.92Z"/></svg>
+        <span>Share</span>
+      `;
+      shareBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllNoteCardMenus();
+        openShareSheet(note);
+      });
+      menuPanelEl.appendChild(shareBtn);
+
       const pinBtn = document.createElement('button');
       pinBtn.className = 'note-card-menu-action';
       pinBtn.setAttribute('aria-label', note.pinned ? 'Unpin note' : 'Pin note');
@@ -4166,7 +4471,6 @@ function openEditModal(note) {
   closeModalFolderPicker();
   
   syncModalInputs(note);
-  renderModalAudioPreview(note);
   
   applyNoteAppearance(editModalCard, note);
   modalPin.classList.toggle('pinned', note.pinned);
@@ -4177,14 +4481,21 @@ function openEditModal(note) {
   if (note.image) {
     modalImgPreview.src = note.image;
     modalImageBanner.style.display = 'block';
+    modalImgPreview.onclick = (e) => {
+      e.stopPropagation();
+      openImageViewer(note.image, cleanTitleTags(note.title || 'Note image'));
+    };
   } else {
     modalImageBanner.style.display = 'none';
     modalImgPreview.src = '';
+    modalImgPreview.onclick = null;
   }
   
   // Render tag badges inside modal
   renderModalTags(note);
   renderModalReminderChip(note);
+  renderModalAudioPreview(note);
+  renderModalFileAttachments(note);
   
   // Rebuild modal color picker dynamically
   buildColorGrid(modalColorPicker, note.color, note.theme, note.customTheme, (type, value) => {
@@ -4278,7 +4589,7 @@ function closeEditModal() {
       const title = modalTitle.value.trim();
       const text = modalText.value.trim();
       
-      if (isNoteEffectivelyEmpty(title, text, note.image, note.audio)) {
+      if (isNoteEffectivelyEmpty(title, text, note.image, note.audio, note.files)) {
         trashNote(currentEditingNoteId);
       } else {
         note.title = title;
@@ -4419,8 +4730,8 @@ function handleRichListEditing(event) {
    ========================================================================== */
 const URL_REGEX = /(https?:\/\/[^\s\n\r]+)/g;
 
-function isNoteEffectivelyEmpty(title, text, image, audio) {
-  return title === '' && text === '' && image === null && audio === null;
+function isNoteEffectivelyEmpty(title, text, image, audio, files = []) {
+  return title === '' && text === '' && image === null && audio === null && normalizeNoteFiles(files).length === 0;
 }
 
 function legacyRenderTextWithLinks(text) {
@@ -5802,8 +6113,13 @@ function renderCreatorAudioPreview() {
     chip.style.padding = '4px 8px';
     chip.innerHTML = `
       <span style="font-size: 11px; font-weight: bold; color: var(--accent-color);">🎙️ Voice Clip (${creatorAudioDuration || '0:05'})</span>
+      <button type="button" class="media-action-btn" id="download-creator-audio">Download</button>
       <span class="reminder-chip-delete" id="delete-creator-audio" title="Delete voice clip" style="margin-left: 6px; font-size: 12px; cursor: pointer; opacity: 0.6;">✕</span>
     `;
+    chip.querySelector('#download-creator-audio').addEventListener('click', (e) => {
+      e.stopPropagation();
+      downloadDataUrl(creatorAudio, `voice-note.${getDataUrlExtension(creatorAudio, 'webm')}`);
+    });
     chip.querySelector('#delete-creator-audio').addEventListener('click', (e) => {
       e.stopPropagation();
       creatorAudio = null;
@@ -5825,8 +6141,13 @@ function renderModalAudioPreview(note) {
     chip.style.padding = '4px 8px';
     chip.innerHTML = `
       <span style="font-size: 11px; font-weight: bold; color: var(--accent-color);">🎙️ Voice Clip (${note.audioDuration || '0:05'})</span>
+      <button type="button" class="media-action-btn" id="download-modal-audio">Download</button>
       <span class="reminder-chip-delete" id="delete-modal-audio" title="Delete voice clip" style="margin-left: 6px; font-size: 12px; cursor: pointer; opacity: 0.6;">✕</span>
     `;
+    chip.querySelector('#download-modal-audio').addEventListener('click', (e) => {
+      e.stopPropagation();
+      downloadDataUrl(note.audio, `${getSafeFileName(note.title || 'voice-note')}.${getDataUrlExtension(note.audio, 'webm')}`);
+    });
     chip.querySelector('#delete-modal-audio').addEventListener('click', (e) => {
       e.stopPropagation();
       note.audio = null;
