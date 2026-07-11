@@ -1,0 +1,31 @@
+javascript:(function(){
+  function meta(prop){
+    var el = document.querySelector('meta[property="' + prop + '"]') || document.querySelector('meta[name="' + prop + '"]');
+    return el ? el.content : '';
+  }
+  var title = meta('og:title') || document.title || '';
+  var desc = meta('og:description') || '';
+  var image = meta('og:image:secure_url') || meta('og:image') || '';
+  var url = meta('og:url') || location.href;
+
+  var appBase = 'https://note-taking-app-2-0-flax.vercel.app/';
+  var q = new URLSearchParams();
+  q.set('title', title);
+  q.set('text', desc);
+  q.set('url', url);
+
+  var target = appBase + '?' + q.toString();
+
+  // Facebook/Instagram image URLs are often 300-800+ chars with signed
+  // tokens. Only include the image if the total URL stays short, since
+  // very long URLs can silently fail to hand off to an installed PWA
+  // on Android (it hangs on the launch splash instead of erroring).
+  if (image) {
+    var withImage = target + '&image=' + encodeURIComponent(image);
+    if (withImage.length < 1800) {
+      target = withImage;
+    }
+  }
+
+  location.href = target;
+})();

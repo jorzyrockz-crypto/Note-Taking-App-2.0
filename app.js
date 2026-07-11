@@ -4575,13 +4575,14 @@ function scheduleCreatorLinkPreview(delay = 350) {
   creatorLinkPreviewTimer = setTimeout(() => fetchCreatorLinkPreview(url), delay);
 }
 
-function handleSharedLaunchData() {
+async function handleSharedLaunchData() {
   const params = new URLSearchParams(window.location.search);
   const sharedTitle = params.get('title') || '';
   const sharedText = params.get('text') || '';
   const sharedUrl = params.get('url') || '';
   const sharedImage = params.get('image') || '';
-  if (!sharedTitle && !sharedText && !sharedUrl) return;
+  const hasSharedFile = params.get('sharedFile') === '1';
+  if (!sharedTitle && !sharedText && !sharedUrl && !hasSharedFile) return;
 
   expandCreator();
   if (!creatorTitle.value.trim() && sharedTitle) {
@@ -4600,7 +4601,23 @@ function handleSharedLaunchData() {
   syncCreatorFolderInput(true);
   autoGrowTextarea.call(creatorText);
 
-  if (sharedImage) {
+  if (hasSharedFile && 'caches' in window) {
+    try {
+      const cache = await caches.open('atlasnest-share-temp');
+      const response = await cache.match('shared-file');
+      if (response) {
+        const blob = await response.blob();
+        const dataUrl = await blobToDataUrl(blob);
+        if (!creatorImage) {
+          creatorImage = dataUrl;
+          creatorImageBanner.style.display = 'block';
+        }
+        await cache.delete('shared-file');
+      }
+    } catch (error) {
+      console.warn('Could not read shared file from cache:', error);
+    }
+  } else if (sharedImage) {
     // Bookmarklet already supplied real scraped metadata (e.g. from a page
     // that blocks server-side fetches, like Facebook/Instagram). Apply it
     // directly instead of re-fetching via the backend, which would fail.
@@ -4608,13 +4625,25 @@ function handleSharedLaunchData() {
       creatorImage = sharedImage;
       creatorImageBanner.style.display = 'block';
     }
-    creatorLinkPreviewUrl = url || null;
-  } else if (url) {
+  }
+
+  if (url && !hasSharedFile && !sharedImage) {
     creatorLinkPreviewUrl = null;
     fetchCreatorLinkPreview(url);
+  } else if (url) {
+    creatorLinkPreviewUrl = url;
   }
 
   window.history.replaceState({}, document.title, window.location.pathname);
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 function getVisualTypeLabel(kind) {

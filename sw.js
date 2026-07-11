@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlasnest-v2';
+const CACHE_NAME = 'atlasnest-v3';
 const APP_ASSETS = [
   './',
   './index.html',
@@ -32,7 +32,16 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+const SHARE_CACHE = 'atlasnest-share-temp';
+
 self.addEventListener('fetch', (event) => {
+  const requestUrl = new URL(event.request.url);
+
+  if (event.request.method === 'POST' && requestUrl.pathname.endsWith('/share-target')) {
+    event.respondWith(handleShareTarget(event));
+    return;
+  }
+
   if (event.request.method !== 'GET') return;
 
   event.respondWith(
@@ -58,3 +67,31 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+async function handleShareTarget(event) {
+  try {
+    const formData = await event.request.formData();
+    const title = formData.get('title') || '';
+    const text = formData.get('text') || '';
+    const url = formData.get('url') || '';
+    const file = formData.get('sharedFile');
+
+    const params = new URLSearchParams();
+    if (title) params.set('title', title);
+    if (text) params.set('text', text);
+    if (url) params.set('url', url);
+
+    if (file && typeof file.size === 'number' && file.size > 0) {
+      const cache = await caches.open(SHARE_CACHE);
+      await cache.put(
+        'shared-file',
+        new Response(file, { headers: { 'Content-Type': file.type || 'application/octet-stream' } })
+      );
+      params.set('sharedFile', '1');
+    }
+
+    return Response.redirect('./?' + params.toString(), 303);
+  } catch (error) {
+    return Response.redirect('./', 303);
+  }
+}
