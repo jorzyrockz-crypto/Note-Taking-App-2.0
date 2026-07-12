@@ -1982,6 +1982,7 @@ function setupEventHandlers() {
   });
   document.addEventListener('click', closeImageSourcePicker);
   initAdvancedEditorHandlers();
+  initModalAdvancedEditorHandlers();
 }
 
 // ==========================================================================
@@ -2229,6 +2230,7 @@ function expandCreator() {
   if (appSettings.advancedEditorEnabled) {
     creatorWrapper.classList.add('advanced-editor-active');
     document.body.classList.add('advanced-editor-open');
+    document.body.classList.add('editor-focus-mode');
     creatorAdvancedHeader.style.display = 'flex';
     creatorMetadata.style.display = 'block';
     creatorFloatingToolbar.style.display = 'flex';
@@ -2270,6 +2272,7 @@ function collapseCreator() {
   if (appSettings.advancedEditorEnabled) {
     creatorWrapper.classList.remove('advanced-editor-active');
     document.body.classList.remove('advanced-editor-open');
+    document.body.classList.remove('editor-focus-mode');
     creatorAdvancedHeader.style.display = 'none';
     creatorMetadata.style.display = 'none';
     creatorFloatingToolbar.style.display = 'none';
@@ -2477,6 +2480,77 @@ function initPopoverReminder() {
   }
 }
 
+function renderModalPopoverCategories(note) {
+  const container = document.getElementById('modal-popover-category-container');
+  if (!container) return;
+  container.innerHTML = '';
+  
+  const currentFolders = getNoteFolders(note);
+
+  getAllFolders().forEach(folder => {
+    const isActive = currentFolders.includes(folder);
+    const item = document.createElement('label');
+    item.className = 'popover-category-item';
+    item.innerHTML = `
+      <input type="checkbox" ${isActive ? 'checked' : ''}>
+      <span>${folder}</span>
+    `;
+    item.querySelector('input').addEventListener('change', () => {
+      let folders = getNoteFolders(note);
+      if (folders.includes(folder)) {
+        folders = folders.filter(f => f !== folder);
+      } else {
+        folders.push(folder);
+      }
+      setNoteFolders(note, folders);
+      registerNoteFolders(note);
+      
+      // Update modal breadcrumbs
+      const modalBreadcrumb = document.getElementById('modal-breadcrumb');
+      if (modalBreadcrumb) {
+        modalBreadcrumb.textContent = `${folders[0] || 'Personal'} / Ideas`;
+      }
+      
+      debouncedSave();
+      renderNotes();
+      renderModalPopoverCategories(note);
+    });
+    container.appendChild(item);
+  });
+}
+
+function renderModalPopoverColors(note) {
+  const container = document.getElementById('modal-popover-color-grid');
+  if (!container) return;
+  
+  buildColorGrid(container, note.color, note.theme, note.customTheme, (type, value) => {
+    applyAppearanceSelection(note, type, value);
+    applyNoteAppearance(editModalCard, note);
+    debouncedSave();
+    renderNotes();
+    renderModalPopoverColors(note);
+  });
+}
+
+function initModalPopoverReminder(note) {
+  const input = document.getElementById('modal-popover-reminder-input');
+  if (!input) return;
+  
+  if (note.reminder) {
+    const date = new Date(note.reminder);
+    if (!Number.isNaN(date.getTime())) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      input.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+  } else {
+    input.value = '';
+  }
+}
+
 function initAdvancedEditorHandlers() {
   // Back button
   creatorBackBtn?.addEventListener('click', (e) => {
@@ -2605,6 +2679,158 @@ function initAdvancedEditorHandlers() {
     creatorText.focus();
     triggerAutosave();
   });
+}
+
+function initModalAdvancedEditorHandlers() {
+  const modalBackBtn = document.getElementById('modal-back-btn');
+  const modalMoreBtn = document.getElementById('modal-more-btn');
+  const modalMorePopover = document.getElementById('modal-more-popover');
+  
+  modalBackBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeEditModal();
+  });
+
+  modalMoreBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = modalMorePopover.style.display === 'block';
+    modalMorePopover.style.display = open ? 'none' : 'block';
+  });
+
+  modalMorePopover?.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+
+  // Modal Category Popover inputs
+  const popoverCategoryInput = document.getElementById('modal-popover-category-input');
+  const popoverCategoryAddBtn = document.getElementById('modal-popover-category-add-btn');
+  popoverCategoryAddBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const customFolder = popoverCategoryInput.value.trim();
+    if (!customFolder) return;
+    const note = notes.find(n => n.id === currentEditingNoteId);
+    if (note) {
+      let folders = getNoteFolders(note);
+      if (!folders.includes(customFolder)) {
+        folders.push(customFolder);
+      }
+      setNoteFolders(note, folders);
+      registerNoteFolders(note);
+      
+      const modalBreadcrumb = document.getElementById('modal-breadcrumb');
+      if (modalBreadcrumb) {
+        modalBreadcrumb.textContent = `${folders[0] || 'Personal'} / Ideas`;
+      }
+      
+      popoverCategoryInput.value = '';
+      renderModalPopoverCategories(note);
+      debouncedSave();
+      renderNotes();
+    }
+  });
+
+  // Modal Reminder popover set/clear
+  const reminderInput = document.getElementById('modal-popover-reminder-input');
+  const reminderSaveBtn = document.getElementById('modal-popover-reminder-save-btn');
+  const reminderClearBtn = document.getElementById('modal-popover-reminder-clear-btn');
+  
+  reminderSaveBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!reminderInput.value) return;
+    const timeMs = new Date(reminderInput.value).getTime();
+    if (Number.isNaN(timeMs)) return;
+    const note = notes.find(n => n.id === currentEditingNoteId);
+    if (note) {
+      note.reminder = timeMs;
+      note.reminderTriggered = false;
+      renderModalReminderChip(note);
+      debouncedSave();
+      renderNotes();
+      showToast({ title: 'Reminder Set', text: 'Note reminder updated successfully.' });
+    }
+  });
+
+  reminderClearBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const note = notes.find(n => n.id === currentEditingNoteId);
+    if (note) {
+      note.reminder = null;
+      note.reminderTriggered = false;
+      reminderInput.value = '';
+      renderModalReminderChip(note);
+      debouncedSave();
+      renderNotes();
+      showToast({ title: 'Reminder Cleared', text: 'Note reminder removed.' });
+    }
+  });
+
+  // Modal Formatting toolbar bindings
+  document.getElementById('modal-tb-bold')?.addEventListener('click', () => formatModalText('**', '**'));
+  document.getElementById('modal-tb-italic')?.addEventListener('click', () => formatModalText('*', '*'));
+  document.getElementById('modal-tb-underline')?.addEventListener('click', () => formatModalText('<u>', '</u>'));
+  document.getElementById('modal-tb-bullet')?.addEventListener('click', () => {
+    const pos = modalText.selectionStart;
+    const text = modalText.value;
+    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+    modalText.value = text.substring(0, lineStart) + '• ' + text.substring(lineStart);
+    modalText.selectionStart = modalText.selectionEnd = pos + 2;
+    modalText.focus();
+    debouncedSave();
+  });
+  document.getElementById('modal-tb-number')?.addEventListener('click', () => {
+    const pos = modalText.selectionStart;
+    const text = modalText.value;
+    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+    modalText.value = text.substring(0, lineStart) + '1. ' + text.substring(lineStart);
+    modalText.selectionStart = modalText.selectionEnd = pos + 3;
+    modalText.focus();
+    debouncedSave();
+  });
+  document.getElementById('modal-tb-link')?.addEventListener('click', () => {
+    const link = prompt("Enter Link URL:", "https://");
+    if (link) formatModalText('[', `](${link})`);
+  });
+  document.getElementById('modal-tb-emoji')?.addEventListener('click', () => {
+    const emoji = prompt("Enter emoji:", "📝");
+    if (emoji) formatModalText(emoji);
+  });
+  document.getElementById('modal-tb-code')?.addEventListener('click', () => {
+    const start = modalText.selectionStart;
+    const end = modalText.selectionEnd;
+    const isMultiLine = modalText.value.substring(start, end).includes('\n');
+    if (isMultiLine) {
+      formatModalText('```\n', '\n```');
+    } else {
+      formatModalText('`', '`');
+    }
+  });
+  document.getElementById('modal-tb-quote')?.addEventListener('click', () => {
+    const pos = modalText.selectionStart;
+    const text = modalText.value;
+    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+    modalText.value = text.substring(0, lineStart) + '> ' + text.substring(lineStart);
+    modalText.selectionStart = modalText.selectionEnd = pos + 2;
+    modalText.focus();
+    debouncedSave();
+  });
+}
+
+function formatModalText(syntaxStart, syntaxEnd = '') {
+  const start = modalText.selectionStart;
+  const end = modalText.selectionEnd;
+  const val = modalText.value;
+  
+  const selectedText = val.substring(start, end);
+  const replacement = syntaxStart + selectedText + syntaxEnd;
+  
+  modalText.value = val.substring(0, start) + replacement + val.substring(end);
+  modalText.focus();
+  
+  modalText.selectionStart = start + syntaxStart.length;
+  modalText.selectionEnd = start + syntaxStart.length + selectedText.length;
+  
+  debouncedSave();
+  autoGrowTextarea.call(modalText);
 }
 
 function formatSelectedText(syntaxStart, syntaxEnd = '') {
@@ -4878,7 +5104,34 @@ function openEditModal(note) {
     modalReminderPicker.classList.toggle('visible');
   };
 
+  // Set date metadata subtitle
+  const dateObj = new Date(note.createdAt || Date.now());
+  const dateStr = dateObj.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }) + ' • ' + dateObj.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const modalMetadata = document.getElementById('modal-metadata');
+  if (modalMetadata) {
+    modalMetadata.textContent = dateStr;
+  }
+
+  // Set breadcrumbs folder
+  const modalBreadcrumb = document.getElementById('modal-breadcrumb');
+  if (modalBreadcrumb) {
+    const folders = getNoteFolders(note);
+    modalBreadcrumb.textContent = `${folders[0] || 'Personal'} / Ideas`;
+  }
+
+  // Render modal inspector popover contents
+  renderModalPopoverCategories(note);
+  renderModalPopoverColors(note);
+  initModalPopoverReminder(note);
+
+  // Close popover on open
+  const modalMorePopover = document.getElementById('modal-more-popover');
+  if (modalMorePopover) {
+    modalMorePopover.style.display = 'none';
+  }
+
   editModal.classList.add('visible');
+  document.body.classList.add('editor-focus-mode');
   
   setTimeout(() => {
     modalText.style.height = 'auto';
@@ -4921,6 +5174,7 @@ function closeEditModal() {
   
   currentEditingNoteId = null;
   editModal.classList.remove('visible');
+  document.body.classList.remove('editor-focus-mode');
   modalColorPicker.classList.remove('visible');
 }
 

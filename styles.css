@@ -7003,9 +7003,12 @@ body.card-style-glass .edit-modal-card textarea {
 }
 
 /* ==========================================================================
-   Advanced Note Editor Overlay Redesign
+   Advanced Note Editor Overlay Redesign (Refined Focus Mode)
    ========================================================================== */
-.creator-wrapper.advanced-editor-active {
+
+/* Overlays (Backdrop) */
+.creator-wrapper.advanced-editor-active,
+.edit-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -7013,37 +7016,47 @@ body.card-style-glass .edit-modal-card textarea {
   max-width: none !important;
   height: 100vh !important;
   max-height: none !important;
-  background: rgba(15, 23, 42, 0.48);
-  z-index: 1500;
-  display: flex;
+  background: rgba(15, 23, 42, 0.45) !important;
+  z-index: 1500 !important;
+  display: flex !important;
   align-items: center;
   justify-content: center;
-  padding: clamp(12px, 3vw, 32px);
   margin: 0 !important;
+  box-sizing: border-box;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 200ms ease, visibility 200ms ease;
+  pointer-events: none;
 }
 
-body.advanced-editor-open {
+.creator-wrapper.advanced-editor-active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.edit-modal-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* Base Body Scroll Lock */
+body.advanced-editor-open,
+body.editor-focus-mode {
   overflow: hidden !important;
 }
 
-.creator-wrapper.advanced-editor-active .note-creator {
-  width: 100%;
-  max-width: 900px;
-  height: 100%;
-  max-height: 85vh;
-  border-radius: 28px;
-  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.18), 0 0 1px rgba(0, 0, 0, 0.1) inset;
-  display: flex;
-  flex-direction: column;
-  padding: clamp(20px, 4vw, 36px);
-  animation: editorFadeScaleIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-  overflow: hidden;
+/* Opening & Closing Animation for Cards */
+.creator-wrapper.advanced-editor-active .note-creator,
+.edit-modal-overlay.visible .edit-modal-card {
+  animation: editorFadeScaleIn 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes editorFadeScaleIn {
   from {
     opacity: 0;
-    transform: scale(0.96) translateY(12px);
+    transform: scale(0.96) translateY(8px);
   }
   to {
     opacity: 1;
@@ -7051,22 +7064,31 @@ body.advanced-editor-open {
   }
 }
 
-.creator-wrapper.advanced-editor-active #creator-expanded {
+/* Card Workspace Layout */
+.creator-wrapper.advanced-editor-active .note-creator,
+.edit-modal-card {
+  background-color: var(--note-default) !important;
+  border: 1px solid var(--border-light) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.16), 0 0 1px rgba(0, 0, 0, 0.1) inset !important;
   display: flex !important;
-  flex-direction: column;
-  height: 100%;
-  gap: 16px;
-  position: relative;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  box-sizing: border-box;
+  position: relative !important;
+  transform: scale(0.96);
+  opacity: 0;
+  transition: background-color 0.25s ease;
 }
 
-/* Advanced Editor Header */
+/* Document Header */
 .advanced-editor-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 14px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  margin-bottom: 10px;
+  padding: 18px 24px 14px 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  background: transparent;
+  flex-shrink: 0;
 }
 
 body.dark-theme .advanced-editor-header {
@@ -7077,7 +7099,7 @@ body.dark-theme .advanced-editor-header {
 .header-right-group {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .creator-breadcrumb {
@@ -7095,97 +7117,135 @@ body.dark-theme .advanced-editor-header {
   font-weight: 500;
   color: var(--text-muted, #94a3b8);
   margin-right: 6px;
-  transition: opacity 0.20s ease;
+  transition: opacity 0.2s ease;
 }
 
-/* Title Input */
-.creator-wrapper.advanced-editor-active #creator-title {
+/* Scrollable document container */
+.editor-scroll-container {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 24px 32px 100px 32px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.creator-wrapper.advanced-editor-active #creator-expanded {
+  display: flex !important;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Hide original elements */
+.creator-wrapper.advanced-editor-active .creator-footer,
+.edit-modal-card .modal-footer {
+  display: none !important;
+}
+
+/* Title Input styling */
+.creator-wrapper.advanced-editor-active #creator-title,
+.edit-modal-card #modal-title {
   font-family: var(--font-sans);
-  font-size: 34px !important;
   font-weight: 700 !important;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.8px;
   color: var(--text-primary);
   border: none !important;
   outline: none !important;
   background: transparent !important;
   padding: 0 !important;
-  margin: 6px 0 0 0 !important;
   width: 100% !important;
   box-shadow: none !important;
+  margin: 0 auto 12px auto !important;
 }
 
+/* Metadata Subtitle */
 .editor-metadata {
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-muted, #94a3b8);
-  margin-top: -4px;
-  margin-bottom: 8px;
+  margin: 0 auto 16px auto !important;
+  width: 100%;
 }
 
-/* Textarea Editor */
-.creator-wrapper.advanced-editor-active #creator-text {
-  flex: 1 1 auto;
+/* Body Textarea & Checklist Editor */
+.creator-wrapper.advanced-editor-active #creator-text,
+.edit-modal-card #modal-text,
+.creator-wrapper.advanced-editor-active #creator-checklist-editor,
+.edit-modal-card #modal-checklist-editor {
   font-family: var(--font-sans);
-  font-size: 16px !important;
-  line-height: 1.7 !important;
+  line-height: 1.75 !important;
   color: var(--text-primary);
   border: none !important;
   outline: none !important;
   background: transparent !important;
-  padding: 0 0 80px 0 !important;
+  padding: 0 !important;
   resize: none !important;
   width: 100% !important;
-  overflow-y: auto !important;
-  margin-top: 6px;
   box-shadow: none !important;
+  margin: 0 auto !important;
+  overflow: visible !important;
 }
 
-/* Checklist Editor in Advanced Mode */
-.creator-wrapper.advanced-editor-active #creator-checklist-editor {
-  flex: 1 1 auto;
-  overflow-y: auto !important;
-  padding-bottom: 80px !important;
-  margin-top: 6px;
-  border: none !important;
-  outline: none !important;
+.creator-wrapper.advanced-editor-active #creator-text,
+.edit-modal-card #modal-text {
+  font-size: 16px !important;
 }
 
-/* Hide original creator footer in advanced editor */
-.creator-wrapper.advanced-editor-active .creator-footer {
-  display: none !important;
+/* Document Reading width constraints */
+.creator-wrapper.advanced-editor-active #creator-title,
+.creator-wrapper.advanced-editor-active #creator-text,
+.creator-wrapper.advanced-editor-active #creator-checklist-editor,
+.creator-wrapper.advanced-editor-active .editor-metadata,
+.edit-modal-card #modal-title,
+.edit-modal-card #modal-text,
+.edit-modal-card #modal-checklist-editor,
+.edit-modal-card .editor-metadata {
+  max-width: 780px;
 }
 
-/* Floating Formatting Toolbar styling */
+/* Docked Formatting Toolbar */
 .floating-toolbar {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-radius: 99px;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12), 0 0 1px rgba(0, 0, 0, 0.05);
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  transform: none !important;
+  width: 100% !important;
+  background: var(--note-default) !important;
+  border-top: 1px solid var(--border-light) !important;
+  border-bottom: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-radius: 0 !important;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.03) !important;
   display: flex;
   align-items: center;
-  padding: 6px 14px;
-  gap: 2px;
+  justify-content: center;
+  padding: 10px 24px;
+  gap: 8px;
   z-index: 100;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
 }
 
 body.dark-theme .floating-toolbar {
-  background: rgba(30, 41, 59, 0.75);
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.3), 0 0 1px rgba(255, 255, 255, 0.05);
+  background: var(--note-default) !important;
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .floating-toolbar .toolbar-btn {
   width: 36px;
   height: 36px;
-  border-radius: 50%;
+  border-radius: 8px;
   border: none;
   background: transparent;
   color: var(--text-primary);
@@ -7193,7 +7253,7 @@ body.dark-theme .floating-toolbar {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background-color 0.2s, transform 0.1s;
+  transition: background-color 0.15s, transform 0.1s;
   padding: 0;
 }
 
@@ -7204,134 +7264,84 @@ body.dark-theme .floating-toolbar {
 }
 
 .floating-toolbar .toolbar-btn:hover {
-  background: rgba(0, 0, 0, 0.06);
-  transform: translateY(-1px);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 body.dark-theme .floating-toolbar .toolbar-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.floating-toolbar .toolbar-btn:active {
-  transform: translateY(1px);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .toolbar-divider {
   width: 1px;
-  height: 20px;
+  height: 18px;
   background: rgba(0, 0, 0, 0.08);
-  margin: 0 6px;
+  margin: 0 4px;
+  flex-shrink: 0;
 }
 
 body.dark-theme .toolbar-divider {
   background: rgba(255, 255, 255, 0.15);
 }
 
-/* Advanced Editor Responsive Styles */
-@media screen and (max-width: 768px) {
-  .creator-wrapper.advanced-editor-active {
-    padding: 0;
-  }
-  
-  .creator-wrapper.advanced-editor-active .note-creator {
-    max-height: 100vh;
-    height: 100vh;
-    border-radius: 0;
-    padding: 16px 20px;
-  }
-  
-  .floating-toolbar {
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    transform: none;
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-    border-bottom: none;
-    padding: 8px 12px;
-    justify-content: space-around;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .floating-toolbar::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-/* Advanced Editor More Popover styling */
+/* More Popover inspector */
 .editor-more-popover {
   position: absolute;
-  top: 70px;
-  right: clamp(16px, 4vw, 36px);
-  width: 320px;
-  max-height: calc(85vh - 90px);
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-  border-radius: 20px;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.15), 0 0 1px rgba(0, 0, 0, 0.05);
-  z-index: 1000;
+  top: 66px;
+  right: 24px;
+  width: 300px;
+  max-height: calc(100% - 90px);
+  background: var(--bg-popup, rgba(255, 255, 255, 0.95));
+  border: 1px solid var(--border-light, rgba(0, 0, 0, 0.08));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 18px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15);
+  z-index: 1200;
   display: flex;
   flex-direction: column;
-  padding: 18px;
-  gap: 14px;
+  padding: 16px;
+  gap: 12px;
   overflow-y: auto;
-  animation: popoverFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: popoverFadeIn 180ms ease forwards;
 }
 
 body.dark-theme .editor-more-popover {
-  background: rgba(30, 41, 59, 0.9);
+  background: rgba(30, 41, 59, 0.95);
   border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3), 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
 @keyframes popoverFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-8px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .popover-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .popover-section-title {
   font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 700;
-  color: var(--text-secondary);
-  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  letter-spacing: 0.6px;
   text-transform: uppercase;
-  margin-bottom: 2px;
 }
 
 .popover-divider {
   height: 1px;
-  background: rgba(0, 0, 0, 0.06);
+  background: var(--border-light, rgba(0, 0, 0, 0.06));
   margin: 2px 0;
 }
 
-body.dark-theme .popover-divider {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-/* Popover Categories list */
 .popover-category-container {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   max-height: 120px;
   overflow-y: auto;
-  padding-right: 4px;
 }
 
 .popover-category-item {
@@ -7342,57 +7352,26 @@ body.dark-theme .popover-divider {
   font-weight: 500;
   color: var(--text-primary);
   cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 6px;
-  transition: background-color 0.2s;
-}
-
-.popover-category-item:hover {
-  background: rgba(0, 0, 0, 0.04);
-}
-
-body.dark-theme .popover-category-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.popover-category-item input {
-  cursor: pointer;
+  padding: 4px;
 }
 
 .popover-category-add {
   display: flex;
-  align-items: center;
   gap: 6px;
-  margin-top: 4px;
 }
 
 .popover-category-add input {
   flex: 1;
-  height: 32px;
-  border-radius: 8px;
-  border: 1px solid var(--border-light, rgba(0, 0, 0, 0.08));
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
   background: transparent;
-  padding: 0 10px;
+  padding: 0 8px;
   font-size: 12px;
   color: var(--text-primary);
   outline: none;
 }
 
-body.dark-theme .popover-category-add input {
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.popover-category-add input:focus {
-  border-color: var(--primary, #1a73e8);
-}
-
-.popover-category-add button {
-  height: 32px;
-  padding: 0 12px;
-  font-size: 12px;
-}
-
-/* Popover Color Grid */
 .popover-color-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -7405,57 +7384,257 @@ body.dark-theme .popover-category-add input {
   border-radius: 50%;
   cursor: pointer;
   border: 2px solid transparent;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
-  transition: transform 0.15s, border-color 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
-
-.popover-color-option:hover {
-  transform: scale(1.12);
 }
 
 .popover-color-option.active {
   border-color: var(--primary, #1a73e8);
 }
 
-body.dark-theme .popover-color-option.active {
-  border-color: #ffffff;
-}
-
-/* Popover Reminder */
-.popover-reminder-container {
+.popover-reminder-set {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
-.popover-reminder-container input[type="datetime-local"] {
-  height: 34px;
-  border-radius: 8px;
-  border: 1px solid var(--border-light, rgba(0, 0, 0, 0.08));
+.popover-reminder-set input {
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
   background: transparent;
-  padding: 0 10px;
+  padding: 0 8px;
   font-size: 12px;
   color: var(--text-primary);
-  outline: none;
   font-family: var(--font-sans);
 }
 
-body.dark-theme .popover-reminder-container input[type="datetime-local"] {
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.popover-reminder-actions {
+.popover-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
-.popover-reminder-actions button {
+.popover-actions button {
   flex: 1;
-  height: 32px;
+  height: 30px;
   font-size: 12px;
+}
+
+/* Popover Menu Items (Pin & Delete) */
+.menu-options-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.popover-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.popover-menu-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+body.dark-theme .popover-menu-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.popover-menu-item .menu-icon {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.popover-menu-item.danger-action {
+  color: var(--danger, #ea4335);
+}
+
+.popover-menu-item.danger-action:hover {
+  background: rgba(234, 67, 53, 0.08);
+}
+
+/* ==========================================================================
+   Focus Mode Background Transitions
+   ========================================================================== */
+body.editor-focus-mode .app-sidebar,
+body.editor-focus-mode .app-header {
+  filter: blur(16px);
+  opacity: 0.5;
+  transform: scale(0.98);
+  pointer-events: none;
+  transition: filter 220ms ease, transform 220ms ease, opacity 220ms ease;
+}
+
+/* When creator is open in advanced mode */
+body.advanced-editor-open .notes-feed,
+body.advanced-editor-open .productivity-layout,
+body.advanced-editor-open .settings-layout {
+  filter: blur(16px);
+  opacity: 0.5;
+  transform: scale(0.98);
+  pointer-events: none;
+  transition: filter 220ms ease, transform 220ms ease, opacity 220ms ease;
+}
+
+/* When edit modal is open */
+body.editor-focus-mode:not(.advanced-editor-open) .main-content-area {
+  filter: blur(16px);
+  opacity: 0.5;
+  transform: scale(0.98);
+  pointer-events: none;
+  transition: filter 220ms ease, transform 220ms ease, opacity 220ms ease;
+}
+
+/* ==========================================================================
+   RESPONSIVE LAYOUT BREAKPOINTS
+   ========================================================================== */
+
+/* 1. DESKTOP VIEWPORTS (1200px+) */
+@media screen and (min-width: 1200px) {
+  .creator-wrapper.advanced-editor-active,
+  .edit-modal-overlay {
+    padding: 6vh 12vw;
+  }
+  
+  .creator-wrapper.advanced-editor-active .note-creator,
+  .edit-modal-card {
+    width: 72vw;
+    height: 88vh;
+    max-width: 1250px;
+    border-radius: 24px;
+  }
+
+  .creator-wrapper.advanced-editor-active #creator-title,
+  .edit-modal-card #modal-title {
+    font-size: 36px !important;
+  }
+}
+
+/* 2. TABLET LANDSCAPE VIEWPORTS (900px - 1199px) */
+@media screen and (min-width: 900px) and (max-width: 1199px) {
+  .creator-wrapper.advanced-editor-active,
+  .edit-modal-overlay {
+    padding: 5vh 6vw;
+  }
+  
+  .creator-wrapper.advanced-editor-active .note-creator,
+  .edit-modal-card {
+    width: 86vw;
+    height: 90vh;
+    border-radius: 22px;
+  }
+
+  .creator-wrapper.advanced-editor-active #creator-title,
+  .edit-modal-card #modal-title {
+    font-size: 34px !important;
+  }
+}
+
+/* 3. TABLET PORTRAIT VIEWPORTS (768px - 899px) */
+@media screen and (min-width: 768px) and (max-width: 899px) {
+  .creator-wrapper.advanced-editor-active,
+  .edit-modal-overlay {
+    padding: 3vh 3vw;
+  }
+  
+  .creator-wrapper.advanced-editor-active .note-creator,
+  .edit-modal-card {
+    width: 94vw;
+    height: 94vh;
+    border-radius: 18px;
+  }
+
+  .creator-wrapper.advanced-editor-active #creator-title,
+  .edit-modal-card #modal-title {
+    font-size: 34px !important;
+  }
+  
+  .floating-toolbar .toolbar-btn {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* 4. MOBILE VIEWPORTS (Below 768px) */
+@media screen and (max-width: 767px) {
+  /* Hide dashboard completely */
+  body.editor-focus-mode .app-sidebar,
+  body.editor-focus-mode .app-header {
+    display: none !important;
+  }
+  
+  body.advanced-editor-open .main-content-area {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+  }
+  
+  body.advanced-editor-open .notes-feed,
+  body.advanced-editor-open .productivity-layout,
+  body.advanced-editor-open .settings-layout {
+    display: none !important;
+  }
+  
+  body.editor-focus-mode:not(.advanced-editor-open) .main-content-area {
+    display: none !important;
+  }
+
+  .creator-wrapper.advanced-editor-active,
+  .edit-modal-overlay {
+    padding: 0 !important;
+    background: var(--note-default) !important;
+  }
+
+  .creator-wrapper.advanced-editor-active .note-creator,
+  .edit-modal-card {
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: none !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .advanced-editor-header {
+    padding: 12px 16px;
+  }
+
+  .creator-breadcrumb {
+    display: none !important; /* No breadcrumbs on mobile */
+  }
+
+  .editor-scroll-container {
+    padding: 16px 20px 80px 20px;
+  }
+
+  .creator-wrapper.advanced-editor-active #creator-title,
+  .edit-modal-card #modal-title {
+    font-size: 30px !important;
+  }
+
+  /* Sticky Bottom Toolbar docked above keyboard */
+  .floating-toolbar {
+    padding: 8px 12px;
+    justify-content: space-around;
+    gap: 4px;
+  }
+
+  .floating-toolbar .toolbar-btn {
+    width: 42px; /* Large touch targets */
+    height: 42px;
+  }
 }
 
