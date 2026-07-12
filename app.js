@@ -12,6 +12,19 @@ import {
   syncNoteTypeEditor
 } from './note-types/index.js';
 
+import {
+  isRealFirebase,
+  registerUser,
+  loginUser,
+  logoutUser,
+  onAuthChange,
+  saveNoteToCloud,
+  deleteNoteFromCloud,
+  fetchNotesFromCloud,
+  getFirebaseConfig,
+  saveFirebaseConfig
+} from './firebase.js';
+
 // ==========================================================================
 // 1. Initial State & Data Definition (Upgraded)
 // ==========================================================================
@@ -89,6 +102,7 @@ let selectedTagFilter = null; // Sidebar selected filter tag
 let selectedFolderFilter = null;
 let selectedTypeFilter = 'all';
 export let currentPage = 'notes';
+export let currentUser = null;
 let selectedProductivityTaskFilter = 'all';
 export let selectedProductivityDayView = 'agenda';
 export let calendarCursorDate = new Date();
@@ -1333,6 +1347,11 @@ function restoreDeletedNote(id) {
 
 function deleteNotePermanently(id) {
   notes = notes.filter(n => n.id !== id);
+  if (currentUser) {
+    deleteNoteFromCloud(currentUser.uid, id).catch(err => {
+      console.warn('Failed to delete note from cloud:', err);
+    });
+  }
   saveToLocalStorage();
   closeAllNoteCardMenus();
   renderNotes();
@@ -1354,6 +1373,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initCanvasDrawEngine();
   renderAppView();
   handleSharedLaunchData();
+  initAuth();
 
   registerServiceWorker();
   
@@ -4611,6 +4631,15 @@ function saveToLocalStorage() {
     localStorage.setItem(STORAGE_KEYS.notes, JSON.stringify(notes));
     localStorage.setItem(STORAGE_KEYS.folders, JSON.stringify(customFolders));
     hasShownStorageWarning = false;
+
+    if (currentUser) {
+      notes.forEach(note => {
+        saveNoteToCloud(currentUser.uid, note).catch(err => {
+          console.warn('Failed to sync note to cloud:', err);
+        });
+      });
+    }
+
     return true;
   } catch (error) {
     console.warn('Unable to save notes to localStorage:', error);
@@ -6130,3 +6159,242 @@ export {
   isTaskNote,
   setActiveSidebarPage
 };
+
+// ─────────────────────────────────────────────────────────────
+// Firebase Authentication UI & Handler Logic
+// ─────────────────────────────────────────────────────────────
+
+function initAuth() {
+  const avatarBtn = document.getElementById('user-avatar-btn');
+  const dropdown = document.getElementById('profile-dropdown');
+  
+  const guestView = document.getElementById('profile-guest-view');
+  const userView = document.getElementById('profile-user-view');
+  const profileName = document.getElementById('profile-user-name');
+  const profileEmail = document.getElementById('profile-user-email');
+  const profileAvatarInner = document.getElementById('profile-user-avatar-inner');
+  
+  const signinBtn = document.getElementById('profile-signin-btn');
+  const signoutBtn = document.getElementById('profile-signout-btn');
+  
+  const authModal = document.getElementById('auth-modal');
+  const authClose = document.getElementById('auth-modal-close');
+  const authForm = document.getElementById('auth-form');
+  const authNameGroup = document.getElementById('auth-group-display-name');
+  const authNameInput = document.getElementById('auth-name-input');
+  const authEmailInput = document.getElementById('auth-email-input');
+  const authPasswordInput = document.getElementById('auth-password-input');
+  const authErrorMsg = document.getElementById('auth-error-msg');
+  const authSubmitBtn = document.getElementById('auth-submit-btn');
+  
+  const authTabLogin = document.getElementById('auth-tab-login');
+  const authTabRegister = document.getElementById('auth-tab-register');
+  
+  const configTrigger = document.getElementById('auth-config-trigger');
+  const configContent = document.getElementById('auth-config-content');
+  const configInput = document.getElementById('auth-config-input');
+  const configSave = document.getElementById('auth-config-save-btn');
+  const configClear = document.getElementById('auth-config-clear-btn');
+  
+  let activeTab = 'login'; // 'login' or 'register'
+
+  // Toggle Dropdown
+  avatarBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dropdown?.classList.toggle('is-open');
+  });
+
+  // Close dropdown on click outside
+  document.addEventListener('click', () => {
+    dropdown?.classList.remove('is-open');
+  });
+
+  dropdown?.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+
+  // Open Auth Modal
+  signinBtn?.addEventListener('click', () => {
+    dropdown?.classList.remove('is-open');
+    authModal?.classList.add('visible');
+    if (authErrorMsg) authErrorMsg.style.display = 'none';
+    
+    // Populate current config JSON if exists
+    const currentConfig = getFirebaseConfig();
+    if (currentConfig && configInput) {
+      configInput.value = JSON.stringify(currentConfig, null, 2);
+    }
+  });
+
+  // Close Auth Modal
+  authClose?.addEventListener('click', () => {
+    authModal?.classList.remove('visible');
+  });
+  
+  authModal?.addEventListener('click', (e) => {
+    if (e.target === authModal) {
+      authModal?.classList.remove('visible');
+    }
+  });
+
+  // Tab switching
+  authTabLogin?.addEventListener('click', () => {
+    activeTab = 'login';
+    authTabLogin.classList.add('active');
+    authTabRegister?.classList.remove('active');
+    if (authNameGroup) authNameGroup.style.display = 'none';
+    if (authSubmitBtn) authSubmitBtn.textContent = 'Sign In';
+    if (authErrorMsg) authErrorMsg.style.display = 'none';
+  });
+
+  authTabRegister?.addEventListener('click', () => {
+    activeTab = 'register';
+    authTabRegister.classList.add('active');
+    authTabLogin.classList.remove('active');
+    if (authNameGroup) authNameGroup.style.display = 'block';
+    if (authSubmitBtn) authSubmitBtn.textContent = 'Create Account';
+    if (authErrorMsg) authErrorMsg.style.display = 'none';
+  });
+
+  // Collapsible Firebase Config Accordion
+  configTrigger?.addEventListener('click', () => {
+    const parent = configTrigger.closest('.auth-accordion');
+    const isOpen = parent?.classList.contains('is-open');
+    parent?.classList.toggle('is-open', !isOpen);
+    if (configContent) {
+      configContent.style.display = isOpen ? 'none' : 'block';
+    }
+  });
+
+  // Save Config
+  configSave?.addEventListener('click', () => {
+    const rawVal = configInput?.value.trim();
+    if (!rawVal) {
+      showToast({ title: 'Config Empty', text: 'Paste your web app config JSON first.' });
+      return;
+    }
+    try {
+      const parsed = JSON.parse(rawVal);
+      if (!parsed.apiKey || !parsed.projectId) {
+        throw new Error('Config missing apiKey or projectId');
+      }
+      saveFirebaseConfig(parsed);
+      showToast({ title: 'Config Saved', text: 'Connecting to Firebase. Reloading app...' });
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err) {
+      showToast({ title: 'Invalid JSON', text: 'Please paste a valid Firebase configuration JSON object.' });
+    }
+  });
+
+  // Clear Config
+  configClear?.addEventListener('click', () => {
+    saveFirebaseConfig(null);
+    showToast({ title: 'Config Cleared', text: 'Reverting to Simulated Mode. Reloading...' });
+    setTimeout(() => window.location.reload(), 1500);
+  });
+
+  // Form Submission
+  authForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (authErrorMsg) authErrorMsg.style.display = 'none';
+    const email = authEmailInput?.value.trim();
+    const password = authPasswordInput?.value;
+    const name = authNameInput?.value.trim();
+    
+    if (!email || !password) return;
+    
+    if (authSubmitBtn) {
+      authSubmitBtn.disabled = true;
+      const originalText = authSubmitBtn.textContent;
+      authSubmitBtn.textContent = activeTab === 'login' ? 'Signing In...' : 'Creating...';
+      
+      try {
+        if (activeTab === 'login') {
+          await loginUser(email, password);
+          showToast({ title: 'Welcome Back', text: 'Logged in successfully.' });
+        } else {
+          await registerUser(email, password, name);
+          showToast({ title: 'Account Created', text: 'Your new account is ready.' });
+        }
+        authModal?.classList.remove('visible');
+        if (authEmailInput) authEmailInput.value = '';
+        if (authPasswordInput) authPasswordInput.value = '';
+        if (authNameInput) authNameInput.value = '';
+      } catch (err) {
+        console.error(err);
+        if (authErrorMsg) {
+          authErrorMsg.textContent = getAuthFriendlyError(err.message);
+          authErrorMsg.style.display = 'block';
+        }
+      } finally {
+        authSubmitBtn.disabled = false;
+        authSubmitBtn.textContent = originalText;
+      }
+    }
+  });
+
+  // Sign Out
+  signoutBtn?.addEventListener('click', async () => {
+    await logoutUser();
+    dropdown?.classList.remove('is-open');
+    showToast({ title: 'Signed Out', text: 'Logged out of account.' });
+  });
+
+  // Firebase Auth State Listener
+  onAuthChange(async (user) => {
+    if (user) {
+      currentUser = user;
+      
+      const initial = (user.displayName || user.email || 'U').charAt(0).toUpperCase();
+      if (avatarBtn) avatarBtn.textContent = initial;
+      if (profileAvatarInner) profileAvatarInner.textContent = initial;
+      if (profileName) profileName.textContent = user.displayName || user.email.split('@')[0];
+      if (profileEmail) profileEmail.textContent = user.email;
+      
+      if (guestView) guestView.style.display = 'none';
+      if (userView) userView.style.display = 'block';
+      
+      const syncText = document.getElementById('profile-sync-text');
+      if (syncText) {
+        syncText.textContent = isRealFirebase ? 'Cloud Sync Active' : 'Cloud Sync (Simulated)';
+      }
+
+      // Fetch cloud notes for this user
+      try {
+        const cloudNotes = await fetchNotesFromCloud(user.uid);
+        notes = cloudNotes.map(normalizeNoteType);
+        notes.sort((a, b) => b.updatedAt - a.updatedAt);
+        notes.forEach(registerNoteFolders);
+        renderNotes();
+      } catch (err) {
+        console.warn('Failed to load cloud notes:', err);
+        showToast({ title: 'Sync Error', text: 'Could not fetch cloud notes. Using offline copy.' });
+      }
+    } else {
+      currentUser = null;
+      if (avatarBtn) avatarBtn.textContent = 'G';
+      if (guestView) guestView.style.display = 'block';
+      if (userView) userView.style.display = 'none';
+      
+      // Restore guest local notes
+      initData();
+      renderNotes();
+    }
+  });
+}
+
+function getAuthFriendlyError(code) {
+  if (code.includes('auth/email-already-in-use')) {
+    return 'This email address is already in use by another account.';
+  }
+  if (code.includes('auth/invalid-credential')) {
+    return 'Invalid email address or password. Please try again.';
+  }
+  if (code.includes('auth/weak-password')) {
+    return 'Password must be at least 6 characters long.';
+  }
+  if (code.includes('auth/invalid-email')) {
+    return 'Please enter a valid email address.';
+  }
+  return code || 'An error occurred during authentication.';
+}

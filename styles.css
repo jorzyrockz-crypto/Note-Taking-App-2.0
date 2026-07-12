@@ -6761,6 +6761,242 @@ body.card-style-glass .edit-modal-card textarea {
   }
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Firebase Account & Auth Modal Custom Styles
+   ───────────────────────────────────────────────────────────── */
 
+/* Profile Dropdown Positioning & Styling */
+.profile-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  width: 280px;
+  background-color: var(--bg-surface, #ffffff);
+  border: 1px solid var(--border-light, #e2e8f0);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  padding: 16px;
+  z-index: 1000;
+  display: none;
+  flex-direction: column;
+  animation: fadeInDropdown 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
 
+.profile-dropdown.is-open {
+  display: flex;
+}
 
+@keyframes fadeInDropdown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.profile-greeting {
+  font-family: 'Outfit', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #1e293b);
+  margin-bottom: 6px;
+}
+
+.profile-meta-text {
+  font-size: 13px;
+  color: var(--text-secondary, #64748b);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.profile-action-btn {
+  width: 100%;
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s ease;
+  font-family: 'Outfit', sans-serif;
+}
+
+/* User profile details inside dropdown */
+.profile-user-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.profile-user-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: var(--accent-light, #fbbc04);
+  color: #fff;
+  font-weight: 700;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+}
+
+.profile-user-info {
+  display: flex;
+  flex-direction: column;
+  max-width: calc(100% - 56px);
+  text-align: left;
+}
+
+.profile-user-info strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #1e293b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-user-info span {
+  font-size: 12px;
+  color: var(--text-secondary, #64748b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-divider {
+  height: 1px;
+  background-color: var(--border-light, #e2e8f0);
+  margin: 12px 0;
+}
+
+.profile-sync-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary, #64748b);
+  margin-bottom: 14px;
+}
+
+.sync-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #94a3b8;
+}
+
+.sync-dot.active {
+  background-color: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+  animation: pulseSyncDot 2s infinite;
+}
+
+@keyframes pulseSyncDot {
+  0% { transform: scale(0.95); opacity: 0.5; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.5; }
+}
+
+/* Auth Modal Specific Layouts */
+.auth-modal-card {
+  max-width: 420px !important;
+}
+
+.auth-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-light, #e2e8f0);
+  padding: 16px 24px;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 16px;
+}
+
+.auth-tab {
+  background: none;
+  border: none;
+  font-family: 'Outfit', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  padding: 8px 0;
+  position: relative;
+  transition: color 0.2s ease;
+}
+
+.auth-tab.active {
+  color: var(--primary, #1a73e8);
+}
+
+.auth-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: var(--primary, #1a73e8);
+  border-radius: 2px;
+}
+
+.auth-modal-body {
+  padding: 24px;
+}
+
+/* Config Accordion styling */
+.auth-accordion {
+  margin-top: 24px;
+  border-top: 1px solid var(--border-light, #e2e8f0);
+  padding-top: 16px;
+}
+
+.auth-accordion-trigger {
+  width: 100%;
+  background: none;
+  border: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  padding: 4px 0;
+  transition: color 0.2s ease;
+}
+
+.auth-accordion-trigger:hover {
+  color: var(--primary, #1a73e8);
+}
+
+.accordion-arrow {
+  width: 20px;
+  height: 20px;
+  transition: transform 0.2s ease;
+  fill: currentColor;
+}
+
+.auth-accordion.is-open .accordion-arrow {
+  transform: rotate(180deg);
+}
+
+.auth-accordion-content {
+  margin-top: 12px;
+  padding: 8px 0 0 0;
+  animation: slideDownAccordion 0.2s ease-out forwards;
+}
+
+@keyframes slideDownAccordion {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
