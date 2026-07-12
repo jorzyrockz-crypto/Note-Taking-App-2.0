@@ -4199,38 +4199,49 @@ function renderModalFileAttachments(note) {
 
 function handleImageUpload(file, onCompressComplete, onError = () => {}) {
   if (!file) return;
+
+  const objectUrl = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = function() {
+    try {
+      // Compress to prevent LocalStorage overflows.
+      const canvas = document.createElement('canvas');
+      const maxW = 900;
+      const scale = Math.min(1, maxW / img.width);
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.72);
+      URL.revokeObjectURL(objectUrl);
+      onCompressComplete(compressedDataUrl);
+    } catch (error) {
+      console.warn('Image compression failed; falling back to FileReader.', error);
+      URL.revokeObjectURL(objectUrl);
+      fallbackToFileReader(file, onCompressComplete, onError);
+    }
+  };
+
+  img.onerror = () => {
+    console.warn('Image decode failed for selected file via ObjectURL:', file.name, file.type);
+    URL.revokeObjectURL(objectUrl);
+
+    if (file.type === 'image/svg+xml' || file.type === 'image/gif') {
+      fallbackToFileReader(file, onCompressComplete, onError);
+      return;
+    }
+    onError();
+  };
+
+  img.src = objectUrl;
+}
+
+function fallbackToFileReader(file, onCompressComplete, onError) {
   const reader = new FileReader();
   reader.onload = function(event) {
-    const originalDataUrl = event.target.result;
-    const img = new Image();
-    img.onload = function() {
-      try {
-        // Compress to prevent LocalStorage overflows.
-        const canvas = document.createElement('canvas');
-        const maxW = 900;
-        const scale = Math.min(1, maxW / img.width);
-        canvas.width = Math.max(1, Math.round(img.width * scale));
-        canvas.height = Math.max(1, Math.round(img.height * scale));
-
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.72);
-        onCompressComplete(compressedDataUrl || originalDataUrl);
-      } catch (error) {
-        console.warn('Image compression failed; using original image data.', error);
-        onCompressComplete(originalDataUrl);
-      }
-    };
-    img.onerror = () => {
-      console.warn('Image decode failed for selected file:', file.name, file.type);
-      if (file.type === 'image/svg+xml' || file.type === 'image/gif') {
-        onCompressComplete(originalDataUrl);
-        return;
-      }
-      onError();
-    };
-    img.src = originalDataUrl;
+    onCompressComplete(event.target.result);
   };
   reader.onerror = onError;
   reader.readAsDataURL(file);
