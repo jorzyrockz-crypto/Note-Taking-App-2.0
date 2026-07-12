@@ -3833,7 +3833,7 @@ function renderGrid(gridContainer, notesArray) {
     if (bannerImage) {
       const banner = document.createElement('div');
       banner.className = 'card-image-banner';
-      banner.innerHTML = `<img src="${bannerImage}" alt="Note banner">`;
+      banner.innerHTML = `<img src="${bannerImage}" alt="Note banner" loading="lazy">`;
       banner.addEventListener('click', (e) => {
         e.stopPropagation();
         openImageViewer(bannerImage, cleanTitleTags(note.title || 'Note image'));

@@ -1,10 +1,13 @@
-const CACHE_NAME = 'atlasnest-v24';
+const CACHE_NAME = 'atlasnest-v25';
 // Static assets that never get hashed — safe to precache by path
 const APP_ASSETS = [
   './',
   './index.html',
   './site.webmanifest',
   './icons/icon.svg',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './favicon.ico',
 ];
 
 self.addEventListener('install', (event) => {
