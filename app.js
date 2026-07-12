@@ -1515,37 +1515,9 @@ function initData() {
 }
 
 function setupEventHandlers() {
+  settingsBtn = document.getElementById('settings-btn');
   settingsBtn?.addEventListener('click', () => setActivePage('settings'));
   sidebarSettings?.addEventListener('click', () => setActivePage('settings'));
-  settingsBackBtn?.addEventListener('click', () => {
-    saveSettingsFromForm();
-    setActivePage('notes');
-  });
-  settingsSave?.addEventListener('click', () => {
-    saveSettingsFromForm();
-    setActivePage('notes');
-  });
-  settingsResetData?.addEventListener('click', clearAllCacheAndData);
-
-  // Sliders preview
-  [settingsEmojiOpacity, settingsEmojiSize, settingsEmojiSpacing].forEach(input => {
-    input?.addEventListener('input', updateSettingsLivePreview);
-  });
-
-  // Card style live preview
-  settingsCardStyle?.addEventListener('change', () => {
-    applyCardLayoutStyle(settingsCardStyle.value);
-  });
-
-  // Custom theme create
-  settingsCustomThemeCreate?.addEventListener('click', createCustomEmojiTheme);
-  settingsCustomThemeEmojis?.addEventListener('input', () => {
-    const val = settingsCustomThemeEmojis.value;
-    const emojis = Array.from(val);
-    if (emojis.length > 3) {
-      settingsCustomThemeEmojis.value = emojis.slice(0, 3).join('');
-    }
-  });
   // Toggle sidebar drawer on mobile / pin layout on desktop
   const menuBtn = document.querySelector('.menu-btn');
   const sidebar = document.querySelector('.app-sidebar');
