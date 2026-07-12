@@ -5,16 +5,33 @@ import { getFirestore, doc, setDoc, deleteDoc, collection, getDocs } from 'fireb
 let app, auth, db;
 export let isRealFirebase = false;
 
-// Load config from LocalStorage
+// Load config from LocalStorage or Environment Variables
 export const CONFIG_KEY = 'atlasnest_firebase_config';
 let savedConfig = null;
-try {
-  const stored = localStorage.getItem(CONFIG_KEY);
-  if (stored) {
-    savedConfig = JSON.parse(stored);
+
+// 1. Try Environment Variables first (guarded for non-Vite environments)
+const viteEnv = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : {};
+const envConfig = {
+  apiKey: viteEnv.VITE_FIREBASE_API_KEY,
+  authDomain: viteEnv.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: viteEnv.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: viteEnv.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: viteEnv.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: viteEnv.VITE_FIREBASE_APP_ID
+};
+
+if (envConfig.apiKey && envConfig.projectId) {
+  savedConfig = envConfig;
+} else {
+  // 2. Fall back to LocalStorage
+  try {
+    const stored = localStorage.getItem(CONFIG_KEY);
+    if (stored) {
+      savedConfig = JSON.parse(stored);
+    }
+  } catch (e) {
+    console.warn('Failed to parse saved Firebase config:', e);
   }
-} catch (e) {
-  console.warn('Failed to parse saved Firebase config:', e);
 }
 
 if (savedConfig && savedConfig.apiKey && savedConfig.projectId) {

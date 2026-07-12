@@ -31,7 +31,8 @@ import {
   setActiveSidebarPage,
   setSelectedCalendarDate,
   setCalendarCursorDate,
-  setSelectedProductivityDayView
+  setSelectedProductivityDayView,
+  getTaskInlineReminderDateKeys
 } from './app.js';
 
 let productivityPage;
