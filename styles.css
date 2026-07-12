@@ -5360,6 +5360,7 @@ body.dark-theme .note-card[data-note-kind="image"] {
   width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1.02fr) minmax(340px, 0.72fr);
+  grid-template-rows: max-content 1fr;
   grid-template-areas:
     "calendar agenda"
     "todo agenda";
