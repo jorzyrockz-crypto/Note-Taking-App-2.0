@@ -93,6 +93,7 @@ export async function registerUser(email, password, displayName) {
       uid: userCredential.user.uid,
       email: userCredential.user.email,
       displayName: displayName || userCredential.user.displayName,
+      photoURL: userCredential.user.photoURL,
       isReal: true
     };
   } else {
@@ -104,12 +105,13 @@ export async function registerUser(email, password, displayName) {
       uid: 'mock-uid-' + Date.now(),
       email: email,
       password: password,
-      displayName: displayName || email.split('@')[0]
+      displayName: displayName || email.split('@')[0],
+      photoURL: null
     };
     users.push(newUser);
     saveMockUsers(users);
     
-    mockCurrentUser = { uid: newUser.uid, email: newUser.email, displayName: newUser.displayName };
+    mockCurrentUser = { uid: newUser.uid, email: newUser.email, displayName: newUser.displayName, photoURL: newUser.photoURL };
     localStorage.setItem('atlasnest_active_mock_session', JSON.stringify(mockCurrentUser));
     triggerAuthCallbacks();
     return mockCurrentUser;
@@ -123,6 +125,7 @@ export async function loginUser(email, password) {
       uid: userCredential.user.uid,
       email: userCredential.user.email,
       displayName: userCredential.user.displayName,
+      photoURL: userCredential.user.photoURL,
       isReal: true
     };
   } else {
@@ -131,7 +134,7 @@ export async function loginUser(email, password) {
     if (!match) {
       throw new Error('auth/invalid-credential');
     }
-    mockCurrentUser = { uid: match.uid, email: match.email, displayName: match.displayName };
+    mockCurrentUser = { uid: match.uid, email: match.email, displayName: match.displayName, photoURL: match.photoURL };
     localStorage.setItem('atlasnest_active_mock_session', JSON.stringify(mockCurrentUser));
     triggerAuthCallbacks();
     return mockCurrentUser;
@@ -148,6 +151,37 @@ export async function logoutUser() {
   }
 }
 
+export async function updateUserProfilePic(photoURL) {
+  if (isRealFirebase) {
+    if (auth.currentUser) {
+      await updateProfile(auth.currentUser, { photoURL });
+      return {
+        uid: auth.currentUser.uid,
+        email: auth.currentUser.email,
+        displayName: auth.currentUser.displayName,
+        photoURL: auth.currentUser.photoURL,
+        isReal: true
+      };
+    }
+  } else {
+    if (mockCurrentUser) {
+      mockCurrentUser.photoURL = photoURL;
+      localStorage.setItem('atlasnest_active_mock_session', JSON.stringify(mockCurrentUser));
+      
+      const users = getMockUsers();
+      const match = users.find(u => u.uid === mockCurrentUser.uid);
+      if (match) {
+        match.photoURL = photoURL;
+        saveMockUsers(users);
+      }
+      
+      triggerAuthCallbacks();
+      return mockCurrentUser;
+    }
+  }
+  throw new Error('No user is currently signed in.');
+}
+
 export function onAuthChange(callback) {
   if (isRealFirebase) {
     return onAuthStateChanged(auth, (user) => {
@@ -156,6 +190,7 @@ export function onAuthChange(callback) {
           uid: user.uid,
           email: user.email,
           displayName: user.displayName,
+          photoURL: user.photoURL,
           isReal: true
         });
       } else {
@@ -164,7 +199,6 @@ export function onAuthChange(callback) {
     });
   } else {
     authCallbacks.push(callback);
-    // Trigger immediately with current state
     callback(mockCurrentUser);
     return () => {
       authCallbacks = authCallbacks.filter(c => c !== callback);

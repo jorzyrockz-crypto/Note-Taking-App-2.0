@@ -22,7 +22,8 @@ import {
   deleteNoteFromCloud,
   fetchNotesFromCloud,
   getFirebaseConfig,
-  saveFirebaseConfig
+  saveFirebaseConfig,
+  updateUserProfilePic
 } from './firebase.js';
 
 // ==========================================================================
@@ -626,261 +627,64 @@ export const STORAGE_KEYS = {
   theme: 'keep_theme',
   emojiThemeControls: 'keep_emoji_theme_controls',
   view: 'keep_view',
-  starterSeeded: 'keep_starter_seeded',
-  updatesSeeded: 'keep_updates_seeded',
-  functionDemoSeeded: 'keep_function_demo_seeded'
+  starterSeeded: 'keep_starter_seeded_v3'
 };
 
-const APP_UPDATE_NOTE = {
-  id: 'release-atlasnest-v5',
-  type: 'text',
-  title: 'AtlasNest Update #recipe-parser',
-  text: '# AtlasNest recipe parser update\n\n1. Recipe import now supports WordPress Recipe Maker print pages directly, including links like Panlasang Pinoy `wprm_print` recipes\n2. The importer still checks Schema.org Recipe JSON-LD first, then falls back to HTML parsing, then OpenAI only when needed\n3. This means more recipe pages can import successfully even without JSON-LD or an OpenAI key\n4. Imported recipes still save structured `recipeData` plus generated cookbook note text for board rendering\n\nRun AtlasNest from `http://localhost:3000` to use recipe import, then save imported dishes straight into Kitchen Board.',
-  color: 'orange',
-  theme: 'summer',
-  folder: 'Product Updates',
-  pinned: true,
-  archived: false,
-  image: null,
-  updatedAt: Date.now() - 1000
-};
-
-// Default starter notes populated with checklists and tags
 const STARTER_NOTES = [
   {
-    id: 'starter-1',
-    title: '🚀 Welcome to HyperKeep 2.0',
-    text: 'This is a premium, feature-rich Google Keep clone.\n\nKey features at a glance:\n• 🎨 Note Themes: Single-row horizontal scroll under "Note Themes"\n• 🔔 Date/Time Reminders: Choose a time and get custom toast alerts\n• 🔗 URL Link Previews: Detects websites and attaches a premium preview box\n• ✏️ Canvas Drawing: Sketch sketches directly from the editor\n\nTry filtering tags like #welcome or #guide in the sidebar!',
-    color: 'default',
-    pinned: true,
-    archived: false,
-    image: null,
-    updatedAt: Date.now() - 100000
-  },
-  {
-    id: 'starter-2',
-    title: '🎙️ Voice Note: Morning Brainstorm #voice',
-    text: 'Brainstorming ideas for HyperKeep. We need to implement a fully offline-first database sync, native voice recording transcriber, and a premium checklist editor. This sounds like an amazing roadmap!',
-    audio: 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAAD',
-    audioDuration: '0:05',
-    color: 'default',
-    pinned: true,
-    archived: false,
-    image: null,
-    updatedAt: Date.now() - 90000
-  },
-  {
-    id: 'starter-3',
-    title: '📌 Pinterest Inspiration #aesthetic',
-    text: 'Found this gorgeous wood cabin workspace on Pinterest: https://pinterest.com/pin/cabin-aesthetic',
-    color: 'default',
-    pinned: true,
-    archived: false,
-    image: null,
-    updatedAt: Date.now() - 80000
-  },
-  {
-    id: 'starter-4',
-    title: '🍽️ Recipe: Creamy Garlic Tuscan Salmon #cooking',
-    text: 'Ingredients:\n- [x] 4 salmon fillets\n- [ ] 1 tbsp olive oil\n- [ ] 1 cup heavy cream\n- [ ] 1/2 cup chicken broth\n- [ ] 1 tsp garlic powder\n- [x] 1 cup spinach\n- [ ] 1/2 cup sun-dried tomatoes\n\nInstructions:\n# Prep Steps\n1. Season salmon fillets on both sides with salt and pepper.\n2. Heat olive oil in a large skillet over medium-high heat.\n3. Sear salmon for 5 minutes on each side until golden.\n\n# Sauce Steps\n4. Add garlic and cook until fragrant.\n5. Pour in heavy cream, broth, and simmer. Stir in spinach and tomatoes.',
+    id: 'starter-welcome',
+    title: '🚀 Welcome to AtlasNest',
+    text: '# Welcome to AtlasNest 🚀\n\nAtlasNest is a visual bookmarking and note-taking studio designed for links, voice notes, drawing, and checklists.\n\n**Best of all, you don\'t even need to sign in to start!**\n• Your notes are saved locally to your device\'s browser database.\n• You can sync them to the cloud at any time by signing in.\n• Open the user profile dropdown (top right) to upload a custom profile picture.\n\nExplore the other cards to learn about AtlasNest\'s features!',
     color: 'default',
     theme: 'plants',
-    pinned: false,
-    archived: false,
-    image: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=500',
-    updatedAt: Date.now() - 70000
-  },
-  {
-    id: 'starter-5',
-    title: '💡 Formatting Cheat Sheet #guide',
-    text: '# Markdown Formatting Guide\n\nMake notes structured and visually rich:\n\n* **Bold text** using double asterisks\n* *Italic text* using single asterisks\n* `Inline code` using backticks\n\n### Headers and Bullet Lists\nUse headers to separate sections. Bullet lists organize thoughts quickly. Keep notes clean and concise!',
-    color: 'teal',
-    pinned: false,
+    pinned: true,
     archived: false,
     image: null,
-    updatedAt: Date.now() - 60000
+    updatedAt: Date.now() - 10000
   },
   {
-    id: 'starter-6',
-    title: '💪 Gym Checklist #fitness',
-    text: '- [x] Warm-up stretching (10 mins)\n- [ ] Bench press 4x8\n- [ ] Weighted pull-ups 3x8\n- [x] Romanian deadlifts 3x10\n- [ ] Core planks (3 mins)\n- [ ] Cool-down cardio: https://youtube.com',
-    color: 'default',
-    theme: 'plants',
-    pinned: false,
-    archived: false,
-    image: null,
-    updatedAt: Date.now() - 50000
-  },
-  {
-    id: 'starter-7',
-    title: '🔗 Developer Bookmarks #coding',
-    text: 'Here are some essential websites I visit daily for learning and development:\n\n• Advanced coding and web guidance: https://github.com\n• Knowledgebase and reference lookups: https://wikipedia.org\n• Frontend web animations and layouts: https://css-tricks.com',
-    color: 'blue',
-    pinned: false,
-    archived: false,
-    image: null,
-    updatedAt: Date.now() - 40000
-  },
-  {
-    id: 'starter-8',
-    title: '⏰ Meeting with Design Team #schedule',
-    text: 'Review the mockups for the new landing page, check contrast ratios, and finalize dark mode styles. Ask about mobile layouts.',
+    id: 'starter-pwa',
+    title: '📲 Install App & Go Offline (PWA)',
+    text: '# Go Offline with PWA 📲\n\nAtlasNest is a Progressive Web App (PWA). You can install it on your home screen or desktop:\n\n1. Click the **Install App** button inside your **Settings** panel (or look for the install icon in your browser address bar).\n2. Once installed, AtlasNest launches in standalone mode.\n3. Enjoy full **offline support**! All notes, drawings, and files will load instantly even without an internet connection.',
     color: 'default',
     theme: 'winter',
-    reminder: new Date(Date.now() + 3600000).toISOString(),
-    reminderTriggered: false,
+    pinned: true,
+    archived: false,
+    image: null,
+    updatedAt: Date.now() - 20000
+  },
+  {
+    id: 'starter-indexeddb',
+    title: '🎥 Attach Large Files & Videos',
+    text: '# Upload Videos & Large Files 🎥\n\nNeed to attach media? You can upload videos, audio files, and documents directly from your device storage:\n\n• Select files up to **100MB** using the attachment menu.\n• Large files are stored in **IndexedDB** on your phone\'s storage.\n• They bypass the strict LocalStorage size limit, keeping your app fast and lightweight.\n• Tap on any video or audio attachment inside a note to play it instantly.',
+    color: 'default',
+    theme: 'school',
     pinned: false,
     archived: false,
     image: null,
     updatedAt: Date.now() - 30000
   },
   {
-    id: 'starter-9',
-    title: '❄️ Winter Cabin Trip #travel',
-    text: '- [x] Pack thermal jackets and socks\n- [ ] Book skiing gear rentals\n- [ ] Buy hot cocoa mix\n- [ ] Check cabin weather: https://weather.com',
-    color: 'default',
-    theme: 'winter',
-    pinned: false,
-    archived: false,
-    image: null,
-    updatedAt: Date.now() - 20000
-  }
-];
-
-const FUNCTION_DEMO_NOTES = [
-  {
-    id: 'function-demo-link-parser',
-    title: 'Demo: Link parser and GitHub preview #link-parser',
-    text: 'Parse this link from the card menu or creator toolbar:\nhttps://github.com/jorzyrockz-crypto/Note-Taking-App-2.0\n\nExpected: title, preview, category, and bookmark intent can be refreshed.',
-    color: 'default',
-    theme: 'office',
-    folder: 'Developer Bookmarks',
-    folders: ['Developer Bookmarks', 'Inspiration Wall'],
-    pinned: true,
-    archived: false,
-    deleted: false,
-    image: null,
-    updatedAt: Date.now() - 11000
-  },
-  {
-    id: 'function-demo-social-save',
-    title: 'Demo: Social post share #social',
-    text: 'Shared post URL:\nhttps://www.facebook.com/share/p/1Beftwi1Yxz/\n\nUse Parse Link to test social intent and preview fallback behavior.',
-    color: 'default',
-    theme: 'office',
-    folder: 'Social Saves',
-    folders: ['Social Saves', 'Inbox'],
-    pinned: false,
-    archived: false,
-    deleted: false,
-    image: null,
-    updatedAt: Date.now() - 12000
-  },
-  {
-    id: 'function-demo-recipe-builder',
-    title: 'Demo: Recipe builder note #recipe',
-    text: 'Crispy demo toast with herb butter.\nPrep: 5 min | Cook: 8 min | Servings: 2\nIngredients:\n- [ ] 2 slices sourdough\n- [ ] 1 tbsp butter\n- [ ] Fresh herbs\n\nInstructions:\n1. Toast bread until golden.\n2. Mix butter and herbs.\n3. Spread and serve warm.',
-    type: 'recipe',
-    color: 'default',
-    theme: 'food',
-    folder: 'Kitchen Board',
-    folders: ['Kitchen Board', 'Action Lists'],
-    pinned: false,
-    archived: false,
-    deleted: false,
-    image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=900&auto=format&fit=crop',
-    recipeData: {
-      title: 'Crispy Demo Toast',
-      description: 'A small recipe note for testing recipe cards, image banners, and the Recipe Builder menu action.',
-      image_url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=900&auto=format&fit=crop',
-      prep_time_minutes: 5,
-      cook_time_minutes: 8,
-      servings: 2,
-      ingredients: ['2 slices sourdough', '1 tbsp butter', 'Fresh herbs'],
-      instructions: ['Toast bread until golden.', 'Mix butter and herbs.', 'Spread and serve warm.']
-    },
-    recipeImportWarnings: [],
-    recipeImportMethod: 'demo',
-    recipeSourceUrl: 'https://example.com/demo-toast-recipe',
-    updatedAt: Date.now() - 13000
-  },
-  {
-    id: 'function-demo-checklist-reminders',
-    title: 'Demo: Checklist with inline reminders #tasks',
-    text: '- [ ] Draft release notes {{reminder:2026-07-11T19:30}}\n- [x] Test drag reorder\n- [ ] Review mobile sidebar {{reminder:2026-07-12T09:00}}\n- [ ] Open Parse Link button from creator',
-    color: 'default',
-    theme: 'school',
-    folder: 'Action Lists',
-    folders: ['Action Lists', 'Product Updates'],
-    pinned: false,
-    archived: false,
-    deleted: false,
-    image: null,
-    reminder: new Date(Date.now() + 7200000).toISOString(),
-    reminderTriggered: false,
-    updatedAt: Date.now() - 14000
-  },
-  {
-    id: 'function-demo-voice',
-    title: 'Demo: Voice memo note #voice',
-    text: 'This demo voice note checks audio chips, voice category filtering, and the note editor audio preview.',
-    type: 'voice',
-    audio: 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAAD',
-    audioDuration: '0:05',
+    id: 'starter-voice-sketch',
+    title: '🎙️ Voice Memos & Sketching',
+    text: '# Voice Notes & Canvas Sketches 🎙️🎨\n\nAtlasNest features built-in tools for audio recording and drawing:\n\n• **Voice Notes**: Click the microphone icon to record audio on-the-fly. Listen back right inside the note.\n• **Canvas Sketches**: Tap the paint icon to launch the touch-friendly whiteboard. Draw diagrams, ideas, or write handwritten notes, then save them directly to your card.',
     color: 'default',
     theme: 'celebration',
-    folder: 'Voice Memos',
-    folders: ['Voice Memos', 'Inbox'],
     pinned: false,
     archived: false,
-    deleted: false,
     image: null,
-    updatedAt: Date.now() - 15000
+    updatedAt: Date.now() - 40000
   },
   {
-    id: 'function-demo-visual',
-    title: 'Demo: Visual moodboard #image',
-    text: 'Image note for banner previews, visual filtering, and image modal behavior.',
-    type: 'image',
+    id: 'starter-links-recipes',
+    title: '🍽️ Rich Link Previews & Recipes',
+    text: '# Web Previews & Recipe Imports 🔗\n\nAtlasNest automatically parses links to create rich previews:\n\n• Paste any URL (like https://github.com) into a note, and AtlasNest will generate a premium preview card.\n• **Recipe Builder**: Paste a cooking recipe link (like a WordPress Recipe Maker print page). AtlasNest will parse it and build a structured recipe card with checkable ingredients and directions.',
     color: 'default',
-    theme: 'holiday',
-    folder: 'Moodboard',
-    folders: ['Moodboard', 'Inspiration Wall'],
+    theme: 'food',
     pinned: false,
     archived: false,
-    deleted: false,
-    image: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=900&auto=format&fit=crop',
-    updatedAt: Date.now() - 16000
-  },
-  {
-    id: 'function-demo-archive',
-    title: 'Demo: Archived reference #archive',
-    text: 'This note starts in Archive to verify archive page, restore action, and filtering do not show it in active notes.',
-    color: 'grey',
-    theme: null,
-    folder: 'Product Updates',
-    folders: ['Product Updates'],
-    pinned: false,
-    archived: true,
-    archivedAt: Date.now() - 17000,
-    deleted: false,
     image: null,
-    updatedAt: Date.now() - 17000
-  },
-  {
-    id: 'function-demo-delete',
-    title: 'Demo: Deleted note #delete-page',
-    text: 'This note starts in Trash to verify restore and delete-forever actions.',
-    color: 'red',
-    theme: null,
-    folder: 'Inbox',
-    folders: ['Inbox'],
-    pinned: false,
-    archived: false,
-    deleted: true,
-    deletedAt: Date.now() - 18000,
-    image: null,
-    updatedAt: Date.now() - 18000
+    updatedAt: Date.now() - 50000
   }
 ];
 
@@ -1639,21 +1443,6 @@ function initData() {
     return normalizeNoteAppearance(note);
   });
 
-  const hasSeededUpdates = localStorage.getItem(STORAGE_KEYS.updatesSeeded) === 'true';
-  const hasUpdateNote = loadedNotes.some(note => note.id === APP_UPDATE_NOTE.id);
-  if (!hasSeededUpdates || !hasUpdateNote) {
-    loadedNotes.unshift(normalizeNoteType({ ...APP_UPDATE_NOTE }));
-    loadedNotes = loadedNotes.filter((note, index, arr) => arr.findIndex(other => other.id === note.id) === index);
-    localStorage.setItem(STORAGE_KEYS.updatesSeeded, 'true');
-  }
-
-  const hasSeededFunctionDemoNotes = localStorage.getItem(STORAGE_KEYS.functionDemoSeeded) === 'true';
-  const hasAllFunctionDemoNotes = FUNCTION_DEMO_NOTES.every(demoNote => loadedNotes.some(note => note.id === demoNote.id));
-  if (!hasSeededFunctionDemoNotes || !hasAllFunctionDemoNotes) {
-    loadedNotes.unshift(...FUNCTION_DEMO_NOTES.map(demoNote => normalizeNoteType({ ...demoNote })));
-    loadedNotes = loadedNotes.filter((note, index, arr) => arr.findIndex(other => other.id === note.id) === index);
-    localStorage.setItem(STORAGE_KEYS.functionDemoSeeded, 'true');
-  }
   loadedNotes.forEach((note, index) => {
     setNoteFolders(note, getNoteFolders(note, inferDefaultFolder(note, index)));
   });
@@ -6236,14 +6025,23 @@ async function handleSharedLaunchData() {
           creatorImage = dataUrl;
           creatorImageBanner.style.display = 'block';
         } else {
+          const fileId = `file-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+          let finalDataUrl = dataUrl;
+          let storedInDB = false;
+          if (blob.size > 100 * 1024) {
+            await storeFileInDB(fileId, blob);
+            finalDataUrl = 'db';
+            storedInDB = true;
+          }
           creatorFiles = [
             ...normalizeNoteFiles(creatorFiles),
             {
-              id: `file-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+              id: fileId,
               name: sharedName,
               type: sharedType,
               size: blob.size,
-              dataUrl,
+              dataUrl: finalDataUrl,
+              storedInDB,
               addedAt: Date.now()
             }
           ];
@@ -7568,14 +7366,70 @@ function initAuth() {
     showToast({ title: 'Signed Out', text: 'Logged out of account.' });
   });
 
+  // Profile picture upload handlers
+  const profilePicInput = document.getElementById('profile-pic-input');
+  profileAvatarInner?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    profilePicInput?.click();
+  });
+
+  profilePicInput?.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    handleImageUpload(file, async (compressedBase64) => {
+      try {
+        showToast({ title: 'Uploading...', text: 'Updating your profile picture...' });
+        const updatedUser = await updateUserProfilePic(compressedBase64);
+        currentUser = updatedUser;
+
+        if (avatarBtn) {
+          avatarBtn.textContent = '';
+          avatarBtn.style.backgroundImage = `url(${compressedBase64})`;
+        }
+        if (profileAvatarInner) {
+          profileAvatarInner.textContent = '';
+          profileAvatarInner.style.backgroundImage = `url(${compressedBase64})`;
+        }
+        showToast({ title: 'Success', text: 'Profile picture updated successfully!' });
+      } catch (err) {
+        console.error('Failed to update profile pic:', err);
+        showToast({ title: 'Error', text: 'Could not update profile picture.' });
+      }
+    }, () => {
+      showToast({ title: 'Upload failed', text: 'Invalid image format.' });
+    });
+
+    e.target.value = ''; // Reset input
+  });
+
   // Firebase Auth State Listener
   onAuthChange(async (user) => {
     if (user) {
       currentUser = user;
       
       const initial = (user.displayName || user.email || 'U').charAt(0).toUpperCase();
-      if (avatarBtn) avatarBtn.textContent = initial;
-      if (profileAvatarInner) profileAvatarInner.textContent = initial;
+      
+      if (user.photoURL) {
+        if (avatarBtn) {
+          avatarBtn.textContent = '';
+          avatarBtn.style.backgroundImage = `url(${user.photoURL})`;
+        }
+        if (profileAvatarInner) {
+          profileAvatarInner.textContent = '';
+          profileAvatarInner.style.backgroundImage = `url(${user.photoURL})`;
+        }
+      } else {
+        if (avatarBtn) {
+          avatarBtn.textContent = initial;
+          avatarBtn.style.backgroundImage = '';
+        }
+        if (profileAvatarInner) {
+          profileAvatarInner.textContent = initial;
+          profileAvatarInner.style.backgroundImage = '';
+        }
+      }
+
       if (profileName) profileName.textContent = user.displayName || user.email.split('@')[0];
       if (profileEmail) profileEmail.textContent = user.email;
       
@@ -7600,15 +7454,37 @@ function initAuth() {
       }
     } else {
       currentUser = null;
-      if (avatarBtn) avatarBtn.textContent = 'G';
+      if (avatarBtn) {
+        avatarBtn.textContent = 'G';
+        avatarBtn.style.backgroundImage = '';
+      }
+      if (profileAvatarInner) {
+        profileAvatarInner.textContent = 'G';
+        profileAvatarInner.style.backgroundImage = '';
+      }
       if (guestView) guestView.style.display = 'block';
       if (userView) userView.style.display = 'none';
       
       // Restore guest local notes
       initData();
       renderNotes();
+      
+      // Push welcoming toast for guest users
+      showGuestWelcomeNotification();
     }
   });
+}
+
+function showGuestWelcomeNotification() {
+  if (sessionStorage.getItem('guest-welcomed') === 'true') return;
+  sessionStorage.setItem('guest-welcomed', 'true');
+  
+  setTimeout(() => {
+    showToast({
+      title: 'Welcome to AtlasNest! 🚀',
+      text: 'You are in Guest Mode. Notes are saved locally. Sign in to activate Cloud Sync!'
+    });
+  }, 2000);
 }
 
 function getAuthFriendlyError(code) {
