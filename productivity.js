@@ -119,13 +119,6 @@ export function ensureProductivityPage() {
       setCalendarCursorDate(new Date(today.getFullYear(), today.getMonth(), 1));
       renderAppView();
     });
-
-    document.getElementById('productivity-day-pills')?.querySelectorAll('.filter-pill').forEach(btn => {
-      btn.addEventListener('click', () => {
-        setSelectedProductivityDayView(btn.getAttribute('data-day-view') || 'all');
-        renderAppView();
-      });
-    });
   } else {
     productivityPage = document.getElementById('productivity-page');
   }

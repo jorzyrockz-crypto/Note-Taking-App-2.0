@@ -139,45 +139,29 @@ export async function extractRecipeWithLlm(html, sourceUrl) {
   }
 
   const client = new OpenAI({ apiKey });
-  const response = await client.responses.create({
-    model: 'gpt-4.1-mini',
-    input: [
+  const response = await client.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
       {
         role: 'system',
-        content: [
-          {
-            type: 'input_text',
-            text: [
-              'You extract cooking recipes from webpage text.',
-              'Return only a JSON object matching the provided schema.',
-              'Do not wrap the JSON in markdown.',
-              'Do not invent ingredients or steps if they are not supported by the source.',
-              'Use null for optional scalar fields when unknown.'
-            ].join(' ')
-          }
-        ]
+        content: 'You extract cooking recipes from webpage text. Do not invent ingredients or steps if they are not supported by the source. Use null for optional scalar fields when unknown.'
       },
       {
         role: 'user',
-        content: [
-          {
-            type: 'input_text',
-            text: JSON.stringify({
-              source_url: sourceUrl,
-              page_title: pageContext.title,
-              page_content: pageContext.content
-            })
-          }
-        ]
+        content: JSON.stringify({
+          source_url: sourceUrl,
+          page_title: pageContext.title,
+          page_content: pageContext.content
+        })
       }
     ],
-    text: {
-      format: {
-        type: 'json_schema',
+    response_format: {
+      type: 'json_schema',
+      json_schema: {
         name: 'recipe_import',
+        strict: true,
         schema: {
           type: 'object',
-          additionalProperties: false,
           properties: {
             title: { type: 'string' },
             description: { type: ['string', 'null'] },
@@ -203,13 +187,14 @@ export async function extractRecipeWithLlm(html, sourceUrl) {
             'servings',
             'ingredients',
             'instructions'
-          ]
+          ],
+          additionalProperties: false
         }
       }
     }
   });
 
-  const textOutput = response.output_text?.trim();
+  const textOutput = response.choices[0]?.message?.content?.trim();
   if (!textOutput) {
     throw new RecipeImportError(422, 'AI fallback did not return recipe data.', 'llm_parse_failed');
   }

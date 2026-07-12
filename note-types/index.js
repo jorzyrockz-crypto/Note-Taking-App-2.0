@@ -52,8 +52,9 @@ export function renderNoteContent(note, options) {
   return renderTextNoteContent(note, options);
 }
 
-export function syncNoteTypeEditor({ textareaEl, checklistEditorEl, rawText, onChange }) {
-  if (getNoteTypeFromText(rawText) === NOTE_TYPES.checklist) {
+export function syncNoteTypeEditor({ textareaEl, checklistEditorEl, rawText, onChange, type }) {
+  const isChecklist = type === 'checklist' || (!type && getNoteTypeFromText(rawText) === NOTE_TYPES.checklist);
+  if (isChecklist && type !== 'recipe') {
     textareaEl.style.display = 'none';
     checklistEditorEl.style.display = 'block';
     syncChecklistEditor(checklistEditorEl, rawText, onChange);

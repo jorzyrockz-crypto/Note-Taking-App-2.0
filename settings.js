@@ -16,7 +16,8 @@ import {
   showToast,
   buildColorPickers,
   setActivePage,
-  clearAllCacheAndData
+  clearAllCacheAndData,
+  saveToLocalStorage
 } from './app.js';
 
 let settingsPage;
@@ -265,6 +266,7 @@ export function deleteCustomEmojiTheme(themeId) {
       note.theme = null;
     }
   });
+  saveToLocalStorage();
   saveEmojiThemeControls(); // trigger save action if needed
 
   // Re-merge presets in place

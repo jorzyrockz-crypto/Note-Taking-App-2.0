@@ -1381,11 +1381,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
-  navigator.serviceWorker.getRegistrations().then(function(registrations) {
-    for (let registration of registrations) {
-      registration.unregister();
-    }
-  });
+  navigator.serviceWorker.register('./sw.js')
+    .then(reg => {
+      console.log('Service Worker registered successfully:', reg.scope);
+    })
+    .catch(err => {
+      console.error('Service Worker registration failed:', err);
+    });
 }
 
 function initTheme() {
@@ -5924,6 +5926,7 @@ function syncModalInputs(note) {
     textareaEl: modalText,
     checklistEditorEl: modalChecklistEditor,
     rawText: note.text,
+    type: note.type,
     onChange: (newText, skipRedraw) => {
       note.text = newText;
       note.type = note.recipeData ? 'recipe' : getNoteType(newText);
