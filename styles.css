@@ -5874,8 +5874,6 @@ body.dark-theme .productivity-note-card[data-note-kind="image"] {
 
 .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted) {
   position: relative;
-  isolation: isolate;
-  z-index: 0;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -5901,13 +5899,10 @@ body.dark-theme .productivity-note-card[data-note-kind="image"] {
   background: var(--page-nav-tile-bg);
   border: 1px solid var(--page-nav-tile-border);
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-  z-index: -1;
   transition: inherit;
 }
 
 .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted) .sidebar-icon {
-  position: relative;
-  z-index: 1;
   flex: 0 0 auto;
   margin: 0;
 }
