@@ -1344,7 +1344,6 @@ function deleteNotePermanently(id) {
 
 document.addEventListener('DOMContentLoaded', () => {
   loadSettings();
-  initSettingsModal();
   enhanceShell();
   initTheme();
   loadEmojiThemeControls();
