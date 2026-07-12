@@ -2325,6 +2325,13 @@ function expandCreator() {
     
     creatorTitle.focus();
   } else {
+    creatorWrapper.classList.remove('advanced-editor-active');
+    document.body.classList.remove('advanced-editor-open');
+    document.body.classList.remove('editor-focus-mode');
+    if (creatorAdvancedHeader) creatorAdvancedHeader.style.display = 'none';
+    if (creatorMetadata) creatorMetadata.style.display = 'none';
+    if (creatorFloatingToolbar) creatorFloatingToolbar.style.display = 'none';
+    
     creatorPin.style.display = 'flex';
     creatorTitle.placeholder = 'Title';
     creatorText.placeholder = 'Take a note...';
@@ -5274,6 +5281,22 @@ function extractHashtags(combinedText) {
 function openEditModal(note) {
   currentEditingNoteId = note.id;
 
+  const modalAdvancedHeader = document.getElementById('modal-advanced-header');
+  const modalFloatingToolbar = document.getElementById('modal-floating-toolbar');
+  const modalMetadata = document.getElementById('modal-metadata');
+
+  if (appSettings.advancedEditorEnabled) {
+    editModalCard.classList.add('advanced-editor-active');
+    if (modalAdvancedHeader) modalAdvancedHeader.style.display = 'flex';
+    if (modalFloatingToolbar) modalFloatingToolbar.style.display = 'flex';
+    if (modalMetadata) modalMetadata.style.display = 'block';
+  } else {
+    editModalCard.classList.remove('advanced-editor-active');
+    if (modalAdvancedHeader) modalAdvancedHeader.style.display = 'flex';
+    if (modalFloatingToolbar) modalFloatingToolbar.style.display = 'none';
+    if (modalMetadata) modalMetadata.style.display = 'none';
+  }
+
   if (!document.getElementById('modal-folder')) {
     const folderField = document.createElement('div');
     folderField.className = 'modal-folder-field';
@@ -5467,7 +5490,6 @@ function openEditModal(note) {
   // Set date metadata subtitle
   const dateObj = new Date(note.createdAt || Date.now());
   const dateStr = dateObj.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }) + ' • ' + dateObj.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  const modalMetadata = document.getElementById('modal-metadata');
   if (modalMetadata) {
     modalMetadata.textContent = dateStr;
   }
@@ -7298,11 +7320,8 @@ function initAuth() {
   const authTabLogin = document.getElementById('auth-tab-login');
   const authTabRegister = document.getElementById('auth-tab-register');
   
-  const configTrigger = document.getElementById('auth-config-trigger');
-  const configContent = document.getElementById('auth-config-content');
-  const configInput = document.getElementById('auth-config-input');
-  const configSave = document.getElementById('auth-config-save-btn');
-  const configClear = document.getElementById('auth-config-clear-btn');
+  const pwToggleBtn = document.getElementById('auth-pw-toggle');
+  const forgotBtn = document.getElementById('auth-forgot-btn');
   
   let activeTab = 'login'; // 'login' or 'register'
 
@@ -7326,12 +7345,6 @@ function initAuth() {
     dropdown?.classList.remove('is-open');
     authModal?.classList.add('visible');
     if (authErrorMsg) authErrorMsg.style.display = 'none';
-    
-    // Populate current config JSON if exists
-    const currentConfig = getFirebaseConfig();
-    if (currentConfig && configInput) {
-      configInput.value = JSON.stringify(currentConfig, null, 2);
-    }
   });
 
   // Close Auth Modal
@@ -7350,55 +7363,42 @@ function initAuth() {
     activeTab = 'login';
     authTabLogin.classList.add('active');
     authTabRegister?.classList.remove('active');
+    authTabLogin.setAttribute('aria-selected', 'true');
+    authTabRegister?.setAttribute('aria-selected', 'false');
     if (authNameGroup) authNameGroup.style.display = 'none';
-    if (authSubmitBtn) authSubmitBtn.textContent = 'Sign In';
+    const forgotRow = document.getElementById('auth-forgot-row');
+    if (forgotRow) forgotRow.style.display = '';
+    if (authSubmitBtn) authSubmitBtn.textContent = 'Get Started';
     if (authErrorMsg) authErrorMsg.style.display = 'none';
   });
 
   authTabRegister?.addEventListener('click', () => {
     activeTab = 'register';
     authTabRegister.classList.add('active');
-    authTabLogin.classList.remove('active');
+    authTabLogin?.classList.remove('active');
+    authTabLogin?.setAttribute('aria-selected', 'false');
+    authTabRegister.setAttribute('aria-selected', 'true');
     if (authNameGroup) authNameGroup.style.display = 'block';
+    const forgotRow = document.getElementById('auth-forgot-row');
+    if (forgotRow) forgotRow.style.display = 'none';
     if (authSubmitBtn) authSubmitBtn.textContent = 'Create Account';
     if (authErrorMsg) authErrorMsg.style.display = 'none';
   });
 
-  // Collapsible Firebase Config Accordion
-  configTrigger?.addEventListener('click', () => {
-    const parent = configTrigger.closest('.auth-accordion');
-    const isOpen = parent?.classList.contains('is-open');
-    parent?.classList.toggle('is-open', !isOpen);
-    if (configContent) {
-      configContent.style.display = isOpen ? 'none' : 'block';
-    }
+  // Password show/hide toggle
+  pwToggleBtn?.addEventListener('click', () => {
+    if (!authPasswordInput) return;
+    const isPassword = authPasswordInput.type === 'password';
+    authPasswordInput.type = isPassword ? 'text' : 'password';
+    const showEye = pwToggleBtn.querySelector('.pw-eye-show');
+    const hideEye = pwToggleBtn.querySelector('.pw-eye-hide');
+    if (showEye) showEye.style.display = isPassword ? 'none' : '';
+    if (hideEye) hideEye.style.display = isPassword ? '' : 'none';
   });
 
-  // Save Config
-  configSave?.addEventListener('click', () => {
-    const rawVal = configInput?.value.trim();
-    if (!rawVal) {
-      showToast({ title: 'Config Empty', text: 'Paste your web app config JSON first.' });
-      return;
-    }
-    try {
-      const parsed = JSON.parse(rawVal);
-      if (!parsed.apiKey || !parsed.projectId) {
-        throw new Error('Config missing apiKey or projectId');
-      }
-      saveFirebaseConfig(parsed);
-      showToast({ title: 'Config Saved', text: 'Connecting to Firebase. Reloading app...' });
-      setTimeout(() => window.location.reload(), 1500);
-    } catch (err) {
-      showToast({ title: 'Invalid JSON', text: 'Please paste a valid Firebase configuration JSON object.' });
-    }
-  });
-
-  // Clear Config
-  configClear?.addEventListener('click', () => {
-    saveFirebaseConfig(null);
-    showToast({ title: 'Config Cleared', text: 'Reverting to Simulated Mode. Reloading...' });
-    setTimeout(() => window.location.reload(), 1500);
+  // Forgot password (placeholder — show a toast for now)
+  forgotBtn?.addEventListener('click', () => {
+    showToast({ title: 'Reset Password', text: 'Password reset is coming soon. Contact support if needed.' });
   });
 
   // Form Submission
@@ -7414,7 +7414,7 @@ function initAuth() {
     if (authSubmitBtn) {
       authSubmitBtn.disabled = true;
       const originalText = authSubmitBtn.textContent;
-      authSubmitBtn.textContent = activeTab === 'login' ? 'Signing In...' : 'Creating...';
+      authSubmitBtn.textContent = activeTab === 'login' ? 'Signing In...' : 'Creating Account...';
       
       try {
         if (activeTab === 'login') {

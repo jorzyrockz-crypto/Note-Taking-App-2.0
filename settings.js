@@ -27,6 +27,7 @@ let settingsResetData;
 let settingsLinkPreviews;
 let settingsCheckedBottom;
 let settingsNewBottom;
+let settingsAdvancedEditor;
 let settingsCardStyle;
 let settingsEmojiOpacity;
 let settingsEmojiSize;
