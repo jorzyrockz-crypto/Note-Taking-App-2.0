@@ -55,8 +55,6 @@ const FOLDER_ICON_FALLBACKS = [
   { accent: '#7c3aed', soft: 'rgba(124, 58, 237, 0.16)' }
 ];
 
-export let settingsPage;
-let settingsBackBtn;
 let sidebarSettings;
 export let appSettings = {
   linkPreviewsEnabled: true,
@@ -3496,7 +3494,8 @@ function renderNotes() {
 }
 
 function renderNotesPage() {
-  if (settingsPage) settingsPage.style.display = 'none';
+  const settingsPageEl = document.getElementById('settings-page');
+  if (settingsPageEl) settingsPageEl.style.display = 'none';
   creatorWrapper.style.display = '';
   if (feedFilterRow) feedFilterRow.style.display = '';
   if (notesFeed) notesFeed.style.display = '';
