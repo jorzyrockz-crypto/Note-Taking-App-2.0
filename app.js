@@ -1739,6 +1739,7 @@ function setupEventHandlers() {
     syncCreatorFolderInput();
     scheduleCreatorLinkPreview();
     triggerAutosave();
+    updateEditorMirror(creatorText, document.getElementById('creator-text-mirror'));
   });
   creatorTitle.addEventListener('input', () => {
     syncCreatorFolderInput();
@@ -1754,7 +1755,10 @@ function setupEventHandlers() {
     setTimeout(() => scheduleCreatorLinkPreview(80), 0);
   });
   creatorText.addEventListener('keydown', handleRichListEditing);
-  modalText.addEventListener('input', autoGrowTextarea);
+  modalText.addEventListener('input', function() {
+    autoGrowTextarea.call(modalText);
+    updateEditorMirror(modalText, document.getElementById('modal-text-mirror'));
+  });
   modalText.addEventListener('keydown', handleRichListEditing);
 
   // Creator pin state
@@ -3141,6 +3145,7 @@ function formatModalText(syntaxStart, syntaxEnd = '') {
   
   debouncedSave();
   autoGrowTextarea.call(modalText);
+  updateEditorMirror(modalText, document.getElementById('modal-text-mirror'));
 }
 
 function formatSelectedText(syntaxStart, syntaxEnd = '') {
@@ -3159,6 +3164,7 @@ function formatSelectedText(syntaxStart, syntaxEnd = '') {
   
   triggerAutosave();
   autoGrowTextarea.call(creatorText);
+  updateEditorMirror(creatorText, document.getElementById('creator-text-mirror'));
 }
 
 let autosaveDebounceTimer = null;
@@ -5386,6 +5392,11 @@ function openEditModal(note) {
   renderModalReminderChip(note);
   renderModalAudioPreview(note);
   renderModalFileAttachments(note);
+
+  // Seed the live markdown mirror
+  requestAnimationFrame(() => {
+    updateEditorMirror(modalText, document.getElementById('modal-text-mirror'));
+  });
   
   // Rebuild modal color picker dynamically
   buildColorGrid(modalColorPicker, note.color, note.theme, note.customTheme, (type, value) => {
@@ -5629,6 +5640,116 @@ function autoGrowTextarea() {
   this.style.height = 'auto';
   this.style.height = this.scrollHeight + 'px';
 }
+
+// ── Live Markdown Mirror ──────────────────────────────────────────────────────
+function parseInlineMarkdown(raw) {
+  if (!raw) return '';
+  const lines = raw.split('\n');
+  const htmlLines = lines.map(line => {
+    // Headings
+    if (/^### /.test(line)) return `<h3>${escapeHtml(line.slice(4))}</h3>`;
+    if (/^## /.test(line))  return `<h2>${escapeHtml(line.slice(3))}</h2>`;
+    if (/^# /.test(line))   return `<h1>${escapeHtml(line.slice(2))}</h1>`;
+    // Blockquote
+    if (/^> /.test(line))   return `<blockquote>${applyInline(line.slice(2))}</blockquote>`;
+    // Bullet list (-, *, •)
+    if (/^[-*•] /.test(line)) return `<span class="mirror-bullet">${applyInline(line.slice(2))}</span>`;
+    // Numbered list
+    const numMatch = line.match(/^(\d+)\. (.*)/);
+    if (numMatch) return `<span class="mirror-num">${numMatch[1]}. ${applyInline(numMatch[2])}</span>`;
+    // Code block fence (single line pass-through handled in multi-line below)
+    if (/^```/.test(line)) return `<code>${escapeHtml(line.slice(3))}</code>`;
+    // Empty line becomes visible space
+    if (line.trim() === '') return '\n';
+    return applyInline(line);
+  });
+  return htmlLines.join('\n');
+}
+
+function applyInline(text) {
+  if (!text) return '';
+  // Escape HTML first, then re-apply tags
+  let s = escapeHtml(text);
+  // Bold-italic ***text***
+  s = s.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  // Bold **text**
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // Italic *text* or _text_
+  s = s.replace(/(?<![*])\*([^*]+?)\*(?![*])/g, '<em>$1</em>');
+  s = s.replace(/_([^_]+?)_/g, '<em>$1</em>');
+  // Inline code `text`
+  s = s.replace(/`([^`]+?)`/g, '<code>$1</code>');
+  // Underline <u>text</u> (HTML passthrough — already escaped, re-open)
+  s = s.replace(/&lt;u&gt;(.+?)&lt;\/u&gt;/g, '<u>$1</u>');
+  // Strikethrough ~~text~~
+  s = s.replace(/~~(.+?)~~/g, '<del>$1</del>');
+  // Links [text](url)
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  return s;
+}
+
+
+function updateEditorMirror(textarea, mirror) {
+  if (!mirror) return;
+  const raw = textarea.value;
+  // Sync scroll position
+  mirror.scrollTop = textarea.scrollTop;
+  // Handle fenced code blocks as a unit
+  let html = '';
+  const segments = raw.split(/(```[\s\S]*?```)/g);
+  segments.forEach(seg => {
+    if (seg.startsWith('```') && seg.endsWith('```')) {
+      const inner = seg.slice(3, -3).replace(/^\n/, '').replace(/\n$/, '');
+      html += `<pre><code>${escapeHtml(inner)}</code></pre>`;
+    } else {
+      html += parseInlineMarkdown(seg);
+    }
+  });
+  // Trailing newline keeps mirror same height as textarea
+  if (raw.endsWith('\n')) html += '\n';
+  mirror.innerHTML = html;
+}
+
+// ── Portrait Tablet: Virtual Keyboard Height Compensation ─────────────────────
+function onViewportResize() {
+  const vvh = window.visualViewport?.height ?? window.innerHeight;
+  const fullH = window.innerHeight;
+  const keyboardH = fullH - vvh;
+  const isPortraitTablet = window.matchMedia(
+    '(min-width: 768px) and (max-width: 1024px)'
+  ).matches;
+
+  const card = document.getElementById('edit-modal-card');
+  const creator = document.querySelector('.note-creator');
+
+  if (isPortraitTablet) {
+    if (keyboardH > 100) {
+      // Keyboard visible — shrink to fit visible area
+      const targetH = Math.max(vvh - 40, 320);
+      if (card && card.closest('.edit-modal-overlay')?.style.display !== 'none') {
+        card.style.height = targetH + 'px';
+        card.style.maxHeight = targetH + 'px';
+      }
+      if (creator && creator.closest('.creator-wrapper')?.classList.contains('advanced-editor-active')) {
+        creator.style.height = targetH + 'px';
+        creator.style.maxHeight = targetH + 'px';
+      }
+    } else {
+      // Keyboard dismissed — restore CSS defaults
+      if (card) { card.style.height = ''; card.style.maxHeight = ''; }
+      if (creator) { creator.style.height = ''; creator.style.maxHeight = ''; }
+    }
+  }
+}
+
+// Attach viewport resize listeners (runs once at startup)
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', onViewportResize);
+} else {
+  window.addEventListener('resize', onViewportResize);
+}
+
+
 
 function getContinuingListPrefix(line) {
   const orderedMatch = line.match(/^(\s*)(\d+)\.\s+(.*)$/);

@@ -191,7 +191,11 @@
             <div class="editor-scroll-container">
               <input type="text" id="creator-title" placeholder="Title" autocomplete="off">
               <div class="editor-metadata" id="creator-metadata" style="display: none;">Today • 12:00 PM</div>
-              <textarea id="creator-text" placeholder="Take a note..." rows="1"></textarea>
+              <!-- Editor render mirror overlays the textarea with formatted markdown -->
+              <div class="editor-textarea-wrap">
+                <textarea id="creator-text" placeholder="Take a note..." rows="1"></textarea>
+                <div class="editor-render-mirror" id="creator-text-mirror" aria-hidden="true"></div>
+              </div>
               <div class="checklist-editor" id="creator-checklist-editor" style="display: none;"></div>
               
               <!-- Creator active reminder chips -->
@@ -241,11 +245,8 @@
                     </div>
                   </button>
                 </div>
-                <div style="margin-top: 6px;">
-                  <div class="popover-color-grid" id="popover-color-grid">
-                    <!-- Color picker options loaded dynamically -->
-                  </div>
-                </div>
+                <!-- Hidden legacy bindings preserved -->
+                <div style="display: none;"><div id="popover-color-grid"></div></div>
               </div>
 
               <div class="popover-divider"></div>
@@ -665,7 +666,11 @@
 
           <input type="text" id="modal-title" placeholder="Title" autocomplete="off">
           <div class="editor-metadata" id="modal-metadata">Today • 12:00 PM</div>
-          <textarea id="modal-text" placeholder="Note" rows="4"></textarea>
+          <!-- Editor render mirror overlays the textarea with formatted markdown -->
+          <div class="editor-textarea-wrap">
+            <textarea id="modal-text" placeholder="Note" rows="4"></textarea>
+            <div class="editor-render-mirror" id="modal-text-mirror" aria-hidden="true"></div>
+          </div>
           <div class="checklist-editor" id="modal-checklist-editor" style="display: none;"></div>
 
           <!-- Tags listing area in modal -->
@@ -676,8 +681,7 @@
         <div class="editor-more-popover" id="modal-more-popover" style="display: none;">
           <!-- General Section -->
           <div class="popover-section" id="modal-popover-folder-section">
-            <div class="popover-section-title">Notebook / Location</div>
-            <!-- Dynamic modal-folder-field will be appended here -->
+            <!-- Dynamic modal-folder-field kept hidden; chips below handle categories -->
           </div>
           <div class="popover-divider"></div>
           
@@ -720,15 +724,11 @@
                 </div>
               </button>
             </div>
-            <div style="margin-top: 6px;">
-              <div class="popover-color-grid" id="modal-popover-color-grid">
-                <!-- Color presets grid loaded dynamically -->
-              </div>
-            </div>
-            <!-- Hidden Legacy Triggers to preserve bindings -->
+            <!-- Hidden legacy bindings preserved -->
             <div style="display: none;">
               <button id="modal-palette-btn"></button>
               <div id="modal-color-picker"></div>
+              <div id="modal-popover-color-grid"></div>
             </div>
           </div>
           <div class="popover-divider"></div>

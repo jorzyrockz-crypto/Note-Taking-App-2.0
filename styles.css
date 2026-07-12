@@ -839,7 +839,7 @@ body.dark-theme .image-source-popover {
   inset: 0;
   background: rgba(15, 23, 42, 0.3);
   backdrop-filter: blur(8px);
-  z-index: 260;
+  z-index: 2200;
   display: none;
   align-items: flex-end;
   justify-content: center;
@@ -7191,7 +7191,96 @@ body.dark-theme .advanced-editor-header {
 .creator-wrapper.advanced-editor-active #creator-text,
 .edit-modal-card #modal-text {
   font-size: 16px !important;
+  /* Make textarea transparent so mirror shows through */
+  color: transparent !important;
+  caret-color: var(--text-primary) !important;
+  background: transparent !important;
+  position: relative;
+  z-index: 2;
 }
+
+/* ── Editor Textarea Wrap + Render Mirror ────────────────────────────────── */
+.editor-textarea-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 780px;
+}
+
+.editor-textarea-wrap textarea {
+  position: relative;
+  z-index: 2;
+  background: transparent !important;
+  color: transparent !important;
+  caret-color: var(--text-primary) !important;
+  resize: none;
+  width: 100%;
+}
+
+/* Mirror sits exactly behind the textarea, same padding/font */
+.editor-render-mirror {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text-primary);
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Mirror content formatting */
+.editor-render-mirror strong { font-weight: 700; color: var(--text-primary); }
+.editor-render-mirror em { font-style: italic; color: var(--text-primary); }
+.editor-render-mirror u { text-decoration: underline; }
+.editor-render-mirror code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.875em;
+  background: rgba(0,0,0,0.06);
+  color: var(--primary, #1a73e8);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.editor-render-mirror pre {
+  background: rgba(0,0,0,0.04);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 10px 14px;
+  overflow-x: auto;
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: pre;
+  margin: 4px 0;
+}
+.editor-render-mirror pre code { background: none; padding: 0; color: inherit; }
+.editor-render-mirror blockquote {
+  border-left: 3px solid var(--primary, #1a73e8);
+  padding-left: 12px;
+  margin: 2px 0 2px 4px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+.editor-render-mirror h1 { font-size: 1.6em; font-weight: 700; line-height: 1.3; margin: 4px 0 2px; }
+.editor-render-mirror h2 { font-size: 1.3em; font-weight: 700; line-height: 1.3; margin: 4px 0 2px; }
+.editor-render-mirror h3 { font-size: 1.1em; font-weight: 700; line-height: 1.3; margin: 4px 0 2px; }
+.editor-render-mirror a { color: var(--primary, #1a73e8); text-decoration: underline; }
+.editor-render-mirror .mirror-bullet { display: block; padding-left: 16px; }
+.editor-render-mirror .mirror-bullet::before { content: '•'; margin-left: -14px; margin-right: 6px; }
+.editor-render-mirror .mirror-num { display: block; padding-left: 20px; }
+
+body.dark-theme .editor-render-mirror code { background: rgba(255,255,255,0.1); }
+body.dark-theme .editor-render-mirror pre { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); }
+
+/* Hide .modal-folder-field / .creator-folder-field — chips panel handles categories */
+.modal-folder-field,
+.creator-folder-field {
+  display: none !important;
+}
+
 
 /* Document Reading width constraints */
 .creator-wrapper.advanced-editor-active #creator-title,
@@ -7284,6 +7373,13 @@ body.dark-theme .floating-toolbar {
   flex: 1 1 auto !important;
   overflow-y: auto !important;
   transition: all 220ms ease;
+  scroll-padding-bottom: 68px;
+}
+
+/* Smooth keyboard-resize animation for portrait tablet */
+.edit-modal-card {
+  transition: height 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              max-height 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* More Popover (Notion-style properties panel on desktop/tablet, bottom sheet on mobile) */
