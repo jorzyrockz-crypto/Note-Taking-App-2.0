@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlasnest-v33';
+const CACHE_NAME = 'atlasnest-v34';
 // Static assets that never get hashed — safe to precache by path
 const APP_ASSETS = [
   './',

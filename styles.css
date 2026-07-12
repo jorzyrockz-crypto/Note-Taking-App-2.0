@@ -7561,8 +7561,8 @@ body.editor-focus-mode:not(.advanced-editor-open) .main-content-area {
   }
 }
 
-/* 2. TABLET LANDSCAPE VIEWPORTS (900px - 1199px) */
-@media screen and (min-width: 900px) and (max-width: 1199px) {
+/* 2. TABLET LANDSCAPE VIEWPORTS (1025px - 1199px) */
+@media screen and (min-width: 1025px) and (max-width: 1199px) {
   .creator-wrapper.advanced-editor-active,
   .edit-modal-overlay {
     padding: 5vh 6vw;
@@ -7581,25 +7581,59 @@ body.editor-focus-mode:not(.advanced-editor-open) .main-content-area {
   }
 }
 
-/* 3. TABLET PORTRAIT VIEWPORTS (768px - 899px) */
-@media screen and (min-width: 768px) and (max-width: 899px) {
+/* 3. TABLET PORTRAIT VIEWPORTS (768px - 1024px) */
+@media screen and (min-width: 768px) and (max-width: 1024px) {
   .creator-wrapper.advanced-editor-active,
   .edit-modal-overlay {
-    padding: 3vh 3vw;
+    padding: clamp(24px, 6vh, 48px) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: rgba(15, 23, 42, 0.4) !important;
   }
   
   .creator-wrapper.advanced-editor-active .note-creator,
   .edit-modal-card {
-    width: 94vw;
-    height: 94vh;
-    border-radius: 18px;
+    width: 92vw !important;
+    max-width: 760px !important;
+    height: 80vh !important;
+    max-height: 84vh !important;
+    border-radius: 22px !important;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.16) !important;
+  }
+
+  .advanced-editor-header {
+    padding: 12px 20px 10px 20px !important;
+  }
+
+  .editor-scroll-container {
+    padding: 20px 28px 80px 28px !important;
   }
 
   .creator-wrapper.advanced-editor-active #creator-title,
   .edit-modal-card #modal-title {
-    font-size: 34px !important;
+    font-size: 32px !important;
+    margin: 12px auto 8px auto !important;
   }
-  
+
+  /* Overlay drawer inside card instead of side-by-side on portrait tablet */
+  .editor-more-popover {
+    position: absolute !important;
+    top: 56px !important;
+    right: 0 !important;
+    bottom: 56px !important;
+    height: auto !important;
+    width: 280px !important;
+    min-width: 280px !important;
+    border-left: 1px solid var(--border-light) !important;
+    border-right: none !important;
+    border-top: none !important;
+    border-bottom: none !important;
+    border-radius: 0 !important;
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.06) !important;
+    z-index: 200 !important;
+  }
+
   .floating-toolbar .toolbar-btn {
     width: 40px;
     height: 40px;
