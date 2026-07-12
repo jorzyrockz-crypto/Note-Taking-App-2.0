@@ -42,10 +42,10 @@ const FOLDER_ICON_FALLBACKS = [
   { accent: '#7c3aed', soft: 'rgba(124, 58, 237, 0.16)' }
 ];
 
-let settingsPage;
+export let settingsPage;
 let settingsBackBtn;
 let sidebarSettings;
-let appSettings = {
+export let appSettings = {
   linkPreviewsEnabled: true,
   checkedItemsToBottom: true,
   newChecklistItemsToBottom: true,
@@ -56,7 +56,7 @@ let appSettings = {
     evening: '18:00'
   }
 };
-let customThemes = [];
+export let customThemes = [];
 
 // Settings DOM Elements
 let settingsBtn, settingsModal, settingsClose, settingsCancel, settingsSave, settingsResetData;
@@ -65,9 +65,9 @@ let settingsEmojiOpacity, settingsEmojiSize, settingsEmojiSpacing, settingsPrevi
 let settingsCustomThemeTitle, settingsCustomThemeEmojis, settingsCustomThemeCreate, settingsCustomThemesList;
 let settingsReminderMorning, settingsReminderAfternoon, settingsReminderEvening;
 
-let notes = [];
-let customFolders = [];
-let currentEditingNoteId = null;
+export let notes = [];
+export let customFolders = [];
+export let currentEditingNoteId = null;
 let creatorColor = 'default';
 let creatorTheme = null; // Pattern theme preset
 let creatorCustomTheme = null;
@@ -82,32 +82,27 @@ let creatorFolder = '';
 let creatorFolders = [];
 let creatorAutoFolder = '';
 let creatorIntentType = null;
-let recipeImportDraft = null;
-let recipeEditingNoteId = null;
-let recipeImportWarnings = [];
-let recipeImportMethod = null;
-let recipeImportPending = false;
 let creatorLinkPreviewUrl = null;
 let creatorLinkPreviewTimer = null;
 let creatorLinkPreviewAbort = null;
 let selectedTagFilter = null; // Sidebar selected filter tag
 let selectedFolderFilter = null;
 let selectedTypeFilter = 'all';
-let currentPage = 'notes';
+export let currentPage = 'notes';
 let selectedProductivityTaskFilter = 'all';
-let selectedProductivityDayView = 'agenda';
-let calendarCursorDate = new Date();
-let selectedCalendarDate = getLocalDateKey(new Date());
+export let selectedProductivityDayView = 'agenda';
+export let calendarCursorDate = new Date();
+export let selectedCalendarDate = getLocalDateKey(new Date());
 let hasShownStorageWarning = false;
-const CUSTOM_THEME_ID = 'custom';
+export const CUSTOM_THEME_ID = 'custom';
 const ENABLE_CUSTOM_THEME_UPLOAD = false;
-const DEFAULT_EMOJI_THEME_CONTROLS = Object.freeze({
+export const DEFAULT_EMOJI_THEME_CONTROLS = Object.freeze({
   opacity: 8,
   size: 14,
   spacing: 96
 });
 const emojiPatternCache = new Map();
-let globalEmojiThemeControls = { ...DEFAULT_EMOJI_THEME_CONTROLS };
+export let globalEmojiThemeControls = { ...DEFAULT_EMOJI_THEME_CONTROLS };
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -541,7 +536,7 @@ async function createCustomThemeFromFile(file) {
   return buildCustomThemeFromImage(dataUrl);
 }
 
-const STORAGE_KEYS = {
+export const STORAGE_KEYS = {
   settings: 'keep_settings',
   customThemes: 'keep_custom_themes',
   notes: 'keep_notes',
@@ -1160,72 +1155,6 @@ function enhanceShell() {
   folderDrawerList = document.getElementById('folder-drawer-list');
 }
 
-function ensureProductivityPage() {
-  if (productivityPage) return;
-  if (!document.getElementById('productivity-page')) {
-    productivityPage = document.createElement('section');
-    productivityPage.className = 'productivity-page';
-    productivityPage.id = 'productivity-page';
-    productivityPage.style.display = 'none';
-    productivityPage.innerHTML = `
-      <div class="productivity-hero">
-        <div class="productivity-hero-copy">
-          <div class="productivity-eyebrow">PRODUCTIVITY</div>
-          <h2 class="productivity-title">Calendar Flow</h2>
-          <p class="productivity-subtitle">A clean month view with type-colored note dots and a focused day panel for agenda, tasks, and notes created that day.</p>
-        </div>
-        <div class="productivity-summary" id="productivity-summary"></div>
-      </div>
-
-      <div class="productivity-layout">
-        <section class="productivity-panel productivity-calendar-panel">
-          <div class="productivity-panel-header">
-            <div>
-              <div class="productivity-panel-kicker">Calendar</div>
-              <h3>Reminder map</h3>
-            </div>
-            <div class="calendar-controls">
-              <button class="text-btn productivity-nav-btn" id="calendar-prev-btn" type="button">Prev</button>
-              <button class="text-btn productivity-nav-btn" id="calendar-today-btn" type="button">Today</button>
-              <button class="text-btn productivity-nav-btn" id="calendar-next-btn" type="button">Next</button>
-            </div>
-          </div>
-          <div class="calendar-month-label" id="calendar-month-label"></div>
-          <div class="calendar-weekdays" id="calendar-weekdays"></div>
-          <div class="calendar-grid" id="calendar-grid"></div>
-        </section>
-
-        <section class="productivity-panel productivity-todo-panel">
-          <div class="productivity-todo-widget" id="productivity-todo-widget"></div>
-        </section>
-
-        <section class="productivity-panel productivity-agenda-panel">
-          <div class="agenda-header productivity-panel-header">
-            <div>
-              <div class="productivity-panel-kicker">Day View</div>
-              <h4 id="agenda-date-label">Selected day</h4>
-              <div class="agenda-date-meta" id="agenda-date-meta">Choose a date to reveal reminders and notes.</div>
-            </div>
-            <span class="agenda-count" id="agenda-count"></span>
-          </div>
-          <div class="productivity-day-section-label">
-            <span>Agenda</span>
-            <span id="agenda-section-caption">Only notes with reminders are shown here.</span>
-          </div>
-          <div class="productivity-day-stream" id="productivity-day-stream"></div>
-          <div class="productivity-empty" id="productivity-day-empty" style="display: none;">Nothing is linked to this day yet.</div>
-          <div class="productivity-day-notes" id="productivity-day-notes" style="display: none;">
-            <div class="productivity-notes-label">Notes made this day</div>
-            <div class="productivity-note-pills" id="productivity-note-pills"></div>
-          </div>
-        </section>
-      </div>
-    `;
-    notesFeed?.insertAdjacentElement('afterend', productivityPage);
-  } else {
-    productivityPage = document.getElementById('productivity-page');
-  }
-}
 
 function clearSidebarActiveStates() {
   document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
@@ -1711,29 +1640,6 @@ function setupEventHandlers() {
     });
   }
 
-  document.getElementById('calendar-prev-btn')?.addEventListener('click', () => {
-    calendarCursorDate = new Date(calendarCursorDate.getFullYear(), calendarCursorDate.getMonth() - 1, 1);
-    renderAppView();
-  });
-
-  document.getElementById('calendar-next-btn')?.addEventListener('click', () => {
-    calendarCursorDate = new Date(calendarCursorDate.getFullYear(), calendarCursorDate.getMonth() + 1, 1);
-    renderAppView();
-  });
-
-  document.getElementById('calendar-today-btn')?.addEventListener('click', () => {
-    const today = new Date();
-    selectedCalendarDate = getLocalDateKey(today);
-    calendarCursorDate = new Date(today.getFullYear(), today.getMonth(), 1);
-    renderAppView();
-  });
-
-  document.getElementById('productivity-day-pills')?.querySelectorAll('.filter-pill').forEach(btn => {
-    btn.addEventListener('click', () => {
-      selectedProductivityDayView = btn.getAttribute('data-day-view') || 'all';
-      renderAppView();
-    });
-  });
 
   // Note Creator Focus / Expand
   creatorCollapsed.addEventListener('click', (e) => {
@@ -2029,20 +1935,7 @@ function setupEventHandlers() {
 
   // Recipe Importer trigger actions
   const creatorRecipeBtn = document.getElementById('creator-recipe-btn');
-  creatorRecipeBtn.addEventListener('click', () => openRecipeModal());
-  const recipeCancel = document.getElementById('recipe-modal-cancel');
-  recipeCancel.addEventListener('click', closeRecipeModal);
-  const recipeRetry = document.getElementById('recipe-modal-retry');
-  recipeRetry.addEventListener('click', handleRecipeImportAction);
-  const recipeImport = document.getElementById('recipe-modal-import');
-  recipeImport.addEventListener('click', handleRecipeImportAction);
-  const recipeSave = document.getElementById('recipe-modal-save');
-  recipeSave.addEventListener('click', saveRecipeDraftToNotes);
-  document.getElementById('recipe-modal').addEventListener('click', (e) => {
-    if (e.target.id === 'recipe-modal') {
-      closeRecipeModal();
-    }
-  });
+  creatorRecipeBtn?.addEventListener('click', () => openRecipeModal());
 
   // Modal image source picker
   modalImageBtn.addEventListener('click', (e) => {
@@ -2092,7 +1985,7 @@ function setupEventHandlers() {
 // 4. Color Palette Builders
 // ==========================================================================
 
-const DEFAULT_THEME_PRESETS = [
+export const DEFAULT_THEME_PRESETS = [
   { id: 'plants', emoji: '🌿', title: 'Plants', emojis: ['🌿', '🍃', '🪴'] },
   { id: 'animals', emoji: '🦊', title: 'Animals', emojis: ['🦊', '🐾', '🦉'] },
   { id: 'spring', emoji: '🌸', title: 'Spring', emojis: ['🌸', '🦋', '🌼'] },
@@ -2105,13 +1998,13 @@ const DEFAULT_THEME_PRESETS = [
   { id: 'holiday', emoji: '🏖️', title: 'Holiday', emojis: ['🏖️', '✈️', '🧳'] },
   { id: 'celebration', emoji: '🎉', title: 'Celebration', emojis: ['🎉', '🎊', '✨'] }
 ];
-let THEME_PRESETS = [...DEFAULT_THEME_PRESETS];
+export let THEME_PRESETS = [...DEFAULT_THEME_PRESETS];
 
 function getThemePreset(themeId) {
   return THEME_PRESETS.find(theme => theme.id === themeId) || null;
 }
 
-function buildEmojiThemePattern(themeId, controls = getEmojiThemeControls()) {
+export function buildEmojiThemePattern(themeId, controls = getEmojiThemeControls()) {
   const preset = getThemePreset(themeId);
   if (!preset) return 'none';
 
@@ -3901,321 +3794,7 @@ function getTaskPreviewSchedule(note, dateKey = '') {
   return primaryReminder ? formatReminderDate(primaryReminder) : '';
 }
 
-function getAgendaPreviewLines(note, dateKey = '') {
-  const inlineEntries = getTaskInlineReminderEntries(note)
-    .filter(entry => !dateKey || entry.dateKey === dateKey)
-    .map(entry => ({
-      label: entry.label,
-      reminder: entry.reminder,
-      completed: entry.completed
-    }));
 
-  if (inlineEntries.length) return inlineEntries;
-
-  const lines = `${note?.text || ''}`
-    .split('\n')
-    .map(line => stripChecklistInlineReminder(line.replace(/^- \[(?: |x)\]\s*/, '')).trim())
-    .filter(Boolean)
-    .slice(0, 3)
-    .map(label => ({ label: cleanTextTags(label), reminder: '' }));
-
-  if (lines.length) return lines;
-  return [{ label: cleanTextTags(note?.text || '').trim() || 'No preview yet.', reminder: '' }];
-}
-
-function createReminderPreviewCard(note, options = {}) {
-  const { dateKey = selectedCalendarDate } = options;
-  const noteKind = getVisualNoteType(note);
-  const card = document.createElement('button');
-  card.type = 'button';
-  card.className = 'productivity-reminder-card';
-  card.setAttribute('data-note-kind', noteKind);
-
-  const agendaLines = getAgendaPreviewLines(note, dateKey);
-  const reminderLabel = note.reminder ? formatReminderDate(note.reminder) : (agendaLines[0]?.reminder ? formatReminderDate(agendaLines[0].reminder) : formatCardTimestamp(note.updatedAt));
-
-  card.innerHTML = `
-    <div class="productivity-reminder-top">
-      <span class="productivity-note-folder">Agenda</span>
-      <span class="note-kind-pill type-${noteKind}">${getVisualTypeLabel(noteKind)}</span>
-    </div>
-    <h4>${cleanTitleTags(note.title || 'Untitled note')}</h4>
-    <div class="productivity-agenda-lines">
-      ${agendaLines.map(line => `
-        <div class="productivity-agenda-line ${line.completed ? 'is-complete' : ''}">
-          <span>${escapeHtml(line.label)}</span>
-          ${line.reminder ? `<small>${formatReminderDate(line.reminder)}</small>` : ''}
-        </div>
-      `).join('')}
-    </div>
-    <div class="productivity-reminder-meta">${reminderLabel}</div>
-  `;
-
-  card.addEventListener('click', () => {
-    openEditModal(note);
-  });
-
-  return card;
-}
-
-function createProductivityNoteCard(note, options = {}) {
-  const { mode = 'agenda', eyebrow = '' } = options;
-  const noteKind = getVisualNoteType(note);
-  const stats = getChecklistStats(note);
-  const isTask = isTaskNote(note);
-  const completed = isTaskCompleted(note);
-  const card = document.createElement('button');
-  card.type = 'button';
-  card.className = `productivity-note-card ${mode === 'task' ? 'task-card' : 'agenda-card'}`;
-  card.setAttribute('data-note-kind', noteKind);
-
-  const previewText = cleanTextTags((note.text || '').replace(/^- \[(?: |x)\]\s*/gim, '')).replace(/\s+/g, ' ').trim();
-  const folderLabel = getFolderSummaryLabel(note, getVisualTypeLabel(noteKind));
-  const reminderLabel = note.reminder ? formatReminderDate(note.reminder) : '';
-  const progressLabel = stats.total > 0
-    ? `${stats.completed}/${stats.total} complete`
-    : (completed ? 'Completed task' : 'Open task');
-  const progressPercent = stats.total > 0 ? stats.progressPercent : (completed ? 100 : 0);
-  const metaStamp = mode === 'created'
-    ? `Made ${formatCardTimestamp(note.createdAt || note.updatedAt)}`
-    : (reminderLabel || formatCardTimestamp(note.updatedAt));
-
-  card.innerHTML = `
-    <div class="productivity-note-top">
-      <span class="productivity-note-folder">${eyebrow || folderLabel}</span>
-      <span class="note-kind-pill type-${noteKind}">${getVisualTypeLabel(noteKind)}</span>
-    </div>
-    <h4>${cleanTitleTags(note.title || 'Untitled note')}</h4>
-    ${previewText ? `<p>${previewText.slice(0, mode === 'task' ? 180 : 120)}</p>` : '<p class="muted">No preview yet.</p>'}
-    <div class="productivity-note-meta">
-      <span class="productivity-inline-stamp">${metaStamp}</span>
-      ${isTask ? `<span class="productivity-progress-chip ${completed ? 'is-complete' : ''}">${progressLabel}</span>` : ''}
-    </div>
-    ${mode === 'task' || (mode === 'agenda' && isTask) ? `
-      <div class="productivity-progress">
-        <div class="productivity-progress-bar"><span style="width: ${progressPercent}%"></span></div>
-        <div class="productivity-progress-caption">${progressLabel}</div>
-      </div>
-    ` : ''}
-  `;
-
-  card.addEventListener('click', () => {
-    openEditModal(note);
-  });
-  return card;
-}
-
-function renderProductivityPage() {
-  ensureProductivityPage();
-  if (settingsPage) settingsPage.style.display = 'none';
-  creatorWrapper.style.display = 'none';
-  if (feedFilterRow) feedFilterRow.style.display = 'none';
-  if (notesFeed) notesFeed.style.display = 'none';
-  if (productivityPage) productivityPage.style.display = 'flex';
-
-  ensureCalendarSelection();
-  setActiveSidebarPage('productivity');
-
-  const reminderNotes = getReminderNotes();
-  const taskNotes = getTaskNotes();
-  const summary = document.getElementById('productivity-summary');
-  if (summary) {
-    const selectedDay = getDayCollections(selectedCalendarDate);
-    summary.innerHTML = `
-      <div class="productivity-stat">
-        <span class="productivity-stat-icon" aria-hidden="true">⏰</span>
-        <strong>${reminderNotes.length}</strong>
-        <span>Reminders</span>
-      </div>
-      <div class="productivity-stat">
-        <span class="productivity-stat-icon" aria-hidden="true">☑</span>
-        <strong>${taskNotes.length}</strong>
-        <span>Tasks</span>
-      </div>
-      <div class="productivity-stat accent">
-        <span class="productivity-stat-icon" aria-hidden="true">✦</span>
-        <strong>${selectedDay.created.length}</strong>
-        <span>Made today</span>
-      </div>
-    `;
-  }
-
-  const weekdayContainer = document.getElementById('calendar-weekdays');
-  if (weekdayContainer && weekdayContainer.childElementCount === 0) {
-    ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
-      const el = document.createElement('div');
-      el.className = 'calendar-weekday';
-      el.textContent = day;
-      weekdayContainer.appendChild(el);
-    });
-  }
-
-  const calendarMonthLabel = document.getElementById('calendar-month-label');
-  if (calendarMonthLabel) {
-    calendarMonthLabel.textContent = calendarCursorDate.toLocaleDateString([], { month: 'long', year: 'numeric' });
-  }
-
-  const reminderMap = getProductivityDates();
-  const calendarGrid = document.getElementById('calendar-grid');
-  if (calendarGrid) {
-    calendarGrid.innerHTML = '';
-    const year = calendarCursorDate.getFullYear();
-    const month = calendarCursorDate.getMonth();
-    const monthStart = new Date(year, month, 1);
-    const monthEnd = new Date(year, month + 1, 0);
-    const gridStart = new Date(monthStart);
-    gridStart.setDate(monthStart.getDate() - monthStart.getDay());
-    const totalCalendarDays = monthStart.getDay() + monthEnd.getDate();
-    const totalCells = Math.ceil(totalCalendarDays / 7) * 7;
-
-    for (let index = 0; index < totalCells; index += 1) {
-      const dayDate = new Date(gridStart);
-      dayDate.setDate(gridStart.getDate() + index);
-      const dateKey = getLocalDateKey(dayDate);
-      const dayDotTypes = getDayDotTypes(dateKey);
-      const dayRelatedCount = getDayCollections(dateKey);
-      const cell = document.createElement('button');
-      cell.type = 'button';
-      cell.className = 'calendar-day';
-      if (dayDate.getMonth() !== month) cell.classList.add('is-outside-month');
-      if (dateKey === getLocalDateKey(new Date())) cell.classList.add('is-today');
-      if (dateKey === selectedCalendarDate) cell.classList.add('is-selected');
-      cell.innerHTML = `
-        <span class="calendar-day-number-wrap">
-          <span class="calendar-day-number">${dayDate.getDate()}</span>
-        </span>
-        <span class="calendar-day-dots">
-          ${dayDotTypes.slice(0, 4).map(kind => `<span class="calendar-day-dot" style="--dot-color:${getNoteTypeAccent(kind)}" title="${getVisualTypeLabel(kind)}"></span>`).join('')}
-        </span>
-      `;
-      cell.addEventListener('click', () => {
-        selectedCalendarDate = dateKey;
-        if (dayDate.getMonth() !== calendarCursorDate.getMonth()) {
-          calendarCursorDate = new Date(dayDate.getFullYear(), dayDate.getMonth(), 1);
-        }
-        renderAppView();
-      });
-      calendarGrid.appendChild(cell);
-    }
-  }
-
-  const agendaLabel = document.getElementById('agenda-date-label');
-  const agendaCount = document.getElementById('agenda-count');
-  const agendaMeta = document.getElementById('agenda-date-meta');
-  const agendaCaption = document.getElementById('agenda-section-caption');
-  const dayStream = document.getElementById('productivity-day-stream');
-  const dayEmpty = document.getElementById('productivity-day-empty');
-  const notePillsContainer = document.getElementById('productivity-note-pills');
-  const notesMadeWrap = document.getElementById('productivity-day-notes');
-  const todoWidget = document.getElementById('productivity-todo-widget');
-  const dayCollections = getDayCollections(selectedCalendarDate);
-  const queryMatches = note => {
-    const query = searchInput.value.toLowerCase().trim();
-    if (query === '') return true;
-    return `${note.title || ''} ${note.text || ''}`.toLowerCase().includes(query);
-  };
-  const agendaNotes = dayCollections.agenda.filter(queryMatches);
-  const todoNotes = dayCollections.todo.filter(queryMatches);
-  const createdNotes = dayCollections.created.filter(queryMatches);
-  const agendaDisplayNotes = [...agendaNotes];
-  const agendaDisplayIds = new Set(agendaNotes.map(note => note.id));
-  todoNotes
-    .filter(note => !agendaDisplayIds.has(note.id) && getTaskInlineReminderDateKeys(note).includes(selectedCalendarDate))
-    .forEach(note => {
-      agendaDisplayIds.add(note.id);
-      agendaDisplayNotes.push(note);
-    });
-
-  if (agendaLabel) agendaLabel.textContent = formatCalendarDayLabel(selectedCalendarDate);
-  if (agendaMeta) {
-    agendaMeta.textContent = `${agendaNotes.length} reminder${agendaNotes.length === 1 ? '' : 's'} • ${createdNotes.length} note${createdNotes.length === 1 ? '' : 's'} made`;
-  }
-  if (agendaCount) {
-    agendaCount.textContent = `${agendaNotes.length} reminder${agendaNotes.length === 1 ? '' : 's'}`;
-  }
-  if (agendaCaption) {
-    agendaCaption.textContent = agendaNotes.length > 0
-      ? 'Only notes with reminders are shown here.'
-      : 'No reminder notes are linked to this day.';
-  }
-  if (agendaMeta) {
-    agendaMeta.textContent = `${agendaDisplayNotes.length} reminder${agendaDisplayNotes.length === 1 ? '' : 's'} • ${createdNotes.length} note${createdNotes.length === 1 ? '' : 's'} made`;
-  }
-  if (agendaCount) {
-    agendaCount.textContent = `${agendaDisplayNotes.length} reminder${agendaDisplayNotes.length === 1 ? '' : 's'}`;
-  }
-  if (agendaCaption) {
-    agendaCaption.textContent = agendaDisplayNotes.length > 0
-      ? 'Only notes with reminders are shown here.'
-      : 'No reminder notes are linked to this day.';
-  }
-  if (dayStream) {
-    dayStream.innerHTML = '';
-    agendaDisplayNotes.forEach(note => {
-      dayStream.appendChild(createReminderPreviewCard(note, { dateKey: selectedCalendarDate }));
-    });
-  }
-  if (dayEmpty) {
-    const visibleAgendaCount = dayStream ? dayStream.children.length : agendaDisplayNotes.length;
-    dayEmpty.style.display = visibleAgendaCount === 0 ? 'block' : 'none';
-  }
-  if (notePillsContainer) {
-    notePillsContainer.innerHTML = '';
-    createdNotes.forEach(note => {
-      const pill = document.createElement('button');
-      pill.type = 'button';
-      pill.className = `productivity-created-pill type-${getVisualNoteType(note)}`;
-      pill.textContent = cleanTitleTags(note.title || 'Untitled note');
-      pill.addEventListener('click', () => {
-        openEditModal(note);
-      });
-      notePillsContainer.appendChild(pill);
-    });
-  }
-  if (notesMadeWrap) {
-    notesMadeWrap.style.display = createdNotes.length > 0 ? 'flex' : 'none';
-  }
-  if (todoWidget) {
-    const widgetTasks = todoNotes.length > 0
-      ? todoNotes
-      : getFilteredProductivityTasks().filter(note => !isTaskCompleted(note)).slice(0, 4);
-    const widgetLabel = todoNotes.length > 0 ? 'Selected day' : 'Next up';
-    todoWidget.innerHTML = `
-      <div class="productivity-todo-widget-head">
-        <div>
-          <div class="productivity-panel-kicker">To Do</div>
-          <h4>Task widget</h4>
-        </div>
-        <span class="agenda-count">${widgetTasks.length}</span>
-      </div>
-      <div class="productivity-todo-widget-meta">${widgetLabel} tasks at a glance.</div>
-      <div class="productivity-todo-list">
-        ${widgetTasks.length > 0
-          ? widgetTasks.map(note => `
-            <button class="productivity-todo-item ${isTaskCompleted(note) ? 'is-complete' : ''}" type="button" data-note-id="${note.id}">
-              <span class="productivity-todo-bullet"></span>
-              <span class="productivity-todo-copy">
-                <span class="productivity-todo-copy-top">
-                  <strong>${cleanTitleTags(note.title || 'Untitled task')}</strong>
-                  ${getTaskPreviewSchedule(note, selectedCalendarDate)
-                    ? `<span class="productivity-todo-schedule">${getTaskPreviewSchedule(note, selectedCalendarDate)}</span>`
-                    : ''}
-                </span>
-                <span>${getTaskPreviewLabel(note)}</span>
-              </span>
-            </button>
-          `).join('')
-          : '<div class="productivity-empty productivity-todo-empty">No open tasks to show.</div>'}
-      </div>
-    `;
-    todoWidget.querySelectorAll('.productivity-todo-item').forEach(button => {
-      button.addEventListener('click', () => {
-        const note = notes.find(entry => entry.id === button.getAttribute('data-note-id'));
-        if (note) openEditModal(note);
-      });
-    });
-  }
-}
 
 function renderGrid(gridContainer, notesArray) {
   gridContainer.innerHTML = '';
@@ -5842,427 +5421,8 @@ function legacyParseMarkdown(text) {
   return html;
 }
 
-function getRecipeFormElements() {
-  return {
-    modal: document.getElementById('recipe-modal'),
-    status: document.getElementById('recipe-import-status'),
-    error: document.getElementById('recipe-import-error'),
-    builder: document.getElementById('recipe-builder-form'),
-    url: document.getElementById('recipe-url-input'),
-    title: document.getElementById('recipe-title-input'),
-    description: document.getElementById('recipe-description-input'),
-    imageUrl: document.getElementById('recipe-image-url-input'),
-    servings: document.getElementById('recipe-servings-input'),
-    prep: document.getElementById('recipe-prep-time-input'),
-    cook: document.getElementById('recipe-cook-time-input'),
-    ingredients: document.getElementById('recipe-ingredients-input'),
-    instructions: document.getElementById('recipe-instructions-input'),
-    importBtn: document.getElementById('recipe-modal-import'),
-    retryBtn: document.getElementById('recipe-modal-retry'),
-    saveBtn: document.getElementById('recipe-modal-save')
-  };
-}
 
-function openRecipeModal(note = null) {
-  recipeEditingNoteId = note?.id || null;
-  recipeImportDraft = note?.recipeData ? normalizeRecipeDraft(note.recipeData) : null;
-  recipeImportWarnings = Array.isArray(note?.recipeImportWarnings) ? [...note.recipeImportWarnings] : [];
-  recipeImportMethod = note?.recipeImportMethod || null;
-  recipeImportPending = false;
 
-  const els = getRecipeFormElements();
-  els.modal.classList.add('visible');
-  els.error.style.display = 'none';
-  els.error.textContent = '';
-  els.status.textContent = '';
-  els.retryBtn.style.display = 'none';
-  els.importBtn.disabled = false;
-  els.importBtn.textContent = note?.recipeData ? 'Re-import Recipe' : 'Import Recipe';
-
-  if (note?.recipeData) {
-    els.url.value = note.recipeSourceUrl || '';
-    populateRecipeBuilderForm(note.recipeData, { editing: true });
-  } else {
-    resetRecipeBuilderForm();
-    els.url.value = '';
-  }
-}
-
-function closeRecipeModal() {
-  const els = getRecipeFormElements();
-  els.modal.classList.remove('visible');
-  resetRecipeBuilderForm();
-  recipeEditingNoteId = null;
-  recipeImportDraft = null;
-  recipeImportWarnings = [];
-  recipeImportMethod = null;
-  recipeImportPending = false;
-}
-
-function resetRecipeBuilderForm() {
-  const els = getRecipeFormElements();
-  els.status.textContent = '';
-  els.error.textContent = '';
-  els.error.style.display = 'none';
-  els.builder.style.display = 'none';
-  els.saveBtn.style.display = 'none';
-  els.retryBtn.style.display = 'none';
-  els.title.value = '';
-  els.description.value = '';
-  els.imageUrl.value = '';
-  els.servings.value = '';
-  els.prep.value = '';
-  els.cook.value = '';
-  els.ingredients.value = '';
-  els.instructions.value = '';
-}
-
-function parseIntegerInput(value) {
-  if (value === null || value === undefined || value === '') return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : null;
-}
-
-function normalizeRecipeDraft(recipe) {
-  return {
-    title: (recipe?.title || '').trim(),
-    description: (recipe?.description || '').trim(),
-    image_url: (recipe?.image_url || '').trim(),
-    prep_time_minutes: parseIntegerInput(recipe?.prep_time_minutes),
-    cook_time_minutes: parseIntegerInput(recipe?.cook_time_minutes),
-    servings: parseIntegerInput(recipe?.servings),
-    ingredients: Array.isArray(recipe?.ingredients) ? recipe.ingredients.map(item => String(item).trim()).filter(Boolean) : [],
-    instructions: Array.isArray(recipe?.instructions) ? recipe.instructions.map(item => String(item).trim()).filter(Boolean) : []
-  };
-}
-
-function buildRecipeStatusMessage(editing = false) {
-  const base = editing
-    ? 'Saved recipe note ready for editing.'
-    : recipeImportMethod === 'llm'
-      ? 'Imported with AI fallback.'
-      : recipeImportMethod === 'jsonld'
-        ? 'Imported from structured recipe data.'
-        : '';
-  if (!recipeImportWarnings.length) return base;
-  return [base, ...recipeImportWarnings].filter(Boolean).join(' ');
-}
-
-function populateRecipeBuilderForm(recipe, options = {}) {
-  const els = getRecipeFormElements();
-  const normalized = normalizeRecipeDraft(recipe);
-  recipeImportDraft = normalized;
-  els.title.value = normalized.title;
-  els.description.value = normalized.description || '';
-  els.imageUrl.value = normalized.image_url || '';
-  els.servings.value = normalized.servings ?? '';
-  els.prep.value = normalized.prep_time_minutes ?? '';
-  els.cook.value = normalized.cook_time_minutes ?? '';
-  els.ingredients.value = normalized.ingredients.join('\n');
-  els.instructions.value = normalized.instructions.join('\n');
-  els.builder.style.display = 'block';
-  els.saveBtn.style.display = 'inline-flex';
-  els.retryBtn.style.display = options.editing ? 'inline-flex' : recipeImportWarnings.length > 0 ? 'inline-flex' : 'none';
-  els.status.textContent = buildRecipeStatusMessage(Boolean(options.editing));
-}
-
-function renderRecipeImportError(message) {
-  const els = getRecipeFormElements();
-  els.status.textContent = '';
-  els.error.textContent = message;
-  els.error.style.display = 'block';
-}
-
-async function verifyRecipeImporterAvailable() {
-  try {
-    const response = await fetch('/api/health', {
-      method: 'GET',
-      cache: 'no-store'
-    });
-    if (!response.ok) return false;
-    const payload = await response.json().catch(() => ({}));
-    return payload?.recipeImporter === true;
-  } catch (error) {
-    return false;
-  }
-}
-
-function getRecipeImporterUnavailableMessage() {
-  const { protocol, hostname, origin } = window.location;
-  if (protocol === 'file:') {
-    return 'Recipe import requires the AtlasNest server. Start the app with npm start and open http://localhost:3000.';
-  }
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'Recipe import needs the AtlasNest server running on this device. If you are on a phone or tablet, open the computer LAN address shown by npm start instead of localhost.';
-  }
-  return `Recipe import could not reach the AtlasNest backend at ${origin}. Make sure npm start is running on the host computer, both devices are on the same Wi-Fi, and the firewall allows port 3000.`;
-}
-
-const MOCK_RECIPE_DATABASE = {
-  'salmon': {
-    title: '🍽️ Recipe: Creamy Garlic Tuscan Salmon #cooking',
-    ingredients: [
-      '4 salmon fillets',
-      '1 tbsp olive oil',
-      '1 cup heavy cream',
-      '1/2 cup chicken broth',
-      '1 tsp garlic powder',
-      '1 cup spinach',
-      '1/2 cup sun-dried tomatoes'
-    ],
-    instructions: '# Prep Steps\n1. Season salmon fillets on both sides with salt and pepper.\n2. Heat olive oil in a large skillet over medium-high heat.\n3. Sear salmon for 5 minutes on each side until golden.\n\n# Sauce Steps\n4. Add garlic and cook until fragrant.\n5. Pour in heavy cream, broth, and simmer. Stir in spinach and tomatoes.',
-    image: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=500'
-  },
-  'taco': {
-    title: '🍽️ Recipe: Street Style Beef Tacos #cooking',
-    ingredients: [
-      '1 lb flank steak',
-      '1/2 cup chopped cilantro',
-      '1/2 cup white onion diced',
-      '8 corn tortillas',
-      '2 limes cut into wedges',
-      '1 tbsp chili powder'
-    ],
-    instructions: '# Prep Steps\n1. Rub steak with chili powder, salt, and pepper.\n2. Grill steak on high heat for 4 mins each side.\n3. Slice steak thinly against the grain.\n\n# Assembly\n4. Warm corn tortillas on skillet.\n5. Load steak, garnish with cilantro and onions. Serve with lime.',
-    image: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=500'
-  }
-};
-
-function legacyHandleRecipeImportAction() {
-  let title = document.getElementById('recipe-title-input').value.trim();
-  let ingredientsRaw = document.getElementById('recipe-ingredients-input').value.trim();
-  let instructions = document.getElementById('recipe-instructions-input').value.trim();
-  let image = null;
-  
-  const urlVal = document.getElementById('recipe-url-input').value.toLowerCase();
-  let usedQuickFill = false;
-  
-  if (urlVal.includes('salmon')) {
-    const data = MOCK_RECIPE_DATABASE.salmon;
-    title = data.title;
-    ingredientsRaw = data.ingredients.join('\n');
-    instructions = data.instructions;
-    image = data.image;
-    usedQuickFill = true;
-  } else if (urlVal.includes('taco') || urlVal.includes('beef')) {
-    const data = MOCK_RECIPE_DATABASE.taco;
-    title = data.title;
-    ingredientsRaw = data.ingredients.join('\n');
-    instructions = data.instructions;
-    image = data.image;
-    usedQuickFill = true;
-  } else if (urlVal && !title && !ingredientsRaw && !instructions) {
-    showToast({
-      title: 'Recipe link not imported',
-      text: 'This local build supports demo quick-fill keywords like salmon or taco. Paste ingredients and steps manually for other recipe links.'
-    });
-    return;
-  }
-  
-  if (!title) title = '🍽️ Recipe: New Culinary Dish';
-  
-  let text = 'Ingredients:\n';
-  if (ingredientsRaw) {
-    ingredientsRaw.split('\n').forEach(line => {
-      if (line.trim() !== '') {
-        text += `- [ ] ${line.trim()}\n`;
-      }
-    });
-  } else {
-    text += '- [ ] No ingredients specified\n';
-  }
-  
-  if (instructions) {
-    text += `\nInstructions:\n${instructions}`;
-  }
-  
-  if (!image) {
-    image = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=500';
-  }
-  
-  const newNote = {
-    id: 'note-' + Date.now(),
-    type: getNoteType(text),
-    title: title,
-    text: text,
-    folder: 'Kitchen Board',
-    color: 'default',
-    theme: 'plants',
-    pinned: false,
-    archived: false,
-    archivedAt: null,
-    deleted: false,
-    deletedAt: null,
-    image: image,
-    updatedAt: Date.now()
-  };
-  
-  notes.unshift(newNote);
-  saveToLocalStorage();
-  renderNotes();
-  
-  document.getElementById('recipe-modal').classList.remove('visible');
-showToast({
-    title: usedQuickFill ? 'Recipe quick-filled' : 'Recipe note saved',
-    text: usedQuickFill ? 'Demo recipe content was added to Kitchen Board.' : 'Your recipe note was added to Kitchen Board.'
-  });
-}
-
-async function handleRecipeImportAction() {
-  const els = getRecipeFormElements();
-  const url = els.url.value.trim();
-  if (!url) {
-    renderRecipeImportError('Paste a cooking website URL first.');
-    return;
-  }
-  if (!(await verifyRecipeImporterAvailable())) {
-    renderRecipeImportError(getRecipeImporterUnavailableMessage());
-    return;
-  }
-
-  recipeImportPending = true;
-  els.importBtn.disabled = true;
-  els.retryBtn.style.display = 'none';
-  els.saveBtn.style.display = 'none';
-  els.builder.style.display = 'none';
-  els.error.style.display = 'none';
-  els.error.textContent = '';
-  els.status.textContent = 'Scraping and parsing recipe...';
-
-  try {
-    const response = await fetch('/api/recipes/import', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ url })
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(payload.error || 'Recipe import failed.');
-    }
-
-    recipeImportMethod = payload.meta?.import_method || null;
-    recipeImportWarnings = Array.isArray(payload.meta?.warnings) ? payload.meta.warnings : [];
-    populateRecipeBuilderForm(payload.recipe);
-  } catch (error) {
-    renderRecipeImportError(error.message || getRecipeImporterUnavailableMessage());
-    els.retryBtn.style.display = 'inline-flex';
-  } finally {
-    recipeImportPending = false;
-    els.importBtn.disabled = false;
-  }
-}
-
-function readRecipeBuilderForm() {
-  const els = getRecipeFormElements();
-  return normalizeRecipeDraft({
-    title: els.title.value.trim(),
-    description: els.description.value.trim(),
-    image_url: els.imageUrl.value.trim(),
-    prep_time_minutes: els.prep.value.trim(),
-    cook_time_minutes: els.cook.value.trim(),
-    servings: els.servings.value.trim(),
-    ingredients: els.ingredients.value.split('\n'),
-    instructions: els.instructions.value.split('\n')
-  });
-}
-
-function buildRecipeNoteText(recipe) {
-  const lines = [];
-  if (recipe.description) lines.push(recipe.description);
-
-  const metaParts = [];
-  if (recipe.prep_time_minutes !== null) metaParts.push(`Prep: ${recipe.prep_time_minutes} min`);
-  if (recipe.cook_time_minutes !== null) metaParts.push(`Cook: ${recipe.cook_time_minutes} min`);
-  if (recipe.servings !== null) metaParts.push(`Servings: ${recipe.servings}`);
-  if (metaParts.length > 0) lines.push(metaParts.join(' | '));
-
-  lines.push('Ingredients:');
-  if (recipe.ingredients.length > 0) {
-    recipe.ingredients.forEach(ingredient => lines.push(`- [ ] ${ingredient}`));
-  } else {
-    lines.push('- [ ] Add ingredients');
-  }
-
-  lines.push('');
-  lines.push('Instructions:');
-  if (recipe.instructions.length > 0) {
-    recipe.instructions.forEach((step, index) => lines.push(`${index + 1}. ${step}`));
-  } else {
-    lines.push('1. Add cooking steps');
-  }
-
-  return lines.join('\n').trim();
-}
-
-function validateRecipeDraft(recipe) {
-  if (!recipe.title) return 'Add a recipe title before saving.';
-  if (recipe.ingredients.length === 0) return 'Add at least one ingredient before saving.';
-  if (recipe.instructions.length === 0) return 'Add at least one instruction before saving.';
-  return null;
-}
-
-function saveRecipeDraftToNotes() {
-  const recipe = readRecipeBuilderForm();
-  const validationError = validateRecipeDraft(recipe);
-  if (validationError) {
-    renderRecipeImportError(validationError);
-    return;
-  }
-
-  const text = buildRecipeNoteText(recipe);
-  const image = recipe.image_url || null;
-  const recipeSourceUrl = getRecipeFormElements().url.value.trim();
-  const existingNote = recipeEditingNoteId ? notes.find(note => note.id === recipeEditingNoteId) : null;
-  let savedRecipeNote = existingNote;
-
-  if (existingNote) {
-    existingNote.type = 'recipe';
-    existingNote.title = recipe.title;
-    existingNote.text = text;
-    setNoteFolders(existingNote, ['Kitchen Board']);
-    existingNote.image = image;
-    existingNote.recipeData = recipe;
-    existingNote.recipeImportWarnings = [...recipeImportWarnings];
-    existingNote.recipeImportMethod = recipeImportMethod;
-    existingNote.recipeSourceUrl = recipeSourceUrl;
-    existingNote.updatedAt = Date.now();
-    registerNoteFolders(existingNote);
-  } else {
-    const newNote = setNoteFolders({
-      id: `note-${Date.now()}`,
-      type: 'recipe',
-      title: recipe.title,
-      text,
-      color: 'default',
-      theme: 'plants',
-      pinned: false,
-      archived: false,
-      archivedAt: null,
-      deleted: false,
-      deletedAt: null,
-      image,
-      recipeData: recipe,
-      recipeImportWarnings: [...recipeImportWarnings],
-      recipeImportMethod,
-      recipeSourceUrl,
-      updatedAt: Date.now()
-    }, ['Kitchen Board']);
-    registerNoteFolders(newNote);
-    notes.unshift(newNote);
-    savedRecipeNote = newNote;
-  }
-
-  saveToLocalStorage();
-  renderNotes();
-  closeRecipeModal();
-  if (savedRecipeNote) {
-    openEditModal(savedRecipeNote);
-  }
-  showToast({
-    title: existingNote ? 'Recipe updated' : 'Recipe saved',
-    text: existingNote ? 'Recipe changes were saved to Kitchen Board.' : 'Imported recipe was added to Kitchen Board.'
-  });
-}
 
 /* ==========================================================================
    Upgraded Voice Recording Notes & Transcriber
@@ -6784,7 +5944,7 @@ function loadSettings() {
   const savedSettings = localStorage.getItem(STORAGE_KEYS.settings);
   if (savedSettings) {
     try {
-      appSettings = { ...appSettings, ...JSON.parse(savedSettings) };
+      Object.assign(appSettings, JSON.parse(savedSettings));
     } catch (e) {
       console.warn('Failed to parse settings:', e);
     }
@@ -6793,8 +5953,8 @@ function loadSettings() {
   const savedCustomThemes = localStorage.getItem(STORAGE_KEYS.customThemes);
   if (savedCustomThemes) {
     try {
-      customThemes = JSON.parse(savedCustomThemes) || [];
-      THEME_PRESETS = [...DEFAULT_THEME_PRESETS, ...customThemes];
+      customThemes.splice(0, customThemes.length, ...(JSON.parse(savedCustomThemes) || []));
+      THEME_PRESETS.splice(0, THEME_PRESETS.length, ...DEFAULT_THEME_PRESETS, ...customThemes);
     } catch (e) {
       console.warn('Failed to parse custom themes:', e);
     }
@@ -6813,347 +5973,8 @@ function applyCardLayoutStyle(style) {
   }
 }
 
-function initSettingsModal() {
-  settingsBtn = document.getElementById('settings-btn');
-  settingsPage = document.getElementById('settings-page');
-  settingsBackBtn = document.getElementById('settings-back-btn');
-  settingsSave = document.getElementById('settings-save');
-  settingsResetData = document.getElementById('settings-reset-data');
 
-  settingsLinkPreviews = document.getElementById('settings-link-previews');
-  settingsCheckedBottom = document.getElementById('settings-checked-bottom');
-  settingsNewBottom = document.getElementById('settings-new-bottom');
-  settingsCardStyle = document.getElementById('settings-card-style');
 
-  settingsEmojiOpacity = document.getElementById('settings-emoji-opacity');
-  settingsEmojiSize = document.getElementById('settings-emoji-size');
-  settingsEmojiSpacing = document.getElementById('settings-emoji-spacing');
-  settingsPreviewCard = document.getElementById('settings-preview-card');
-
-  settingsCustomThemeTitle = document.getElementById('settings-custom-theme-title');
-  settingsCustomThemeEmojis = document.getElementById('settings-custom-theme-emojis');
-  settingsCustomThemeCreate = document.getElementById('settings-custom-theme-create');
-  settingsCustomThemesList = document.getElementById('settings-custom-themes-list');
-
-  settingsReminderMorning = document.getElementById('settings-reminder-morning');
-  settingsReminderAfternoon = document.getElementById('settings-reminder-afternoon');
-  settingsReminderEvening = document.getElementById('settings-reminder-evening');
-}
-
-function renderSettingsPage() {
-  if (!settingsPage) return;
-
-  creatorWrapper.style.display = 'none';
-  if (feedFilterRow) feedFilterRow.style.display = 'none';
-  if (notesFeed) notesFeed.style.display = 'none';
-  if (productivityPage) productivityPage.style.display = 'none';
-  settingsPage.style.display = 'flex';
-
-  setActiveSidebarPage('settings');
-  
-  // Populate form
-  if (settingsLinkPreviews) settingsLinkPreviews.checked = appSettings.linkPreviewsEnabled;
-  if (settingsCheckedBottom) settingsCheckedBottom.checked = appSettings.checkedItemsToBottom;
-  if (settingsNewBottom) settingsNewBottom.checked = appSettings.newChecklistItemsToBottom;
-  if (settingsCardStyle) settingsCardStyle.value = appSettings.cardLayoutStyle;
-
-  // Sliders
-  const controls = getEmojiThemeControls();
-  if (settingsEmojiOpacity) {
-    settingsEmojiOpacity.value = controls.opacity;
-    updateSliderTrackFill(settingsEmojiOpacity);
-  }
-  if (settingsEmojiSize) {
-    settingsEmojiSize.value = controls.size;
-    updateSliderTrackFill(settingsEmojiSize);
-  }
-  if (settingsEmojiSpacing) {
-    settingsEmojiSpacing.value = controls.spacing;
-    updateSliderTrackFill(settingsEmojiSpacing);
-  }
-
-  // Reminders
-  if (settingsReminderMorning) settingsReminderMorning.value = appSettings.reminderTimes?.morning || '08:00';
-  if (settingsReminderAfternoon) settingsReminderAfternoon.value = appSettings.reminderTimes?.afternoon || '13:00';
-  if (settingsReminderEvening) settingsReminderEvening.value = appSettings.reminderTimes?.evening || '18:00';
-
-  updateSettingsLivePreview();
-  renderSettingsCustomThemesList();
-}
-
-function updateSettingsLivePreview() {
-  if (!settingsPreviewCard) return;
-  const opacityVal = Number(settingsEmojiOpacity.value);
-  const sizeVal = Number(settingsEmojiSize.value);
-  const spacingVal = Number(settingsEmojiSpacing.value);
-
-  document.getElementById('settings-opacity-val').textContent = `${opacityVal}%`;
-  document.getElementById('settings-size-val').textContent = `${sizeVal}px`;
-  document.getElementById('settings-spacing-val').textContent = `${spacingVal}px`;
-
-  // Draw preview using a dummy preset (spring)
-  const tempControls = { opacity: opacityVal, size: sizeVal, spacing: spacingVal };
-  const pattern = buildEmojiThemePattern('spring', tempControls);
-  settingsPreviewCard.style.setProperty('--theme-pattern', pattern);
-  settingsPreviewCard.style.setProperty('--note-theme-pattern-size', `${spacingVal}px ${spacingVal}px`);
-  
-  // Style standard preview
-  settingsPreviewCard.style.backgroundColor = 'var(--theme-spring-bg)';
-  settingsPreviewCard.setAttribute('data-theme', 'spring');
-}
-
-function renderSettingsCustomThemesList() {
-  if (!settingsCustomThemesList) return;
-  settingsCustomThemesList.innerHTML = '';
-
-  if (customThemes.length === 0) {
-    settingsCustomThemesList.innerHTML = '<div style="font-size:12px; color:var(--text-secondary); text-align:center; padding:12px;">No custom themes created yet</div>';
-    return;
-  }
-
-  customThemes.forEach(theme => {
-    const row = document.createElement('div');
-    row.className = 'theme-picker-v2-card';
-    row.style.position = 'relative';
-    row.style.cursor = 'default';
-    
-    // Auto color badge
-    const badgeColor = document.body.classList.contains('dark-theme') ? theme.customBg.dark : theme.customBg.light;
-    const pattern = buildEmojiThemePattern(theme.id);
-
-    row.innerHTML = `
-      <div class="theme-picker-v2-card-preview" style="background-color: ${badgeColor}; background-image: ${pattern}; background-size: 80px 80px; flex-grow: 1;">
-        <div class="theme-picker-v2-card-preview-inner" style="background: rgba(255, 255, 255, 0.95); font-size: 20px;">${theme.emoji}</div>
-      </div>
-      <div class="theme-picker-v2-card-meta">
-        <strong>${theme.title}</strong>
-        <span>${theme.emojis.join(' ')}</span>
-      </div>
-      <button class="icon-btn danger-btn delete-theme-btn" data-id="${theme.id}" title="Delete Theme" style="position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border-radius: 50%; background: var(--bg-app); border: 1px solid var(--border-light); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.15); padding: 0;">
-        <svg viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-      </button>
-    `;
-
-    row.querySelector('.delete-theme-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      deleteCustomEmojiTheme(theme.id);
-    });
-
-    settingsCustomThemesList.appendChild(row);
-  });
-}
-
-function createCustomEmojiTheme() {
-  const title = settingsCustomThemeTitle.value.trim();
-  const emojisStr = settingsCustomThemeEmojis.value.trim();
-
-  if (!title || !emojisStr) {
-    showToast({ title: 'Invalid Theme', text: 'Please fill out both the title and emojis fields.' });
-    return;
-  }
-
-  // Parse emojis into array
-  const emojis = Array.from(emojisStr);
-  const primaryEmoji = emojis[0];
-
-  // Auto identify background color using canvas
-  const detectedBg = autoIdentifyEmojiColor(primaryEmoji);
-
-  const newTheme = {
-    id: 'user_' + Date.now(),
-    emoji: primaryEmoji,
-    title: title,
-    emojis: emojis,
-    customBg: {
-      light: detectedBg.lightBg,
-      dark: detectedBg.darkBg
-    }
-  };
-
-  customThemes.push(newTheme);
-  localStorage.setItem(STORAGE_KEYS.customThemes, JSON.stringify(customThemes));
-
-  // Merge into preset list
-  THEME_PRESETS = [...DEFAULT_THEME_PRESETS, ...customThemes];
-
-  // Clear inputs
-  settingsCustomThemeTitle.value = '';
-  settingsCustomThemeEmojis.value = '';
-
-  showToast({ title: 'Theme Created', text: `Theme "${title}" is now available in the picker!` });
-
-  renderSettingsCustomThemesList();
-  
-  // Rebuild note theme pickers in app
-  buildColorPickers();
-}
-
-function deleteCustomEmojiTheme(themeId) {
-  if (!confirm('Are you sure you want to delete this custom theme? Any notes using it will revert to default.')) return;
-
-  // Clean custom themes list
-  customThemes = customThemes.filter(t => t.id !== themeId);
-  localStorage.setItem(STORAGE_KEYS.customThemes, JSON.stringify(customThemes));
-
-  // Update notes that used this theme
-  notes.forEach(note => {
-    if (note.theme === themeId) {
-      note.theme = null;
-    }
-  });
-  saveToLocalStorage();
-
-  // Re-merge presets
-  THEME_PRESETS = [...DEFAULT_THEME_PRESETS, ...customThemes];
-
-  showToast({ title: 'Theme Deleted', text: 'Custom note theme removed.' });
-
-  renderSettingsCustomThemesList();
-  buildColorPickers();
-  renderNotes();
-}
-
-function autoIdentifyEmojiColor(emojiString) {
-  try {
-    const canvas = document.createElement('canvas');
-    canvas.width = 32;
-    canvas.height = 32;
-    const ctx = canvas.getContext('2d');
-    
-    // Draw emoji
-    ctx.font = '24px serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(emojiString, 16, 16);
-    
-    const imgData = ctx.getImageData(0, 0, 32, 32).data;
-    let rSum = 0, gSum = 0, bSum = 0, count = 0;
-    
-    for (let i = 0; i < imgData.length; i += 4) {
-      const r = imgData[i];
-      const g = imgData[i+1];
-      const b = imgData[i+2];
-      const a = imgData[i+3];
-      
-      if (a > 30) {
-        const max = Math.max(r, g, b);
-        const min = Math.min(r, g, b);
-        const diff = max - min;
-        if (diff > 15) { // saturated color
-          rSum += r;
-          gSum += g;
-          bSum += b;
-          count++;
-        }
-      }
-    }
-    
-    let rgb = { r: 120, g: 120, b: 120 };
-    if (count > 0) {
-      rgb.r = Math.round(rSum / count);
-      rgb.g = Math.round(gSum / count);
-      rgb.b = Math.round(bSum / count);
-    } else {
-      let fallbackR = 0, fallbackG = 0, fallbackB = 0, fallbackCount = 0;
-      for (let i = 0; i < imgData.length; i += 4) {
-        const r = imgData[i];
-        const g = imgData[i+1];
-        const b = imgData[i+2];
-        const a = imgData[i+3];
-        if (a > 30) {
-          fallbackR += r;
-          fallbackG += g;
-          fallbackB += b;
-          fallbackCount++;
-        }
-      }
-      if (fallbackCount > 0) {
-        rgb.r = Math.round(fallbackR / fallbackCount);
-        rgb.g = Math.round(fallbackG / fallbackCount);
-        rgb.b = Math.round(fallbackB / fallbackCount);
-      }
-    }
-    
-    const r = rgb.r / 255;
-    const g = rgb.g / 255;
-    const b = rgb.b / 255;
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    let h, s, l = (max + min) / 2;
-    
-    if (max === min) {
-      h = s = 0;
-    } else {
-      const d = max - min;
-      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-      switch (max) {
-        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-        case g: h = (b - r) / d + 2; break;
-        case b: h = (r - g) / d + 4; break;
-      }
-      h /= 6;
-    }
-    
-    h = Math.round(h * 360);
-    
-    // Light pastel
-    const lightBg = `hsl(${h}, 35%, 90%)`;
-    // Dark desaturated pastel
-    const darkBg = `hsl(${h}, 20%, 25%)`;
-    
-    return {
-      hue: h,
-      lightBg,
-      darkBg
-    };
-  } catch (error) {
-    console.warn('Canvas color extraction failed:', error);
-    const randHue = Math.floor(Math.random() * 360);
-    return {
-      hue: randHue,
-      lightBg: `hsl(${randHue}, 35%, 90%)`,
-      darkBg: `hsl(${randHue}, 20%, 25%)`
-    };
-  }
-}
-
-function saveSettingsFromForm() {
-  if (!settingsLinkPreviews) return;
-
-  const prevLinkPreviews = appSettings.linkPreviewsEnabled;
-
-  appSettings = {
-    linkPreviewsEnabled: settingsLinkPreviews.checked,
-    checkedItemsToBottom: settingsCheckedBottom.checked,
-    newChecklistItemsToBottom: settingsNewBottom.checked,
-    cardLayoutStyle: settingsCardStyle.value,
-    reminderTimes: {
-      morning: settingsReminderMorning.value,
-      afternoon: settingsReminderAfternoon.value,
-      evening: settingsReminderEvening.value
-    }
-  };
-
-  // Commit settings
-  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
-
-  // Save slider positions as global settings
-  globalEmojiThemeControls = {
-    opacity: Number(settingsEmojiOpacity.value),
-    size: Number(settingsEmojiSize.value),
-    spacing: Number(settingsEmojiSpacing.value)
-  };
-  saveEmojiThemeControls();
-
-  // Apply layout style
-  applyCardLayoutStyle(appSettings.cardLayoutStyle);
-
-  // Sync presentation and notes grid
-  syncEmojiThemePresentation();
-  renderNotes();
-
-  showToast({ title: 'Settings Saved', text: 'Your preferences have been updated successfully.' });
-}
 
 function clearAllCacheAndData() {
   if (!confirm('This will completely reset the app, unregister service workers, clear cache, and delete all local notes. Are you sure?')) return;
@@ -7197,3 +6018,116 @@ function updateSliderTrackFill(slider) {
   
   slider.style.background = `linear-gradient(to right, ${activeColor} ${percentage}%, ${inactiveColor} ${percentage}%)`;
 }
+
+// ─────────────────────────────────────────────────────────────
+// Dynamic Imports & Module Lazy Loading Hooks
+// ─────────────────────────────────────────────────────────────
+
+let settingsMod;
+async function loadSettingsModule() {
+  if (!settingsMod) {
+    settingsMod = await import('./settings.js');
+    settingsMod.initSettings();
+  }
+  return settingsMod;
+}
+
+export async function renderSettingsPage() {
+  const mod = await loadSettingsModule();
+  mod.renderSettingsPage();
+}
+
+let productivityMod;
+async function loadProductivityModule() {
+  if (!productivityMod) {
+    productivityMod = await import('./productivity.js');
+  }
+  return productivityMod;
+}
+
+export async function renderProductivityPage() {
+  const mod = await loadProductivityModule();
+  mod.renderProductivityPage();
+}
+
+export async function createReminderPreviewCard(note, options) {
+  const mod = await loadProductivityModule();
+  return mod.createReminderPreviewCard(note, options);
+}
+
+export async function createProductivityNoteCard(note, options) {
+  const mod = await loadProductivityModule();
+  return mod.createProductivityNoteCard(note, options);
+}
+
+let recipeMod;
+async function loadRecipeModule() {
+  if (!recipeMod) {
+    recipeMod = await import('./recipe.js');
+    recipeMod.initRecipe();
+  }
+  return recipeMod;
+}
+
+export async function openRecipeModal(note = null) {
+  const mod = await loadRecipeModule();
+  mod.openRecipeModal(note);
+}
+
+// Setters for dynamic imports to write back variables safely
+export function setSelectedCalendarDate(val) {
+  selectedCalendarDate = val;
+}
+export function setCalendarCursorDate(val) {
+  calendarCursorDate = val;
+}
+export function setSelectedProductivityDayView(val) {
+  selectedProductivityDayView = val;
+}
+
+// Exports
+export {
+  setActivePage,
+  saveToLocalStorage,
+  debouncedSave,
+  renderNotes,
+  closeAllNoteCardMenus,
+  openEditModal,
+  showToast,
+  clearAllCacheAndData,
+  renderAppView,
+  updateSliderTrackFill,
+  getEmojiThemeControls,
+  saveEmojiThemeControls,
+  applyCardLayoutStyle,
+  syncEmojiThemePresentation,
+  buildColorPickers,
+  setNoteFolders,
+  registerNoteFolders,
+  getNoteType,
+  getVisualNoteType,
+  cleanTitleTags,
+  getLocalDateKey,
+  getTaskInlineReminderDateKeys,
+  isTaskCompleted,
+  getTaskPreviewSchedule,
+  getTaskPreviewLabel,
+  getNoteTypeAccent,
+  getVisualTypeLabel,
+  getReminderNotes,
+  getTaskNotes,
+  getDayCollections,
+  getDayDotTypes,
+  getFilteredProductivityTasks,
+  formatCalendarDayLabel,
+  getFolderSummaryLabel,
+  getTaskInlineReminderEntries,
+  stripChecklistInlineReminder,
+  cleanTextTags,
+  formatReminderDate,
+  formatCardTimestamp,
+  escapeHtml,
+  getChecklistStats,
+  isTaskNote,
+  setActiveSidebarPage
+};
