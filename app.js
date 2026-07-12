@@ -25,7 +25,8 @@ import {
   saveFirebaseConfig,
   updateUserProfilePic,
   uploadFileToCloud,
-  deleteFileFromCloud
+  deleteFileFromCloud,
+  subscribeToCloudNotes
 } from './firebase.js';
 
 // ==========================================================================
@@ -107,6 +108,7 @@ let selectedFolderFilter = null;
 let selectedTypeFilter = 'all';
 export let currentPage = 'notes';
 export let currentUser = null;
+let cloudNotesUnsubscribe = null;
 let selectedProductivityTaskFilter = 'all';
 export let selectedProductivityDayView = 'agenda';
 export let calendarCursorDate = new Date();
@@ -7487,6 +7489,12 @@ function initAuth() {
 
   // Firebase Auth State Listener
   onAuthChange(async (user) => {
+    // Clean up any existing real-time subscription
+    if (cloudNotesUnsubscribe) {
+      cloudNotesUnsubscribe();
+      cloudNotesUnsubscribe = null;
+    }
+
     if (user) {
       currentUser = user;
       
@@ -7523,16 +7531,37 @@ function initAuth() {
         syncText.textContent = isRealFirebase ? 'Cloud Sync Active' : 'Cloud Sync (Simulated)';
       }
 
-      // Fetch cloud notes for this user
+      // Subscribe to real-time cloud updates
       try {
-        const cloudNotes = await fetchNotesFromCloud(user.uid);
-        notes = cloudNotes.map(normalizeNoteType);
-        notes.sort((a, b) => b.updatedAt - a.updatedAt);
-        notes.forEach(registerNoteFolders);
-        renderNotes();
+        cloudNotesUnsubscribe = subscribeToCloudNotes(user.uid, (cloudNotes) => {
+          notes = cloudNotes.map(normalizeNoteType);
+          notes.sort((a, b) => b.updatedAt - a.updatedAt);
+          notes.forEach(registerNoteFolders);
+          renderNotes();
+
+          // If the user has a note open in the edit modal, update the fields in real-time
+          // but only if they are not actively typing in the inputs right now
+          const activeEl = document.activeElement;
+          const isEditingText = activeEl && (activeEl.id === 'modal-text' || activeEl.id === 'modal-title');
+          if (currentEditingNoteId && !isEditingText) {
+            const editingNote = notes.find(n => n.id === currentEditingNoteId);
+            if (editingNote) {
+              const modalTitle = document.getElementById('modal-title');
+              const modalText = document.getElementById('modal-text');
+              if (modalTitle && modalTitle.value !== (editingNote.title || '')) {
+                modalTitle.value = editingNote.title || '';
+              }
+              if (modalText && modalText.value !== (editingNote.text || '')) {
+                modalText.value = editingNote.text || '';
+                autoGrowTextarea.call(modalText);
+                updateEditorMirror(modalText, document.getElementById('modal-text-mirror'));
+              }
+            }
+          }
+        });
       } catch (err) {
-        console.warn('Failed to load cloud notes:', err);
-        showToast({ title: 'Sync Error', text: 'Could not fetch cloud notes. Using offline copy.' });
+        console.warn('Failed to initialize real-time sync:', err);
+        showToast({ title: 'Sync Error', text: 'Could not connect to real-time sync. Using offline copy.' });
       }
     } else {
       currentUser = null;

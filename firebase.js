@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'firebase/auth';
-import { getFirestore, doc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, deleteDoc, collection, getDocs, onSnapshot } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 let app, auth, db, storage;
@@ -323,5 +323,25 @@ export async function deleteFileFromCloud(uid, fileId) {
     } catch (e) {
       console.warn('Failed to delete file from Firebase Storage:', fileId, e);
     }
+  }
+}
+
+export function subscribeToCloudNotes(uid, callback) {
+  if (isRealFirebase) {
+    const notesColl = collection(db, 'users', uid, 'notes');
+    return onSnapshot(notesColl, (snapshot) => {
+      const notesList = [];
+      snapshot.forEach(docSnap => {
+        notesList.push(docSnap.data());
+      });
+      callback(notesList);
+    }, (error) => {
+      console.error('Real-time sync listener failed:', error);
+    });
+  } else {
+    setTimeout(() => {
+      callback(getMockCloudNotes(uid));
+    }, 0);
+    return () => {};
   }
 }
