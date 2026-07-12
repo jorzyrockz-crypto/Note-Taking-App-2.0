@@ -1401,6 +1401,71 @@ function registerServiceWorker() {
     });
 }
 
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const installRow = document.getElementById('settings-install-row');
+  if (installRow) {
+    installRow.style.display = 'flex';
+  }
+  
+  // Install button click handler
+  const installBtn = document.getElementById('settings-install-btn');
+  if (installBtn && !installBtn.dataset.bound) {
+    installBtn.addEventListener('click', () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('User accepted the install prompt');
+          }
+          deferredPrompt = null;
+          if (installRow) installRow.style.display = 'none';
+        });
+      }
+    });
+    installBtn.dataset.bound = 'true';
+  }
+
+  showInstallNotification();
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  const installRow = document.getElementById('settings-install-row');
+  if (installRow) {
+    installRow.style.display = 'none';
+  }
+  showToast({ title: 'App Installed', text: 'AtlasNest has been installed successfully!' });
+});
+
+function showInstallNotification() {
+  if (sessionStorage.getItem('install-prompted')) return;
+  sessionStorage.setItem('install-prompted', 'true');
+
+  showToast({
+    title: 'Install App',
+    text: 'Install AtlasNest on your device for offline support and standalone launch.',
+    action: {
+      text: 'Install',
+      callback: () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+              console.log('User accepted the install prompt');
+            }
+            deferredPrompt = null;
+            const installRow = document.getElementById('settings-install-row');
+            if (installRow) installRow.style.display = 'none';
+          });
+        }
+      }
+    }
+  });
+}
+
 function initTheme() {
   const savedTheme = localStorage.getItem(STORAGE_KEYS.theme) === 'dark' ? 'dark' : 'light';
   setTheme(savedTheme);
@@ -5888,17 +5953,32 @@ function buildReminderPicker(pickerContainer, currentReminder, onSave, onDelete)
 function showToast(note) {
   const container = document.getElementById('toast-container');
   
+  let actionBtnHtml = '';
+  if (note.action) {
+    actionBtnHtml = `<button class="toast-action-btn" style="background: var(--primary, #1a73e8); color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; margin-top: 6px; width: fit-content; border: 1px solid rgba(255,255,255,0.1);">${note.action.text}</button>`;
+  }
+
   const toast = document.createElement('div');
   toast.className = 'toast-notification';
   toast.innerHTML = `
     <svg class="toast-bell-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
-    <div class="toast-content">
+    <div class="toast-content" style="display: flex; flex-direction: column;">
       <div class="toast-title">${note.title || 'Reminder Alert!'}</div>
       <div class="toast-text">${note.text || 'You have a scheduled reminder.'}</div>
+      ${actionBtnHtml}
     </div>
     <span class="toast-close">✕</span>
   `;
   
+  if (note.action) {
+    toast.querySelector('.toast-action-btn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      note.action.callback();
+      toast.classList.add('hide');
+      setTimeout(() => toast.remove(), 350);
+    });
+  }
+
   toast.querySelector('.toast-close').addEventListener('click', () => {
     toast.classList.add('hide');
     setTimeout(() => toast.remove(), 350);
