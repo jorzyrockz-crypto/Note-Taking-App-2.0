@@ -4064,7 +4064,7 @@ function renderGrid(gridContainer, notesArray) {
     card.className = 'note-card';
     applyNoteAppearance(card, note);
     card.setAttribute('data-note-kind', noteKind);
-    if (note.image) card.setAttribute('data-has-image', 'true');
+    if (note.image || note.videoId) card.setAttribute('data-has-image', 'true');
     card.setAttribute('data-id', note.id);
 
     const boardHeader = document.createElement('div');

@@ -1531,29 +1531,59 @@ body.dark-theme .note-card-menu-action:hover {
   position: relative;
 }
 
+/* Image notes: thumbnail on top, title always guaranteed visible below it.
+   The text snippet is hidden in collapsed view for image cards (the image
+   already conveys the content; a squeezed text preview was pushing the
+   title out of the fixed-height card on smaller screens). Expanding the
+   card brings the snippet back with room to breathe. */
+.note-card[data-has-image="true"] .note-surface {
+  display: flex;
+  flex-direction: column;
+}
+
+.note-card[data-has-image="true"] .card-image-banner {
+  flex: 0 0 auto;
+  width: calc(100% + 28px);
+  height: 120px;
+  margin: -14px -14px 8px -14px;
+  border-top-left-radius: 22px;
+  border-top-right-radius: 22px;
+  overflow: hidden;
+}
+
+.note-card[data-has-image="true"] .card-image-banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+.note-card[data-has-image="true"] .note-title {
+  flex: 0 0 auto;
+  margin-top: 0;
+  margin-right: 32px;
+  min-height: 0;
+  -webkit-line-clamp: 2;
+  z-index: 2;
+}
+
+.note-card[data-has-image="true"] .note-card-preview-body {
+  flex: 0 0 auto;
+  max-height: 0;
+  overflow: hidden;
+  margin: 0;
+}
+
+.note-card[data-has-image="true"]:hover .note-card-preview-body,
+.note-card[data-has-image="true"]:focus-within .note-card-preview-body,
+.note-card[data-has-image="true"].touch-expanded .note-card-preview-body {
+  max-height: 200px;
+  margin-top: 6px;
+}
+
 @media screen and (min-width: 601px) {
-  .note-card[data-has-image="true"] .note-surface {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
   .note-card[data-has-image="true"] .card-image-banner {
-    width: 100%;
-    height: clamp(190px, 72%, 260px);
-    min-height: 190px;
-    margin: 0;
-    border-radius: 16px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-  }
-
-  .note-card[data-has-image="true"] .note-title {
-    min-height: 0;
-    margin-right: 44px;
-  }
-
-  .note-card[data-has-image="true"] .note-card-preview-body {
-    max-height: 96px;
+    height: 160px;
   }
 }
 
@@ -6000,41 +6030,4 @@ body.dark-theme .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sid
   box-shadow: 0 14px 30px rgba(251, 188, 4, 0.1);
 }
 
-/* Image notes: keep the photo dominant but reserve readable title space below. */
-.note-card[data-has-image="true"] .note-surface {
-  display: flex;
-  flex-direction: column;
-}
 
-.note-card[data-has-image="true"] .card-image-banner {
-  flex: 0 0 auto;
-  height: clamp(150px, 58%, 210px);
-  max-height: calc(var(--note-card-collapsed-height, 320px) * 0.58);
-  overflow: hidden;
-}
-
-.note-card[data-has-image="true"] .card-image-banner img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center top;
-}
-
-.note-card[data-has-image="true"] .note-title {
-  flex: 0 0 auto;
-  margin-top: 2px;
-  min-height: 2.5em;
-  z-index: 2;
-}
-
-.note-card[data-has-image="true"] .note-card-preview-body {
-  flex: 1 1 auto;
-  max-height: 82px;
-}
-
-@media screen and (max-width: 768px) {
-  .note-card[data-has-image="true"] .card-image-banner {
-    height: clamp(140px, 38vw, 180px);
-    max-height: none;
-  }
-}
