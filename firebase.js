@@ -156,12 +156,26 @@ export async function logoutUser() {
 export async function updateUserProfilePic(photoURL) {
   if (isRealFirebase) {
     if (auth.currentUser) {
-      await updateProfile(auth.currentUser, { photoURL });
+      let finalPhotoURL = photoURL;
+      
+      if (photoURL && photoURL.startsWith('data:')) {
+        try {
+          const response = await fetch(photoURL);
+          const blob = await response.blob();
+          const fileRef = ref(storage, `users/${auth.currentUser.uid}/profile_pic.jpg`);
+          await uploadBytes(fileRef, blob, { contentType: 'image/jpeg' });
+          finalPhotoURL = await getDownloadURL(fileRef);
+        } catch (storageErr) {
+          console.warn('Failed to upload profile picture to Cloud Storage, trying direct update:', storageErr);
+        }
+      }
+      
+      await updateProfile(auth.currentUser, { photoURL: finalPhotoURL });
       return {
         uid: auth.currentUser.uid,
         email: auth.currentUser.email,
         displayName: auth.currentUser.displayName,
-        photoURL: auth.currentUser.photoURL,
+        photoURL: finalPhotoURL,
         isReal: true
       };
     }
