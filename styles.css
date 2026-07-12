@@ -8233,10 +8233,10 @@ body.editor-focus-mode:not(.advanced-editor-open) .main-content-area {
   
   .creator-wrapper.advanced-editor-active .note-creator,
   .edit-modal-card {
-    width: 92vw !important;
-    max-width: 760px !important;
-    height: 80vh !important;
-    max-height: 84vh !important;
+    width: 92vw;
+    max-width: 760px;
+    height: 80vh;
+    max-height: 84vh;
     border-radius: 22px !important;
     box-shadow: 0 24px 60px rgba(0, 0, 0, 0.16) !important;
   }
@@ -8317,10 +8317,10 @@ body.editor-focus-mode:not(.advanced-editor-open) .main-content-area {
 
   .creator-wrapper.advanced-editor-active .note-creator,
   .edit-modal-card {
-    width: 100vw !important;
-    height: 100vh !important;
-    height: 100dvh !important;
-    max-height: none !important;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    max-height: none;
     border-radius: 0 !important;
     border: none !important;
     box-shadow: none !important;

@@ -1271,6 +1271,10 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Start background checks for note reminders
   setInterval(checkReminders, 10000);
+
+  // Pre-load dynamic modules asynchronously in the background for instant transitions
+  loadSettingsModule().catch(err => console.warn('Failed to pre-load settings module:', err));
+  loadProductivityModule().catch(err => console.warn('Failed to pre-load productivity module:', err));
 });
 
 function registerServiceWorker() {
@@ -5646,29 +5650,41 @@ function onViewportResize() {
   const vvh = window.visualViewport?.height ?? window.innerHeight;
   const fullH = window.innerHeight;
   const keyboardH = fullH - vvh;
-  const isPortraitTablet = window.matchMedia(
-    '(min-width: 768px) and (max-width: 1024px)'
-  ).matches;
-
+  
+  const isMobileOrTablet = window.innerWidth <= 1024;
   const card = document.getElementById('edit-modal-card');
   const creator = document.querySelector('.note-creator');
 
-  if (isPortraitTablet) {
+  if (isMobileOrTablet) {
     if (keyboardH > 100) {
       // Keyboard visible — shrink to fit visible area
-      const targetH = Math.max(vvh - 40, 320);
+      const targetH = Math.max(vvh - (window.innerWidth <= 767 ? 0 : 40), 260);
       if (card && card.closest('.edit-modal-overlay')?.style.display !== 'none') {
         card.style.height = targetH + 'px';
         card.style.maxHeight = targetH + 'px';
+        if (window.innerWidth > 767) {
+          card.style.width = '88vw';
+        }
       }
       if (creator && creator.closest('.creator-wrapper')?.classList.contains('advanced-editor-active')) {
         creator.style.height = targetH + 'px';
         creator.style.maxHeight = targetH + 'px';
+        if (window.innerWidth > 767) {
+          creator.style.width = '88vw';
+        }
       }
     } else {
       // Keyboard dismissed — restore CSS defaults
-      if (card) { card.style.height = ''; card.style.maxHeight = ''; }
-      if (creator) { creator.style.height = ''; creator.style.maxHeight = ''; }
+      if (card) {
+        card.style.height = '';
+        card.style.maxHeight = '';
+        card.style.width = '';
+      }
+      if (creator) {
+        creator.style.height = '';
+        creator.style.maxHeight = '';
+        creator.style.width = '';
+      }
     }
   }
 }
