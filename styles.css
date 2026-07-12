@@ -1413,7 +1413,7 @@ body.dark-theme .tag-badge:hover {
 .notes-grid {
   --note-card-collapsed-height: 304px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, 260px);
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   justify-content: center;
   gap: 16px;
   align-items: start;
@@ -4421,7 +4421,7 @@ body.dark-theme .share-sheet-overlay {
   }
 
   .notes-grid {
-    grid-template-columns: repeat(auto-fit, 236px);
+    grid-template-columns: repeat(auto-fill, minmax(236px, 1fr));
     gap: 14px;
   }
 
@@ -4459,7 +4459,7 @@ body.dark-theme .share-sheet-overlay {
   }
 
   .notes-grid {
-    grid-template-columns: repeat(auto-fit, minmax(188px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(188px, 1fr));
     justify-content: center;
     width: 100%;
     max-width: 100%;
@@ -4493,7 +4493,7 @@ body.dark-theme .share-sheet-overlay {
   }
 
   .notes-grid {
-    grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
     gap: 18px;
   }
 
