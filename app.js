@@ -2846,10 +2846,12 @@ function openImageSourcePicker(target, anchor) {
     const action = e.target.closest('[data-image-source]')?.getAttribute('data-image-source');
     if (action === 'upload') {
       closeImageSourcePicker();
+      uploadInput.value = '';
       uploadInput.click();
     }
     if (action === 'camera') {
       closeImageSourcePicker();
+      if (cameraInput) cameraInput.value = '';
       (cameraInput || uploadInput).click();
     }
   });
@@ -2866,6 +2868,10 @@ function openImageSourcePicker(target, anchor) {
 
 function handleSelectedImageFile(target, file) {
   if (!file) return;
+  if (!file.type?.startsWith('image/')) {
+    showToast({ title: 'Image not added', text: 'The selected camera file is not an image.' });
+    return;
+  }
   handleImageUpload(file, (base64) => {
     if (target === 'creator') {
       creatorImage = base64;
@@ -2883,6 +2889,8 @@ function handleSelectedImageFile(target, file) {
       saveToLocalStorage();
       renderNotes();
     }
+  }, () => {
+    showToast({ title: 'Image not added', text: 'This camera image format could not be read by the browser.' });
   });
 }
 
@@ -3087,21 +3095,28 @@ function openShareSheet(note) {
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay || e.target.closest('.share-sheet-close')) overlay.remove();
   });
-  overlay.querySelector('[data-share-action="native"]')?.addEventListener('click', () => shareNote(note));
+  overlay.querySelector('[data-share-action="native"]')?.addEventListener('click', async () => {
+    const didShare = await shareNote(note);
+    if (didShare) overlay.remove();
+  });
   overlay.querySelector('[data-share-action="copy"]')?.addEventListener('click', async () => {
     await navigator.clipboard?.writeText(buildNoteShareText(note));
     showToast({ title: 'Copied', text: 'Note text copied to clipboard.' });
+    overlay.remove();
   });
   overlay.querySelector('[data-share-action="image"]')?.addEventListener('click', () => {
     downloadDataUrl(note.image, `${getSafeFileName(note.title || 'note-image')}.${getDataUrlExtension(note.image, 'jpg')}`);
+    overlay.remove();
   });
   overlay.querySelector('[data-share-action="audio"]')?.addEventListener('click', () => {
     downloadDataUrl(note.audio, `${getSafeFileName(note.title || 'voice-note')}.${getDataUrlExtension(note.audio, 'webm')}`);
+    overlay.remove();
   });
   overlay.querySelectorAll('[data-share-file]').forEach(button => {
     button.addEventListener('click', () => {
       const file = files.find(entry => entry.id === button.dataset.shareFile);
       if (file) downloadDataUrl(file.dataUrl, file.name);
+      overlay.remove();
     });
   });
   document.body.appendChild(overlay);
@@ -3227,28 +3242,42 @@ function renderModalFileAttachments(note) {
   renderNoteFileAttachments(container, note, { editable: true });
 }
 
-function handleImageUpload(file, onCompressComplete) {
+function handleImageUpload(file, onCompressComplete, onError = () => {}) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = function(event) {
+    const originalDataUrl = event.target.result;
     const img = new Image();
     img.onload = function() {
-      // Compress to prevent LocalStorage overflows
-      const canvas = document.createElement('canvas');
-      const maxW = 500;
-      const scale = Math.min(1, maxW / img.width);
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      
-      // Export as compressed JPEG
-      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
-      onCompressComplete(compressedDataUrl);
+      try {
+        // Compress to prevent LocalStorage overflows.
+        const canvas = document.createElement('canvas');
+        const maxW = 900;
+        const scale = Math.min(1, maxW / img.width);
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.72);
+        onCompressComplete(compressedDataUrl || originalDataUrl);
+      } catch (error) {
+        console.warn('Image compression failed; using original image data.', error);
+        onCompressComplete(originalDataUrl);
+      }
     };
-    img.src = event.target.result;
+    img.onerror = () => {
+      console.warn('Image decode failed for selected file:', file.name, file.type);
+      if (file.type === 'image/svg+xml' || file.type === 'image/gif') {
+        onCompressComplete(originalDataUrl);
+        return;
+      }
+      onError();
+    };
+    img.src = originalDataUrl;
   };
+  reader.onerror = onError;
   reader.readAsDataURL(file);
 }
 
@@ -3829,9 +3858,21 @@ function renderProductivityPage() {
   if (summary) {
     const selectedDay = getDayCollections(selectedCalendarDate);
     summary.innerHTML = `
-      <div class="productivity-stat"><strong>${reminderNotes.length}</strong><span>Reminder notes</span></div>
-      <div class="productivity-stat"><strong>${taskNotes.length}</strong><span>Task notes</span></div>
-      <div class="productivity-stat accent"><strong>${selectedDay.created.length}</strong><span>Made on selected day</span></div>
+      <div class="productivity-stat">
+        <span class="productivity-stat-icon" aria-hidden="true">⏰</span>
+        <strong>${reminderNotes.length}</strong>
+        <span>Reminders</span>
+      </div>
+      <div class="productivity-stat">
+        <span class="productivity-stat-icon" aria-hidden="true">☑</span>
+        <strong>${taskNotes.length}</strong>
+        <span>Tasks</span>
+      </div>
+      <div class="productivity-stat accent">
+        <span class="productivity-stat-icon" aria-hidden="true">✦</span>
+        <strong>${selectedDay.created.length}</strong>
+        <span>Made today</span>
+      </div>
     `;
   }
 
@@ -5342,6 +5383,7 @@ function inferPreviewImageFromUrl(url, note) {
 function formatReminderDate(dateStr) {
   if (!dateStr) return '';
   const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return '';
   const now = new Date();
   
   // Check if today
@@ -5366,7 +5408,8 @@ function formatReminderDate(dateStr) {
     return `Tomorrow, ${timeStr}`;
   } else {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${months[date.getMonth()]} ${date.getDate()}, ${timeStr}`;
+    const yearSuffix = date.getFullYear() !== now.getFullYear() ? `, ${date.getFullYear()}` : '';
+    return `${months[date.getMonth()]} ${date.getDate()}${yearSuffix}, ${timeStr}`;
   }
 }
 
