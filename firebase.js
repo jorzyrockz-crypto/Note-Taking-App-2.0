@@ -1,8 +1,9 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'firebase/auth';
 import { getFirestore, doc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
-let app, auth, db;
+let app, auth, db, storage;
 export let isRealFirebase = false;
 
 // Load config from LocalStorage or Environment Variables
@@ -39,6 +40,7 @@ if (savedConfig && savedConfig.apiKey && savedConfig.projectId) {
     app = initializeApp(savedConfig);
     auth = getAuth(app);
     db = getFirestore(app);
+    storage = getStorage(app);
     isRealFirebase = true;
     console.log('Firebase initialized successfully in Real Mode.');
   } catch (error) {
@@ -282,5 +284,30 @@ export function saveFirebaseConfig(config) {
     localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
   } else {
     localStorage.removeItem(CONFIG_KEY);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Cloud Storage API
+// ─────────────────────────────────────────────────────────────
+
+export async function uploadFileToCloud(uid, fileId, blob, type = '') {
+  if (isRealFirebase) {
+    const fileRef = ref(storage, `users/${uid}/attachments/${fileId}`);
+    await uploadBytes(fileRef, blob, { contentType: type || blob.type });
+    return await getDownloadURL(fileRef);
+  } else {
+    return 'simulated-db-url-' + fileId;
+  }
+}
+
+export async function deleteFileFromCloud(uid, fileId) {
+  if (isRealFirebase) {
+    try {
+      const fileRef = ref(storage, `users/${uid}/attachments/${fileId}`);
+      await deleteObject(fileRef);
+    } catch (e) {
+      console.warn('Failed to delete file from Firebase Storage:', fileId, e);
+    }
   }
 }

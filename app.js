@@ -23,7 +23,9 @@ import {
   fetchNotesFromCloud,
   getFirebaseConfig,
   saveFirebaseConfig,
-  updateUserProfilePic
+  updateUserProfilePic,
+  uploadFileToCloud,
+  deleteFileFromCloud
 } from './firebase.js';
 
 // ==========================================================================
@@ -537,9 +539,42 @@ async function getAttachmentSrc(file) {
     } catch (e) {
       console.error('Failed to read file from IndexedDB:', e);
     }
+    if (file.cloudUrl) {
+      return file.cloudUrl;
+    }
     return '';
   }
   return file.dataUrl;
+}
+
+async function syncLocalFilesToCloud(note) {
+  if (!currentUser || !note.files || !note.files.length) return;
+  let updated = false;
+  const files = normalizeNoteFiles(note.files);
+  for (const file of files) {
+    if ((file.storedInDB || file.dataUrl === 'db') && !file.cloudUrl) {
+      try {
+        const blob = await getFileFromDB(file.id);
+        if (blob) {
+          console.log(`Syncing local file "${file.name}" to Cloud Storage...`);
+          const cloudUrl = await uploadFileToCloud(currentUser.uid, file.id, blob, file.type);
+          if (cloudUrl) {
+            file.cloudUrl = cloudUrl;
+            updated = true;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to sync local file to Cloud Storage:', file.id, e);
+      }
+    }
+  }
+  if (updated) {
+    note.files = files;
+    localStorage.setItem(STORAGE_KEYS.notes, JSON.stringify(notes));
+    saveNoteToCloud(currentUser.uid, note).catch(err => {
+      console.warn('Failed to sync note with updated cloudUrls:', err);
+    });
+  }
 }
 
 function buildCustomThemeFromImage(dataUrl) {
@@ -1233,6 +1268,11 @@ function deleteNotePermanently(id) {
       if (file.storedInDB || file.dataUrl === 'db') {
         deleteFileFromDB(file.id).catch(err => {
           console.warn('Failed to delete file from DB:', err);
+        });
+      }
+      if (currentUser) {
+        deleteFileFromCloud(currentUser.uid, file.id).catch(err => {
+          console.warn('Failed to delete file from Cloud Storage:', err);
         });
       }
     });
@@ -3953,17 +3993,25 @@ function openShareSheet(note) {
 async function handleSelectedFiles(target, fileList) {
   const files = Array.from(fileList || []);
   if (!files.length) return;
-  const maxBytes = 100 * 1024 * 1024; // 100MB instead of 12MB
+  const maxBytes = 100 * 1024 * 1024; // 100MB
+  const fastSyncLimit = 25 * 1024 * 1024; // 25MB
   const prepared = [];
   for (const file of files.slice(0, 5)) {
     if (file.size > maxBytes) {
       showToast({ title: 'File skipped', text: `${file.name} is larger than 100 MB.` });
       continue;
     }
+    if (file.size > fastSyncLimit) {
+      showToast({ 
+        title: 'Large file sync warning', 
+        text: `"${file.name}" is over 25 MB. Syncing this file to the cloud may take a moment depending on your network.` 
+      });
+    }
     try {
       const fileId = `file-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       let dataUrl = 'db';
       let storedInDB = false;
+      let cloudUrl = null;
       
       if (file.size > 100 * 1024) { // Larger than 100KB
         await storeFileInDB(fileId, file);
@@ -3972,12 +4020,23 @@ async function handleSelectedFiles(target, fileList) {
         dataUrl = await readFileAsDataUrl(file);
       }
 
+      if (currentUser) {
+        showToast({ title: 'Cloud Sync', text: `Uploading "${file.name}" to Cloud Storage...` });
+        try {
+          cloudUrl = await uploadFileToCloud(currentUser.uid, fileId, file, file.type);
+        } catch (uploadErr) {
+          console.warn('Failed to upload file to Cloud Storage:', uploadErr);
+          showToast({ title: 'Sync warning', text: `Failed to upload "${file.name}" to the cloud, saved locally.` });
+        }
+      }
+
       prepared.push({
         id: fileId,
         name: file.name,
         type: file.type || 'application/octet-stream',
         size: file.size,
         dataUrl,
+        cloudUrl,
         storedInDB,
         addedAt: Date.now()
       });
@@ -4055,6 +4114,9 @@ function renderNoteFileAttachments(container, note, options = {}) {
         if (fileObj && (fileObj.storedInDB || fileObj.dataUrl === 'db')) {
           deleteFileFromDB(file.id).catch(err => console.warn('IndexedDB delete failed:', err));
         }
+        if (currentUser && fileObj && fileObj.cloudUrl) {
+          deleteFileFromCloud(currentUser.uid, file.id).catch(err => console.warn('Cloud Storage delete failed:', err));
+        }
         creatorFiles = normalizeNoteFiles(creatorFiles).filter(entry => entry.id !== file.id);
         renderCreatorFileAttachments();
         return;
@@ -4062,6 +4124,9 @@ function renderNoteFileAttachments(container, note, options = {}) {
       const fileObj = note.files.find(entry => entry.id === file.id);
       if (fileObj && (fileObj.storedInDB || fileObj.dataUrl === 'db')) {
         deleteFileFromDB(file.id).catch(err => console.warn('IndexedDB delete failed:', err));
+      }
+      if (currentUser && fileObj && fileObj.cloudUrl) {
+        deleteFileFromCloud(currentUser.uid, file.id).catch(err => console.warn('Cloud Storage delete failed:', err));
       }
       note.files = normalizeNoteFiles(note.files).filter(entry => entry.id !== file.id);
       note.updatedAt = Date.now();
@@ -5554,6 +5619,7 @@ function saveToLocalStorage() {
         saveNoteToCloud(currentUser.uid, note).catch(err => {
           console.warn('Failed to sync note to cloud:', err);
         });
+        syncLocalFilesToCloud(note);
       });
     }
 
