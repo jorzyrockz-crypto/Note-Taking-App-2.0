@@ -475,6 +475,72 @@ function readFileAsDataUrl(file) {
   });
 }
 
+const DB_NAME = 'AtlasNestFileDB';
+const STORE_NAME = 'attachments';
+const DB_VERSION = 1;
+
+function openFileDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function storeFileInDB(id, fileBlob) {
+  const db = await openFileDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.put(fileBlob, id);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function getFileFromDB(id) {
+  const db = await openFileDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readonly');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.get(id);
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function deleteFileFromDB(id) {
+  const db = await openFileDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.delete(id);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function getAttachmentSrc(file) {
+  if (file.storedInDB || file.dataUrl === 'db') {
+    try {
+      const blob = await getFileFromDB(file.id);
+      if (blob) {
+        return URL.createObjectURL(blob);
+      }
+    } catch (e) {
+      console.error('Failed to read file from IndexedDB:', e);
+    }
+    return '';
+  }
+  return file.dataUrl;
+}
+
 function buildCustomThemeFromImage(dataUrl) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -1357,6 +1423,17 @@ function restoreDeletedNote(id) {
 }
 
 function deleteNotePermanently(id) {
+  const note = notes.find(n => n.id === id);
+  if (note && note.files) {
+    normalizeNoteFiles(note.files).forEach(file => {
+      if (file.storedInDB || file.dataUrl === 'db') {
+        deleteFileFromDB(file.id).catch(err => {
+          console.warn('Failed to delete file from DB:', err);
+        });
+      }
+    });
+  }
+
   notes = notes.filter(n => n.id !== id);
   if (currentUser) {
     deleteNoteFromCloud(currentUser.uid, id).catch(err => {
@@ -3888,7 +3965,10 @@ async function shareNote(note) {
       const attachments = normalizeNoteFiles(note.files);
       for (const file of attachments.slice(0, 6)) {
         try {
-          shareFiles.push(await dataUrlToFile(file.dataUrl, file.name, file.type));
+          const src = await getAttachmentSrc(file);
+          if (src) {
+            shareFiles.push(await dataUrlToFile(src, file.name, file.type));
+          }
         } catch (error) {
           console.warn('Could not prepare attachment for sharing:', file.name, error);
         }
@@ -4080,23 +4160,36 @@ function openShareSheet(note) {
 async function handleSelectedFiles(target, fileList) {
   const files = Array.from(fileList || []);
   if (!files.length) return;
-  const maxBytes = 12 * 1024 * 1024;
+  const maxBytes = 100 * 1024 * 1024; // 100MB instead of 12MB
   const prepared = [];
   for (const file of files.slice(0, 5)) {
     if (file.size > maxBytes) {
-      showToast({ title: 'File skipped', text: `${file.name} is larger than 12 MB.` });
+      showToast({ title: 'File skipped', text: `${file.name} is larger than 100 MB.` });
       continue;
     }
     try {
+      const fileId = `file-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      let dataUrl = 'db';
+      let storedInDB = false;
+      
+      if (file.size > 100 * 1024) { // Larger than 100KB
+        await storeFileInDB(fileId, file);
+        storedInDB = true;
+      } else {
+        dataUrl = await readFileAsDataUrl(file);
+      }
+
       prepared.push({
-        id: `file-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        id: fileId,
         name: file.name,
         type: file.type || 'application/octet-stream',
         size: file.size,
-        dataUrl: await readFileAsDataUrl(file),
+        dataUrl,
+        storedInDB,
         addedAt: Date.now()
       });
     } catch (error) {
+      console.error('Failed to attach file:', file.name, error);
       showToast({ title: 'File error', text: `Could not attach ${file.name}.` });
     }
   }
@@ -4137,7 +4230,9 @@ function renderNoteFileAttachments(container, note, options = {}) {
     if (kind === 'video') {
       const player = document.createElement('video');
       player.className = 'file-media-preview video-preview';
-      player.src = file.dataUrl;
+      getAttachmentSrc(file).then(src => {
+        if (src) player.src = src;
+      });
       player.controls = true;
       player.preload = 'metadata';
       player.playsInline = true;
@@ -4146,7 +4241,9 @@ function renderNoteFileAttachments(container, note, options = {}) {
     } else if (kind === 'audio') {
       const player = document.createElement('audio');
       player.className = 'file-media-preview audio-preview';
-      player.src = file.dataUrl;
+      getAttachmentSrc(file).then(src => {
+        if (src) player.src = src;
+      });
       player.controls = true;
       player.preload = 'metadata';
       player.addEventListener('click', (e) => e.stopPropagation());
@@ -4154,14 +4251,24 @@ function renderNoteFileAttachments(container, note, options = {}) {
     }
     chip.querySelector('[data-file-download]')?.addEventListener('click', (e) => {
       e.stopPropagation();
-      downloadDataUrl(file.dataUrl, file.name);
+      getAttachmentSrc(file).then(src => {
+        if (src) downloadDataUrl(src, file.name);
+      });
     });
     chip.querySelector('[data-file-remove]')?.addEventListener('click', (e) => {
       e.stopPropagation();
       if (note === creatorFileDraft) {
+        const fileObj = creatorFiles.find(entry => entry.id === file.id);
+        if (fileObj && (fileObj.storedInDB || fileObj.dataUrl === 'db')) {
+          deleteFileFromDB(file.id).catch(err => console.warn('IndexedDB delete failed:', err));
+        }
         creatorFiles = normalizeNoteFiles(creatorFiles).filter(entry => entry.id !== file.id);
         renderCreatorFileAttachments();
         return;
+      }
+      const fileObj = note.files.find(entry => entry.id === file.id);
+      if (fileObj && (fileObj.storedInDB || fileObj.dataUrl === 'db')) {
+        deleteFileFromDB(file.id).catch(err => console.warn('IndexedDB delete failed:', err));
       }
       note.files = normalizeNoteFiles(note.files).filter(entry => entry.id !== file.id);
       note.updatedAt = Date.now();
@@ -4172,7 +4279,9 @@ function renderNoteFileAttachments(container, note, options = {}) {
     if (kind === 'image') {
       chip.querySelector('.file-attachment-copy')?.addEventListener('click', (e) => {
         e.stopPropagation();
-        openImageViewer(file.dataUrl, file.name);
+        getAttachmentSrc(file).then(src => {
+          if (src) openImageViewer(src, file.name);
+        });
       });
     }
     wrap.appendChild(chip);
