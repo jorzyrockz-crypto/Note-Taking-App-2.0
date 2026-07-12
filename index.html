@@ -198,34 +198,126 @@
               <div class="creator-chips-container" id="creator-chips-container" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;"></div>
             </div>
 
-            <!-- Advanced Editor More Popover -->
+            <!-- Advanced Editor More Popover (Note Properties Panel) -->
             <div class="editor-more-popover" id="creator-more-popover" style="display: none;">
+              <!-- General Section -->
               <div class="popover-section">
-                <div class="popover-section-title">Categories</div>
+                <div class="popover-section-title">Notebook / Location</div>
+                <div class="popover-search-wrapper" style="margin-bottom: 6px;">
+                  <input type="text" id="creator-popover-category-search" placeholder="Search notebooks..." style="width: 100%; height: 30px; border-radius: 6px; border: 1px solid var(--border-light); background: transparent; padding: 0 8px; font-size: 12px; color: var(--text-primary); outline: none;">
+                </div>
                 <div class="popover-category-container" id="popover-category-container">
-                  <!-- Categories checkboxes list will be loaded here dynamically -->
+                  <!-- Categories checkboxes list loaded dynamically -->
                 </div>
                 <div class="popover-category-add">
-                  <input type="text" id="popover-category-input" placeholder="New category..." autocomplete="off">
+                  <input type="text" id="popover-category-input" placeholder="New notebook..." autocomplete="off">
                   <button type="button" class="text-btn" id="popover-category-add-btn">Add</button>
                 </div>
               </div>
+              
               <div class="popover-divider"></div>
+
               <div class="popover-section">
-                <div class="popover-section-title">Background & Theme</div>
-                <div class="popover-color-grid" id="popover-color-grid">
-                  <!-- Color picker options will be loaded here dynamically -->
+                <div class="popover-section-title">Tags</div>
+                <div class="popover-tags-container" id="creator-popover-tags-container" style="display: flex; flex-wrap: wrap; gap: 6px;">
+                  <!-- Dynamic tags loaded here -->
                 </div>
               </div>
+
               <div class="popover-divider"></div>
+
+              <!-- Appearance Section -->
               <div class="popover-section">
-                <div class="popover-section-title">Reminder</div>
-                <div class="popover-reminder-container" id="popover-reminder-container">
-                  <input type="datetime-local" id="popover-reminder-input">
-                  <div class="popover-reminder-actions">
-                    <button type="button" class="text-btn" id="popover-reminder-save-btn">Set</button>
-                    <button type="button" class="text-btn danger-btn" id="popover-reminder-clear-btn">Clear</button>
+                <div class="popover-section-title">Appearance</div>
+                <div class="menu-options-section">
+                  <button type="button" class="popover-menu-item" id="creator-theme-launcher" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <svg viewBox="0 0 24 24" class="menu-icon"><path d="M12 3a9 9 0 0 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01l-.23-.25a.3.3 0 0 1-.03-.17c0-.09.06-.15.15-.15H15a6 6 0 0 0 6-6c0-4.97-4.03-9-9-9z"/></svg>
+                      <span>Theme</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <span id="creator-theme-preview-val" style="font-size: 12px; color: var(--text-muted);">None</span>
+                      <span style="font-size: 12px; color: var(--text-muted);">&gt;</span>
+                    </div>
+                  </button>
+                </div>
+                <div style="margin-top: 6px;">
+                  <div class="popover-color-grid" id="popover-color-grid">
+                    <!-- Color picker options loaded dynamically -->
                   </div>
+                </div>
+              </div>
+
+              <div class="popover-divider"></div>
+
+              <!-- Scheduling Section -->
+              <div class="popover-section">
+                <div class="popover-section-title">Scheduling</div>
+                <div class="menu-options-section">
+                  <!-- Compact Reminder Row -->
+                  <button type="button" class="popover-menu-item" id="creator-reminder-compact-card" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <svg viewBox="0 0 24 24" class="menu-icon"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+                      <span>Reminder</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <span id="creator-reminder-preview-val" style="font-size: 12px; color: var(--text-muted);">None</span>
+                      <span style="font-size: 12px; color: var(--text-muted);">&gt;</span>
+                    </div>
+                  </button>
+
+                  <!-- Expanded Date/Time Picker Container (Hidden by default) -->
+                  <div id="creator-reminder-picker-container" style="display: none; flex-direction: column; gap: 6px; padding: 10px; border-radius: 10px; background: rgba(0,0,0,0.02); border: 1px solid var(--border-light); margin-top: 4px;">
+                    <input type="datetime-local" id="popover-reminder-input" style="width: 100%; height: 32px; border-radius: 6px; border: 1px solid var(--border-light); background: transparent; padding: 0 8px; font-size: 12px; color: var(--text-primary); font-family: var(--font-sans);">
+                    <div class="popover-reminder-actions" style="display: flex; gap: 6px;">
+                      <button type="button" class="text-btn" id="popover-reminder-save-btn" style="flex: 1; height: 30px; font-size: 12px;">Set</button>
+                      <button type="button" class="text-btn danger-btn" id="popover-reminder-clear-btn" style="flex: 1; height: 30px; font-size: 12px;">Clear</button>
+                    </div>
+                  </div>
+
+                  <button type="button" class="popover-menu-item" id="creator-favorite">
+                    <svg viewBox="0 0 24 24" class="menu-icon"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                    <span>Favorite</span>
+                  </button>
+
+                  <button type="button" class="popover-menu-item" id="creator-pin">
+                    <svg viewBox="0 0 24 24" class="menu-icon"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                    <span>Pin Note</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="popover-divider"></div>
+
+              <!-- Organization Section -->
+              <div class="popover-section">
+                <div class="popover-section-title">Organization</div>
+                <div class="menu-options-section">
+                  <button type="button" class="popover-menu-item" id="creator-archive">
+                    <svg viewBox="0 0 24 24" class="menu-icon"><path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.01 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.49-.17-.93-.46-1.27zM6.24 5h11.52l.83 1H5.41l.83-1zM5 19V8h14v11H5zm8-6h-2v-3H9l3 3 3-3h-2v3z"/></svg>
+                    <span>Archive Note</span>
+                  </button>
+                  <button type="button" class="popover-menu-item" id="creator-move">
+                    <svg viewBox="0 0 24 24" class="menu-icon"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+                    <span>Move Note</span>
+                  </button>
+                  <button type="button" class="popover-menu-item" id="creator-duplicate">
+                    <svg viewBox="0 0 24 24" class="menu-icon"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                    <span>Duplicate Note</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="popover-divider"></div>
+
+              <!-- Danger Zone Section -->
+              <div class="popover-section">
+                <div class="popover-section-title">Danger Zone</div>
+                <div class="menu-options-section">
+                  <button type="button" class="popover-menu-item danger-action" id="creator-delete">
+                    <svg viewBox="0 0 24 24" class="menu-icon"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                    <span>Delete Note</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -582,15 +674,18 @@
 
         <!-- Modal More Popover (Notion-style Properties Drawer / Mobile Bottom Sheet) -->
         <div class="editor-more-popover" id="modal-more-popover" style="display: none;">
-          <!-- Folder / Notebook Section -->
+          <!-- General Section -->
           <div class="popover-section" id="modal-popover-folder-section">
-            <div class="popover-section-title">Notebook / Folder</div>
+            <div class="popover-section-title">Notebook / Location</div>
             <!-- Dynamic modal-folder-field will be appended here -->
           </div>
           <div class="popover-divider"></div>
           
           <div class="popover-section">
-            <div class="popover-section-title">Categories / Tags</div>
+            <div class="popover-section-title">Categories</div>
+            <div class="popover-search-wrapper" style="margin-bottom: 6px;">
+              <input type="text" id="modal-popover-category-search" placeholder="Search notebooks..." style="width: 100%; height: 30px; border-radius: 6px; border: 1px solid var(--border-light); background: transparent; padding: 0 8px; font-size: 12px; color: var(--text-primary); outline: none;">
+            </div>
             <div class="popover-category-container" id="modal-popover-category-container">
               <!-- Categories checkmarks list loaded dynamically -->
             </div>
@@ -610,10 +705,25 @@
           </div>
           <div class="popover-divider"></div>
           
+          <!-- Appearance Section -->
           <div class="popover-section">
-            <div class="popover-section-title">Color Theme</div>
-            <div class="popover-color-grid" id="modal-popover-color-grid">
-              <!-- Color presets grid loaded dynamically -->
+            <div class="popover-section-title">Appearance</div>
+            <div class="menu-options-section">
+              <button type="button" class="popover-menu-item" id="modal-theme-launcher" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <svg viewBox="0 0 24 24" class="menu-icon"><path d="M12 3a9 9 0 0 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01l-.23-.25a.3.3 0 0 1-.03-.17c0-.09.06-.15.15-.15H15a6 6 0 0 0 6-6c0-4.97-4.03-9-9-9z"/></svg>
+                  <span>Theme</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <span id="modal-theme-preview-val" style="font-size: 12px; color: var(--text-muted);">None</span>
+                  <span style="font-size: 12px; color: var(--text-muted);">&gt;</span>
+                </div>
+              </button>
+            </div>
+            <div style="margin-top: 6px;">
+              <div class="popover-color-grid" id="modal-popover-color-grid">
+                <!-- Color presets grid loaded dynamically -->
+              </div>
             </div>
             <!-- Hidden Legacy Triggers to preserve bindings -->
             <div style="display: none;">
@@ -623,53 +733,85 @@
           </div>
           <div class="popover-divider"></div>
           
+          <!-- Scheduling Section -->
           <div class="popover-section">
-            <div class="popover-section-title">Reminder</div>
-            <div class="popover-reminder-set">
-              <input type="datetime-local" id="modal-popover-reminder-input">
-              <div class="popover-actions">
-                <button class="text-btn danger-btn" id="modal-popover-reminder-clear-btn">Clear</button>
-                <button class="text-btn save-btn" id="modal-popover-reminder-save-btn">Set</button>
+            <div class="popover-section-title">Scheduling</div>
+            <div class="menu-options-section">
+              <!-- Compact Reminder Row -->
+              <button type="button" class="popover-menu-item" id="modal-reminder-compact-card" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <svg viewBox="0 0 24 24" class="menu-icon"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+                  <span>Reminder</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <span id="modal-reminder-preview-val" style="font-size: 12px; color: var(--text-muted);">None</span>
+                  <span style="font-size: 12px; color: var(--text-muted);">&gt;</span>
+                </div>
+              </button>
+
+              <!-- Expanded Date/Time Picker Container (Hidden by default) -->
+              <div id="modal-reminder-picker-container" style="display: none; flex-direction: column; gap: 6px; padding: 10px; border-radius: 10px; background: rgba(0,0,0,0.02); border: 1px solid var(--border-light); margin-top: 4px;">
+                <input type="datetime-local" id="modal-popover-reminder-input" style="width: 100%; height: 32px; border-radius: 6px; border: 1px solid var(--border-light); background: transparent; padding: 0 8px; font-size: 12px; color: var(--text-primary); font-family: var(--font-sans);">
+                <div class="popover-reminder-actions" style="display: flex; gap: 6px;">
+                  <button type="button" class="text-btn" id="modal-popover-reminder-save-btn" style="flex: 1; height: 30px; font-size: 12px;">Set</button>
+                  <button type="button" class="text-btn danger-btn" id="modal-popover-reminder-clear-btn" style="flex: 1; height: 30px; font-size: 12px;">Clear</button>
+                </div>
               </div>
-            </div>
-            <!-- Hidden Legacy Triggers to preserve bindings -->
-            <div style="display: none;">
-              <button id="modal-reminder-btn"></button>
-              <div id="modal-reminder-picker"></div>
+
+              <!-- Hidden Legacy Triggers to preserve bindings -->
+              <div style="display: none;">
+                <button id="modal-reminder-btn"></button>
+                <div id="modal-reminder-picker"></div>
+              </div>
+
+              <button class="popover-menu-item" id="modal-favorite" aria-label="Favorite note">
+                <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                <span class="menu-label" id="modal-favorite-label">Favorite</span>
+              </button>
+
+              <button class="popover-menu-item" id="modal-pin" aria-label="Pin note">
+                <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zM9.8 4h4.4v8H9.8V4z"/></svg>
+                <span class="menu-label">Pin Note</span>
+              </button>
             </div>
           </div>
           <div class="popover-divider"></div>
           
+          <!-- Organization Section -->
           <div class="popover-section menu-options-section">
-            <button class="popover-menu-item" id="modal-pin" aria-label="Pin note">
-              <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zM9.8 4h4.4v8H9.8V4z"/></svg>
-              <span class="menu-label">Pin Note</span>
-            </button>
-            <button class="popover-menu-item" id="modal-favorite" aria-label="Favorite note">
-              <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-              <span class="menu-label" id="modal-favorite-label">Favorite</span>
+            <div class="popover-section-title">Organization</div>
+            <button class="popover-menu-item" id="modal-archive" aria-label="Archive note">
+              <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.2 3 17.5 3H6.5c-.7 0-1.38.21-1.65.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM6.24 5h11.52l.83 1H5.41l.83-1zM5 19V8h14v11H5zm3-5h8v-2H8v2z"/></svg>
+              <span class="menu-label" id="modal-archive-label">Archive Note</span>
             </button>
             <button class="popover-menu-item" id="modal-lock" aria-label="Lock note">
               <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>
               <span class="menu-label" id="modal-lock-label">Lock Note</span>
             </button>
-            <button class="popover-menu-item" id="modal-archive" aria-label="Archive note">
-              <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.2 3 17.5 3H6.5c-.7 0-1.38.21-1.65.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM6.24 5h11.52l.83 1H5.41l.83-1zM5 19V8h14v11H5zm3-5h8v-2H8v2z"/></svg>
-              <span class="menu-label" id="modal-archive-label">Archive Note</span>
-            </button>
             <button class="popover-menu-item" id="modal-move" aria-label="Move note">
               <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M10 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/></svg>
               <span class="menu-label">Move Note</span>
+            </button>
+            <button class="popover-menu-item" id="modal-duplicate" aria-label="Duplicate note">
+              <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+              <span class="menu-label">Duplicate Note</span>
             </button>
             <button class="popover-menu-item" id="modal-export" aria-label="Export Markdown">
               <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
               <span class="menu-label">Export Markdown</span>
             </button>
+          </div>
+          <div class="popover-divider"></div>
+          
+          <!-- Danger Zone Section -->
+          <div class="popover-section menu-options-section">
+            <div class="popover-section-title">Danger Zone</div>
             <button class="popover-menu-item danger-action" id="modal-delete" aria-label="Delete note">
               <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
               <span class="menu-label">Delete Note</span>
             </button>
           </div>
+        </div>
         </div>
       </div>
 

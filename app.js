@@ -88,6 +88,8 @@ let creatorReminder = null; // Target ISO datetime string
 let creatorAudio = null;
 let creatorAudioDuration = null;
 let creatorPinned = false;
+let creatorFavorite = false;
+let creatorArchived = false;
 let creatorImage = null; // Stores Base64 drawing/image upload
 let creatorFiles = [];
 let creatorFolder = '';
@@ -2438,8 +2440,9 @@ function saveCreatorNoteDraft() {
       audio: creatorAudio,
       audioDuration: creatorAudioDuration,
       pinned: creatorPinned,
-      archived: false,
-      archivedAt: null,
+      favorite: creatorFavorite,
+      archived: creatorArchived,
+      archivedAt: creatorArchived ? Date.now() : null,
       deleted: false,
       deletedAt: null,
       image: creatorImage,
@@ -2462,6 +2465,9 @@ function saveCreatorNoteDraft() {
     note.audio = creatorAudio;
     note.audioDuration = creatorAudioDuration;
     note.pinned = creatorPinned;
+    note.favorite = creatorFavorite;
+    note.archived = creatorArchived;
+    note.archivedAt = creatorArchived ? (note.archivedAt || Date.now()) : null;
     note.image = creatorImage;
     note.files = normalizeNoteFiles(creatorFiles);
     note.updatedAt = Date.now();
@@ -2485,7 +2491,7 @@ function renderPopoverCategories() {
   getAllFolders().forEach(folder => {
     const isActive = currentFolders.includes(folder);
     const item = document.createElement('label');
-    item.className = 'popover-category-item';
+    item.className = `popover-category-item ${isActive ? 'active' : ''}`;
     item.innerHTML = `
       <input type="checkbox" ${isActive ? 'checked' : ''}>
       <span>${folder}</span>
@@ -2555,7 +2561,7 @@ function renderModalPopoverCategories(note) {
   getAllFolders().forEach(folder => {
     const isActive = currentFolders.includes(folder);
     const item = document.createElement('label');
-    item.className = 'popover-category-item';
+    item.className = `popover-category-item ${isActive ? 'active' : ''}`;
     item.innerHTML = `
       <input type="checkbox" ${isActive ? 'checked' : ''}>
       <span>${folder}</span>
@@ -2643,8 +2649,33 @@ function initAdvancedEditorHandlers() {
   // More Popover toggle
   creatorMoreBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
-    const open = creatorMorePopover.style.display === 'block';
-    creatorMorePopover.style.display = open ? 'none' : 'block';
+    const creatorCard = document.getElementById('note-creator');
+    const isOpen = creatorCard?.classList.contains('properties-sheet-open');
+    if (isOpen) {
+      creatorCard?.classList.remove('properties-sheet-open');
+      creatorMorePopover.style.display = 'none';
+    } else {
+      creatorCard?.classList.add('properties-sheet-open');
+      creatorMorePopover.style.display = 'flex';
+      // Sync initial state of pins/favorites in creator properties panel
+      document.getElementById('creator-pin')?.classList.toggle('active', !!creatorPinned);
+      document.getElementById('creator-favorite')?.classList.toggle('active', !!creatorFavorite);
+      document.getElementById('creator-archive')?.classList.toggle('active', !!creatorArchived);
+      
+      // Render tags and theme previews
+      const themePreset = THEME_PRESETS.find(t => t.id === (creatorTheme || 'none'));
+      const themeValEl = document.getElementById('creator-theme-preview-val');
+      if (themeValEl) {
+        themeValEl.textContent = themePreset ? `${themePreset.title} ${themePreset.emoji}` : 'None';
+      }
+      
+      const reminderVal = creatorReminder ? new Date(creatorReminder).toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'}) : 'None';
+      const reminderValEl = document.getElementById('creator-reminder-preview-val');
+      if (reminderValEl) {
+        reminderValEl.textContent = reminderVal;
+      }
+      renderCreatorPopoverTags();
+    }
   });
 
   creatorMorePopover?.addEventListener('click', (e) => {
@@ -2665,6 +2696,31 @@ function initAdvancedEditorHandlers() {
     saveCreatorNoteDraft();
   });
 
+  // Category search
+  document.getElementById('creator-popover-category-search')?.addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase();
+    const container = document.getElementById('popover-category-container');
+    container?.querySelectorAll('.popover-category-item').forEach(item => {
+      const txt = item.textContent.toLowerCase();
+      item.style.display = txt.includes(q) ? 'flex' : 'none';
+    });
+  });
+
+  // Theme launcher
+  document.getElementById('creator-theme-launcher')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openThemePickerV2({ type: 'creator' });
+  });
+
+  // Compact reminder card toggle
+  document.getElementById('creator-reminder-compact-card')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const container = document.getElementById('creator-reminder-picker-container');
+    if (container) {
+      container.style.display = container.style.display === 'none' ? 'flex' : 'none';
+    }
+  });
+
   // Reminder popover set/clear
   const reminderInput = document.getElementById('popover-reminder-input');
   const reminderSaveBtn = document.getElementById('popover-reminder-save-btn');
@@ -2677,6 +2733,11 @@ function initAdvancedEditorHandlers() {
     if (Number.isNaN(timeMs)) return;
     creatorReminder = timeMs;
     renderCreatorReminderChip();
+    
+    const reminderVal = new Date(timeMs).toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'});
+    const previewVal = document.getElementById('creator-reminder-preview-val');
+    if (previewVal) previewVal.textContent = reminderVal;
+
     saveCreatorNoteDraft();
     showToast({ title: 'Reminder Set', text: 'Note reminder updated successfully.' });
   });
@@ -2686,8 +2747,74 @@ function initAdvancedEditorHandlers() {
     creatorReminder = null;
     reminderInput.value = '';
     renderCreatorReminderChip();
+    
+    const previewVal = document.getElementById('creator-reminder-preview-val');
+    if (previewVal) previewVal.textContent = 'None';
+
     saveCreatorNoteDraft();
     showToast({ title: 'Reminder Cleared', text: 'Note reminder removed.' });
+  });
+
+  // Favorite toggle handler
+  document.getElementById('creator-favorite')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    creatorFavorite = !creatorFavorite;
+    document.getElementById('creator-favorite')?.classList.toggle('active', creatorFavorite);
+    saveCreatorNoteDraft();
+    showToast({ title: creatorFavorite ? 'Added to Favorites' : 'Removed from Favorites', text: 'Note favorite status updated.' });
+  });
+
+  // Pin toggle handler
+  document.getElementById('creator-pin')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    creatorPinned = !creatorPinned;
+    document.getElementById('creator-pin')?.classList.toggle('active', creatorPinned);
+    saveCreatorNoteDraft();
+    showToast({ title: creatorPinned ? 'Note Pinned' : 'Note Unpinned', text: 'Note pin status updated.' });
+  });
+
+  // Archive toggle handler
+  document.getElementById('creator-archive')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    creatorArchived = !creatorArchived;
+    document.getElementById('creator-archive')?.classList.toggle('active', creatorArchived);
+    saveCreatorNoteDraft();
+    showToast({ title: creatorArchived ? 'Note Archived' : 'Note Restored', text: creatorArchived ? 'Note will be archived on save.' : 'Note will be added to feed.' });
+  });
+
+  // Move handler
+  document.getElementById('creator-move')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const trigger = document.querySelector('.creator-palette-trigger');
+    trigger?.click();
+  });
+
+  // Duplicate handler
+  document.getElementById('creator-duplicate')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    saveCreatorNoteDraft();
+    if (creatorActiveNoteId) {
+      duplicateNote(creatorActiveNoteId);
+      const creatorCard = document.getElementById('note-creator');
+      creatorCard?.classList.remove('properties-sheet-open');
+      creatorMorePopover.style.display = 'none';
+      collapseCreator();
+    } else {
+      showToast({ title: 'Cannot Duplicate', text: 'Please write some content first.' });
+    }
+  });
+
+  // Delete handler
+  document.getElementById('creator-delete')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (creatorActiveNoteId) {
+      trashNote(creatorActiveNoteId);
+      collapseCreator();
+    } else {
+      clearCreator();
+      collapseCreator();
+    }
+    showToast({ title: 'Note Deleted', text: 'Draft discarded.' });
   });
 
   // Formatting toolbar bindings
@@ -2906,6 +3033,44 @@ function initModalAdvancedEditorHandlers() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       showToast({ title: 'Note Exported', text: 'Downloaded markdown file successfully.' });
+    }
+  });
+
+  // Category search
+  document.getElementById('modal-popover-category-search')?.addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase();
+    const container = document.getElementById('modal-popover-category-container');
+    container?.querySelectorAll('.popover-category-item').forEach(item => {
+      const txt = item.textContent.toLowerCase();
+      item.style.display = txt.includes(q) ? 'flex' : 'none';
+    });
+  });
+
+  // Theme launcher
+  document.getElementById('modal-theme-launcher')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const note = notes.find(n => n.id === currentEditingNoteId);
+    if (note) {
+      openThemePickerV2({ type: 'modal', note });
+    }
+  });
+
+  // Compact reminder card toggle
+  document.getElementById('modal-reminder-compact-card')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const container = document.getElementById('modal-reminder-picker-container');
+    if (container) {
+      container.style.display = container.style.display === 'none' ? 'flex' : 'none';
+    }
+  });
+
+  // Duplicate Note handler
+  document.getElementById('modal-duplicate')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const note = notes.find(n => n.id === currentEditingNoteId);
+    if (note) {
+      duplicateNote(note.id);
+      closeEditModal();
     }
   });
 
@@ -5166,6 +5331,21 @@ function openEditModal(note) {
   applyNoteAppearance(editModalCard, note);
   modalPin.classList.toggle('pinned', note.pinned);
 
+  // Set Theme Preview label
+  const activeTheme = note.theme || 'none';
+  const themePreset = THEME_PRESETS.find(t => t.id === activeTheme);
+  const themeValEl = document.getElementById('modal-theme-preview-val');
+  if (themeValEl) {
+    themeValEl.textContent = themePreset ? `${themePreset.title} ${themePreset.emoji}` : 'None';
+  }
+
+  // Set Reminder Preview label
+  const reminderVal = note.reminder ? new Date(note.reminder).toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'}) : 'None';
+  const reminderValEl = document.getElementById('modal-reminder-preview-val');
+  if (reminderValEl) {
+    reminderValEl.textContent = reminderVal;
+  }
+
   // Set Favorite button state
   const favLabel = document.getElementById('modal-favorite-label');
   const favBtn = document.getElementById('modal-favorite');
@@ -5317,6 +5497,34 @@ function renderModalTags(note) {
     badge.textContent = `#${tag}`;
     modalTagsContainer.appendChild(badge);
   });
+}
+
+function renderCreatorPopoverTags() {
+  const container = document.getElementById('creator-popover-tags-container');
+  if (!container) return;
+  container.innerHTML = '';
+  const text = (document.getElementById('creator-title')?.value || '') + ' ' + (document.getElementById('creator-text')?.value || '');
+  const tags = extractHashtags(text);
+  tags.forEach(tag => {
+    const badge = document.createElement('span');
+    badge.className = 'tag-badge';
+    badge.textContent = `#${tag}`;
+    container.appendChild(badge);
+  });
+}
+
+function duplicateNote(noteId) {
+  const note = notes.find(n => n.id === noteId);
+  if (!note) return;
+  const newNote = JSON.parse(JSON.stringify(note));
+  newNote.id = 'note-' + Date.now();
+  newNote.title = note.title ? `${note.title} (Copy)` : 'Untitled Note (Copy)';
+  newNote.createdAt = Date.now();
+  newNote.updatedAt = Date.now();
+  notes.unshift(newNote);
+  saveToLocalStorage();
+  renderNotes();
+  showToast({ title: 'Note Duplicated', text: 'New copy created successfully.' });
 }
 
 function closeEditModal() {
