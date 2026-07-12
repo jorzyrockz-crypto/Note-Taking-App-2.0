@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'firebase/auth';
-import { getFirestore, doc, setDoc, deleteDoc, collection, getDocs, onSnapshot } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, getDocs, onSnapshot } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 let app, auth, db, storage;
@@ -156,26 +156,19 @@ export async function logoutUser() {
 export async function updateUserProfilePic(photoURL) {
   if (isRealFirebase) {
     if (auth.currentUser) {
-      let finalPhotoURL = photoURL;
-      
-      if (photoURL && photoURL.startsWith('data:')) {
-        try {
-          const response = await fetch(photoURL);
-          const blob = await response.blob();
-          const fileRef = ref(storage, `users/${auth.currentUser.uid}/profile_pic.jpg`);
-          await uploadBytes(fileRef, blob, { contentType: 'image/jpeg' });
-          finalPhotoURL = await getDownloadURL(fileRef);
-        } catch (storageErr) {
-          console.warn('Failed to upload profile picture to Cloud Storage, trying direct update:', storageErr);
-        }
+      // Save Base64 profile pic directly in user's document in Firestore (Spark Plan friendly)
+      try {
+        const userRef = doc(db, 'users', auth.currentUser.uid);
+        await setDoc(userRef, { photoURL }, { merge: true });
+      } catch (err) {
+        console.warn('Failed to save profile picture to Firestore:', err);
       }
       
-      await updateProfile(auth.currentUser, { photoURL: finalPhotoURL });
       return {
         uid: auth.currentUser.uid,
         email: auth.currentUser.email,
         displayName: auth.currentUser.displayName,
-        photoURL: finalPhotoURL,
+        photoURL: photoURL,
         isReal: true
       };
     }
@@ -200,13 +193,22 @@ export async function updateUserProfilePic(photoURL) {
 
 export function onAuthChange(callback) {
   if (isRealFirebase) {
-    return onAuthStateChanged(auth, (user) => {
+    return onAuthStateChanged(auth, async (user) => {
       if (user) {
+        let photoURL = user.photoURL;
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists() && userDoc.data().photoURL) {
+            photoURL = userDoc.data().photoURL;
+          }
+        } catch (e) {
+          console.warn('Failed to load profile picture from Firestore:', e);
+        }
         callback({
           uid: user.uid,
           email: user.email,
           displayName: user.displayName,
-          photoURL: user.photoURL,
+          photoURL: photoURL,
           isReal: true
         });
       } else {
