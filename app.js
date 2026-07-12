@@ -754,7 +754,7 @@ const FUNCTION_DEMO_NOTES = [
   {
     id: 'function-demo-delete',
     title: 'Demo: Deleted note #delete-page',
-    text: 'This note starts in Delete Page to verify restore and delete-forever actions.',
+    text: 'This note starts in Trash to verify restore and delete-forever actions.',
     color: 'red',
     theme: null,
     folder: 'Inbox',
@@ -1015,11 +1015,11 @@ function enhanceShell() {
     const deletedItem = document.createElement('div');
     deletedItem.className = 'sidebar-item';
     deletedItem.id = 'sidebar-deleted';
-    deletedItem.setAttribute('title', 'Delete Page');
-    deletedItem.setAttribute('aria-label', 'Delete Page');
+    deletedItem.setAttribute('title', 'Trash');
+    deletedItem.setAttribute('aria-label', 'Trash');
     deletedItem.innerHTML = `
       <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7Zm3-4h6l1 2h4v2H4V5h4l1-2Z"/></svg>
-      <span class="sidebar-label">Delete Page</span>
+      <span class="sidebar-label">Trash</span>
     `;
     sidebar.insertBefore(deletedItem, sidebar.querySelector('.sidebar-divider') || null);
   }
@@ -4466,7 +4466,7 @@ function renderGrid(gridContainer, notesArray) {
     deleteBtn.setAttribute('aria-label', note.deleted ? 'Delete forever' : 'Move note to delete page');
     deleteBtn.innerHTML = `
       <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-      <span>${note.deleted ? 'Delete Forever' : 'Delete Page'}</span>
+      <span>${note.deleted ? 'Delete Forever' : 'Move to Trash'}</span>
     `;
     deleteBtn.addEventListener('click', (e) => {
       e.stopPropagation();

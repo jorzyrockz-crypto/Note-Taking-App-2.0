@@ -456,7 +456,6 @@ body.sidebar-pinned .app-sidebar .sidebar-divider,
   font-size: 14px;
   white-space: nowrap;
   opacity: 0;
-  transition: opacity 0.15s ease;
 }
 
 .app-sidebar:hover .sidebar-label {
