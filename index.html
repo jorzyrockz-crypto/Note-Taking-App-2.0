@@ -185,45 +185,51 @@
             </div>
           </div>
 
-          <!-- Advanced Editor More Popover -->
-          <div class="editor-more-popover" id="creator-more-popover" style="display: none;">
-            <div class="popover-section">
-              <div class="popover-section-title">Categories</div>
-              <div class="popover-category-container" id="popover-category-container">
-                <!-- Categories checkboxes list will be loaded here dynamically -->
-              </div>
-              <div class="popover-category-add">
-                <input type="text" id="popover-category-input" placeholder="New category..." autocomplete="off">
-                <button type="button" class="text-btn" id="popover-category-add-btn">Add</button>
-              </div>
+          <!-- Workspace Wrapper -->
+          <div class="editor-workspace-wrapper">
+            <!-- Scrollable Workspace Container -->
+            <div class="editor-scroll-container">
+              <input type="text" id="creator-title" placeholder="Title" autocomplete="off">
+              <div class="editor-metadata" id="creator-metadata" style="display: none;">Today • 12:00 PM</div>
+              <textarea id="creator-text" placeholder="Take a note..." rows="1"></textarea>
+              <div class="checklist-editor" id="creator-checklist-editor" style="display: none;"></div>
+              
+              <!-- Creator active reminder chips -->
+              <div class="creator-chips-container" id="creator-chips-container" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;"></div>
             </div>
-            <div class="popover-divider"></div>
-            <div class="popover-section">
-              <div class="popover-section-title">Background & Theme</div>
-              <div class="popover-color-grid" id="popover-color-grid">
-                <!-- Color picker options will be loaded here dynamically -->
+
+            <!-- Advanced Editor More Popover -->
+            <div class="editor-more-popover" id="creator-more-popover" style="display: none;">
+              <div class="popover-section">
+                <div class="popover-section-title">Categories</div>
+                <div class="popover-category-container" id="popover-category-container">
+                  <!-- Categories checkboxes list will be loaded here dynamically -->
+                </div>
+                <div class="popover-category-add">
+                  <input type="text" id="popover-category-input" placeholder="New category..." autocomplete="off">
+                  <button type="button" class="text-btn" id="popover-category-add-btn">Add</button>
+                </div>
               </div>
-            </div>
-            <div class="popover-divider"></div>
-            <div class="popover-section">
-              <div class="popover-section-title">Reminder</div>
-              <div class="popover-reminder-container" id="popover-reminder-container">
-                <input type="datetime-local" id="popover-reminder-input">
-                <div class="popover-reminder-actions">
-                  <button type="button" class="text-btn" id="popover-reminder-save-btn">Set</button>
-                  <button type="button" class="text-btn danger-btn" id="popover-reminder-clear-btn">Clear</button>
+              <div class="popover-divider"></div>
+              <div class="popover-section">
+                <div class="popover-section-title">Background & Theme</div>
+                <div class="popover-color-grid" id="popover-color-grid">
+                  <!-- Color picker options will be loaded here dynamically -->
+                </div>
+              </div>
+              <div class="popover-divider"></div>
+              <div class="popover-section">
+                <div class="popover-section-title">Reminder</div>
+                <div class="popover-reminder-container" id="popover-reminder-container">
+                  <input type="datetime-local" id="popover-reminder-input">
+                  <div class="popover-reminder-actions">
+                    <button type="button" class="text-btn" id="popover-reminder-save-btn">Set</button>
+                    <button type="button" class="text-btn danger-btn" id="popover-reminder-clear-btn">Clear</button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-
-          <input type="text" id="creator-title" placeholder="Title" autocomplete="off">
-          <div class="editor-metadata" id="creator-metadata" style="display: none;">Today • 12:00 PM</div>
-          <textarea id="creator-text" placeholder="Take a note..." rows="1"></textarea>
-          <div class="checklist-editor" id="creator-checklist-editor" style="display: none;"></div>
-          
-          <!-- Creator active reminder chips -->
-          <div class="creator-chips-container" id="creator-chips-container" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;"></div>
           
           <div class="creator-footer">
             <div class="creator-toolbar">
@@ -553,76 +559,118 @@
         </div>
       </div>
 
-      <!-- Modal More Popover -->
-      <div class="editor-more-popover" id="modal-more-popover" style="display: none;">
-        <div class="popover-section">
-          <div class="popover-section-title">Categories</div>
-          <div class="popover-category-container" id="modal-popover-category-container">
-            <!-- Categories checkmarks list loaded dynamically -->
+      <!-- Workspace Wrapper -->
+      <div class="editor-workspace-wrapper">
+        <!-- Scrollable Workspace Container -->
+        <div class="editor-scroll-container">
+          <!-- Image Banner slot inside Edit Modal -->
+          <div class="creator-image-banner modal-image-banner" id="modal-image-banner" style="display: none;">
+            <img id="modal-img-preview" src="" alt="Modal banner">
+            <button class="icon-btn remove-image-btn" id="modal-remove-img" aria-label="Remove image">
+              <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
           </div>
-          <div class="popover-category-add">
-            <input type="text" id="modal-popover-category-input" placeholder="New Category...">
-            <button class="icon-btn" id="modal-popover-category-add-btn">+</button>
-          </div>
+
+          <input type="text" id="modal-title" placeholder="Title" autocomplete="off">
+          <div class="editor-metadata" id="modal-metadata">Today • 12:00 PM</div>
+          <textarea id="modal-text" placeholder="Note" rows="4"></textarea>
+          <div class="checklist-editor" id="modal-checklist-editor" style="display: none;"></div>
+
+          <!-- Tags listing area in modal -->
+          <div class="modal-tags-container" id="modal-tags-container"></div>
         </div>
-        <div class="popover-divider"></div>
-        <div class="popover-section">
-          <div class="popover-section-title">Theme & Color</div>
-          <div class="popover-color-grid" id="modal-popover-color-grid">
-            <!-- Color presets grid loaded dynamically -->
+
+        <!-- Modal More Popover (Notion-style Properties Drawer / Mobile Bottom Sheet) -->
+        <div class="editor-more-popover" id="modal-more-popover" style="display: none;">
+          <!-- Folder / Notebook Section -->
+          <div class="popover-section" id="modal-popover-folder-section">
+            <div class="popover-section-title">Notebook / Folder</div>
+            <!-- Dynamic modal-folder-field will be appended here -->
           </div>
-          <!-- Hidden Legacy Triggers to preserve bindings -->
-          <div style="display: none;">
-            <button id="modal-palette-btn"></button>
-            <div id="modal-color-picker"></div>
-          </div>
-        </div>
-        <div class="popover-divider"></div>
-        <div class="popover-section">
-          <div class="popover-section-title">Reminder</div>
-          <div class="popover-reminder-set">
-            <input type="datetime-local" id="modal-popover-reminder-input">
-            <div class="popover-actions">
-              <button class="text-btn danger-btn" id="modal-popover-reminder-clear-btn">Clear</button>
-              <button class="text-btn save-btn" id="modal-popover-reminder-save-btn">Set</button>
+          <div class="popover-divider"></div>
+          
+          <div class="popover-section">
+            <div class="popover-section-title">Categories / Tags</div>
+            <div class="popover-category-container" id="modal-popover-category-container">
+              <!-- Categories checkmarks list loaded dynamically -->
+            </div>
+            <div class="popover-category-add">
+              <input type="text" id="modal-popover-category-input" placeholder="New Category...">
+              <button class="icon-btn" id="modal-popover-category-add-btn">+</button>
             </div>
           </div>
-          <!-- Hidden Legacy Triggers to preserve bindings -->
-          <div style="display: none;">
-            <button id="modal-reminder-btn"></button>
-            <div id="modal-reminder-picker"></div>
+          <div class="popover-divider"></div>
+
+          <!-- Tags Section -->
+          <div class="popover-section">
+            <div class="popover-section-title">Tags</div>
+            <div class="popover-tags-container" id="modal-popover-tags-container" style="display: flex; flex-wrap: wrap; gap: 6px;">
+              <!-- Tags listing area loaded dynamically -->
+            </div>
+          </div>
+          <div class="popover-divider"></div>
+          
+          <div class="popover-section">
+            <div class="popover-section-title">Color Theme</div>
+            <div class="popover-color-grid" id="modal-popover-color-grid">
+              <!-- Color presets grid loaded dynamically -->
+            </div>
+            <!-- Hidden Legacy Triggers to preserve bindings -->
+            <div style="display: none;">
+              <button id="modal-palette-btn"></button>
+              <div id="modal-color-picker"></div>
+            </div>
+          </div>
+          <div class="popover-divider"></div>
+          
+          <div class="popover-section">
+            <div class="popover-section-title">Reminder</div>
+            <div class="popover-reminder-set">
+              <input type="datetime-local" id="modal-popover-reminder-input">
+              <div class="popover-actions">
+                <button class="text-btn danger-btn" id="modal-popover-reminder-clear-btn">Clear</button>
+                <button class="text-btn save-btn" id="modal-popover-reminder-save-btn">Set</button>
+              </div>
+            </div>
+            <!-- Hidden Legacy Triggers to preserve bindings -->
+            <div style="display: none;">
+              <button id="modal-reminder-btn"></button>
+              <div id="modal-reminder-picker"></div>
+            </div>
+          </div>
+          <div class="popover-divider"></div>
+          
+          <div class="popover-section menu-options-section">
+            <button class="popover-menu-item" id="modal-pin" aria-label="Pin note">
+              <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zM9.8 4h4.4v8H9.8V4z"/></svg>
+              <span class="menu-label">Pin Note</span>
+            </button>
+            <button class="popover-menu-item" id="modal-favorite" aria-label="Favorite note">
+              <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              <span class="menu-label" id="modal-favorite-label">Favorite</span>
+            </button>
+            <button class="popover-menu-item" id="modal-lock" aria-label="Lock note">
+              <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>
+              <span class="menu-label" id="modal-lock-label">Lock Note</span>
+            </button>
+            <button class="popover-menu-item" id="modal-archive" aria-label="Archive note">
+              <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.2 3 17.5 3H6.5c-.7 0-1.38.21-1.65.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM6.24 5h11.52l.83 1H5.41l.83-1zM5 19V8h14v11H5zm3-5h8v-2H8v2z"/></svg>
+              <span class="menu-label" id="modal-archive-label">Archive Note</span>
+            </button>
+            <button class="popover-menu-item" id="modal-move" aria-label="Move note">
+              <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M10 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/></svg>
+              <span class="menu-label">Move Note</span>
+            </button>
+            <button class="popover-menu-item" id="modal-export" aria-label="Export Markdown">
+              <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+              <span class="menu-label">Export Markdown</span>
+            </button>
+            <button class="popover-menu-item danger-action" id="modal-delete" aria-label="Delete note">
+              <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+              <span class="menu-label">Delete Note</span>
+            </button>
           </div>
         </div>
-        <div class="popover-divider"></div>
-        <div class="popover-section menu-options-section">
-          <button class="popover-menu-item" id="modal-pin" aria-label="Pin note">
-            <svg viewBox="0 0 24 24" class="menu-icon"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zM9.8 4h4.4v8H9.8V4z"/></svg>
-            <span class="menu-label">Pin Note</span>
-          </button>
-          <button class="popover-menu-item danger-action" id="modal-delete" aria-label="Delete note">
-            <svg viewBox="0 0 24 24" class="menu-icon"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-            <span class="menu-label">Delete Note</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Image Banner slot inside Edit Modal -->
-      <div class="creator-image-banner modal-image-banner" id="modal-image-banner" style="display: none;">
-        <img id="modal-img-preview" src="" alt="Modal banner">
-        <button class="icon-btn remove-image-btn" id="modal-remove-img" aria-label="Remove image">
-          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-        </button>
-      </div>
-
-      <!-- Scrollable Workspace Container -->
-      <div class="editor-scroll-container">
-        <input type="text" id="modal-title" placeholder="Title" autocomplete="off">
-        <div class="editor-metadata" id="modal-metadata">Today • 12:00 PM</div>
-        <textarea id="modal-text" placeholder="Note" rows="4"></textarea>
-        <div class="checklist-editor" id="modal-checklist-editor" style="display: none;"></div>
-
-        <!-- Tags listing area in modal -->
-        <div class="modal-tags-container" id="modal-tags-container"></div>
       </div>
 
       <!-- Docked Formatting Toolbar -->

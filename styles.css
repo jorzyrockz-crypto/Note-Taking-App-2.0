@@ -7263,56 +7263,96 @@ body.dark-theme .floating-toolbar {
   fill: currentColor;
 }
 
-.floating-toolbar .toolbar-btn:hover {
-  background: rgba(0, 0, 0, 0.05);
+/* Hide legacy chips and tag listings from the main scroll container to keep document clean */
+.modal-tags-container,
+.creator-chips-container {
+  display: none !important;
 }
 
-body.dark-theme .floating-toolbar .toolbar-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
+/* Workspace Wrapper - Houses scrollable content and properties panel side-by-side */
+.editor-workspace-wrapper {
+  display: flex !important;
+  flex-direction: row !important;
+  flex: 1 1 auto !important;
+  overflow: hidden !important;
+  width: 100% !important;
+  position: relative !important;
 }
 
-.toolbar-divider {
-  width: 1px;
-  height: 18px;
-  background: rgba(0, 0, 0, 0.08);
-  margin: 0 4px;
-  flex-shrink: 0;
+/* Scroll Container transitions */
+.editor-scroll-container {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  transition: all 220ms ease;
 }
 
-body.dark-theme .toolbar-divider {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-/* More Popover inspector */
+/* More Popover (Notion-style properties panel on desktop/tablet, bottom sheet on mobile) */
 .editor-more-popover {
-  position: absolute;
-  top: 66px;
-  right: 24px;
-  width: 300px;
-  max-height: calc(100% - 90px);
-  background: var(--bg-popup, rgba(255, 255, 255, 0.95));
-  border: 1px solid var(--border-light, rgba(0, 0, 0, 0.08));
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 18px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15);
-  z-index: 1200;
-  display: flex;
+  display: none; /* Controlled by properties-sheet-open class */
+  width: 300px !important;
+  min-width: 300px !important;
+  height: 100% !important;
+  max-height: none !important;
+  position: relative !important;
+  top: 0 !important;
+  right: 0 !important;
+  border-left: 1px solid var(--border-light) !important;
+  border-right: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  border-radius: 0 !important;
+  background: var(--bg-popup, rgba(255, 255, 255, 0.98)) !important;
+  box-shadow: none !important;
+  z-index: 10 !important;
+  padding: 24px 20px 100px 20px !important; /* Spacing for docked bottom toolbar */
+  box-sizing: border-box !important;
   flex-direction: column;
-  padding: 16px;
-  gap: 12px;
+  gap: 14px;
   overflow-y: auto;
-  animation: popoverFadeIn 180ms ease forwards;
+  animation: slideInRight 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 body.dark-theme .editor-more-popover {
-  background: rgba(30, 41, 59, 0.95);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(30, 41, 59, 0.98) !important;
+  border-left-color: rgba(255, 255, 255, 0.08) !important;
 }
 
-@keyframes popoverFadeIn {
-  from { opacity: 0; transform: translateY(-8px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+.properties-sheet-open .editor-more-popover {
+  display: flex !important;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Active Property Item state */
+.popover-menu-item.active {
+  background: var(--primary-soft, rgba(26, 115, 232, 0.08)) !important;
+  color: var(--primary, #1a73e8) !important;
+}
+
+/* Properties panel tags listing */
+.popover-tags-container .tag-badge {
+  background: var(--tag-bg, rgba(0, 0, 0, 0.04));
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+  font-family: var(--font-sans);
+}
+
+body.dark-theme .popover-tags-container .tag-badge {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .popover-section {
@@ -7418,7 +7458,7 @@ body.dark-theme .editor-more-popover {
   font-size: 12px;
 }
 
-/* Popover Menu Items (Pin & Delete) */
+/* Popover Menu Items (Pin, Favorite, Lock, Archive, Move, Export, Delete) */
 .menu-options-section {
   display: flex;
   flex-direction: column;
@@ -7616,6 +7656,13 @@ body.editor-focus-mode:not(.advanced-editor-open) .main-content-area {
     display: none !important; /* No breadcrumbs on mobile */
   }
 
+  /* Full screen Mobile scroll container */
+  .editor-workspace-wrapper {
+    display: block !important;
+    width: 100% !important;
+    height: calc(100% - 60px) !important;
+  }
+
   .editor-scroll-container {
     padding: 16px 20px 80px 20px;
   }
@@ -7623,6 +7670,49 @@ body.editor-focus-mode:not(.advanced-editor-open) .main-content-area {
   .creator-wrapper.advanced-editor-active #creator-title,
   .edit-modal-card #modal-title {
     font-size: 30px !important;
+  }
+
+  /* Mobile Bottom Sheet for overflow menu options */
+  .editor-more-popover {
+    display: none;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    width: 100vw !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: 75vh !important;
+    border-radius: 24px 24px 0 0 !important;
+    border: 1px solid var(--border-light) !important;
+    border-bottom: none !important;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.15) !important;
+    background: var(--bg-popup, #ffffff) !important;
+    z-index: 2000 !important;
+    padding: 24px 20px 40px 20px !important;
+    box-sizing: border-box !important;
+    animation: slideUpBottomSheet 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  body.dark-theme .editor-more-popover {
+    background: rgba(30, 41, 59, 0.98) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .properties-sheet-open .editor-more-popover {
+    display: flex !important;
+  }
+
+  @keyframes slideUpBottomSheet {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   /* Sticky Bottom Toolbar docked above keyboard */

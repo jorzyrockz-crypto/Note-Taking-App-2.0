@@ -906,7 +906,7 @@ const modalFileInput = document.getElementById('modal-file-input');
 const modalShareBtn = document.getElementById('modal-share-btn');
 const modalListBtn = document.getElementById('modal-list-btn');
 const modalDrawBtn = document.getElementById('modal-draw-btn');
-const modalTagsContainer = document.getElementById('modal-tags-container');
+const modalTagsContainer = document.getElementById('modal-popover-tags-container');
 let modalFolderInput = null;
 let modalFolderField = null;
 let modalFolderTrigger = null;
@@ -2758,8 +2758,14 @@ function initModalAdvancedEditorHandlers() {
 
   modalMoreBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
-    const open = modalMorePopover.style.display === 'block';
-    modalMorePopover.style.display = open ? 'none' : 'block';
+    const isOpen = editModalCard.classList.contains('properties-sheet-open');
+    if (isOpen) {
+      editModalCard.classList.remove('properties-sheet-open');
+      modalMorePopover.style.display = 'none';
+    } else {
+      editModalCard.classList.add('properties-sheet-open');
+      modalMorePopover.style.display = 'flex';
+    }
   });
 
   modalMorePopover?.addEventListener('click', (e) => {
@@ -2826,6 +2832,80 @@ function initModalAdvancedEditorHandlers() {
       debouncedSave();
       renderNotes();
       showToast({ title: 'Reminder Cleared', text: 'Note reminder removed.' });
+    }
+  });
+
+  // Favorite handler
+  document.getElementById('modal-favorite')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const note = notes.find(n => n.id === currentEditingNoteId);
+    if (note) {
+      note.favorite = !note.favorite;
+      const favLabel = document.getElementById('modal-favorite-label');
+      const favBtn = document.getElementById('modal-favorite');
+      if (favLabel) favLabel.textContent = note.favorite ? 'Unfavorite' : 'Favorite';
+      favBtn?.classList.toggle('active', note.favorite);
+      debouncedSave();
+      renderNotes();
+      showToast({ title: note.favorite ? 'Added to Favorites' : 'Removed from Favorites', text: 'Note favorite status updated.' });
+    }
+  });
+
+  // Lock Note handler
+  document.getElementById('modal-lock')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const note = notes.find(n => n.id === currentEditingNoteId);
+    if (note) {
+      note.locked = !note.locked;
+      const lockLabel = document.getElementById('modal-lock-label');
+      const lockBtn = document.getElementById('modal-lock');
+      if (lockLabel) lockLabel.textContent = note.locked ? 'Unlock Note' : 'Lock Note';
+      lockBtn?.classList.toggle('active', note.locked);
+      debouncedSave();
+      renderNotes();
+      showToast({ title: note.locked ? 'Note Locked' : 'Note Unlocked', text: note.locked ? 'Note locked successfully.' : 'Note unlocked.' });
+    }
+  });
+
+  // Archive handler
+  document.getElementById('modal-archive')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const note = notes.find(n => n.id === currentEditingNoteId);
+    if (note) {
+      if (note.archived) {
+        unarchiveNote(note.id);
+        showToast({ title: 'Note Unarchived', text: 'Note returned to home feed.' });
+      } else {
+        archiveNote(note.id);
+        showToast({ title: 'Note Archived', text: 'Note moved to archive section.' });
+      }
+      closeEditModal();
+    }
+  });
+
+  // Move handler
+  document.getElementById('modal-move')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const trigger = document.getElementById('modal-folder-trigger');
+    if (trigger) trigger.click();
+  });
+
+  // Export handler
+  document.getElementById('modal-export')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const note = notes.find(n => n.id === currentEditingNoteId);
+    if (note) {
+      const markdown = `# ${note.title || 'Untitled Note'}\n\n${note.text || ''}`;
+      const blob = new Blob([markdown], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(note.title || 'untitled').toLowerCase().replace(/\s+/g, '-')}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast({ title: 'Note Exported', text: 'Downloaded markdown file successfully.' });
     }
   });
 
@@ -5036,7 +5116,12 @@ function openEditModal(note) {
       </label>
       <input type="hidden" id="modal-folder">
     `;
-    editModalCard.querySelector('.modal-footer')?.insertAdjacentElement('beforebegin', folderField);
+    const folderSection = document.getElementById('modal-popover-folder-section');
+    if (folderSection) {
+      folderSection.appendChild(folderField);
+    } else {
+      editModalCard.querySelector('.modal-footer')?.insertAdjacentElement('beforebegin', folderField);
+    }
   }
 
   modalFolderField = editModalCard.querySelector('.modal-folder-field');
@@ -5080,6 +5165,25 @@ function openEditModal(note) {
   
   applyNoteAppearance(editModalCard, note);
   modalPin.classList.toggle('pinned', note.pinned);
+
+  // Set Favorite button state
+  const favLabel = document.getElementById('modal-favorite-label');
+  const favBtn = document.getElementById('modal-favorite');
+  if (favLabel) favLabel.textContent = note.favorite ? 'Unfavorite' : 'Favorite';
+  favBtn?.classList.toggle('active', !!note.favorite);
+
+  // Set Lock button state
+  const lockLabel = document.getElementById('modal-lock-label');
+  const lockBtn = document.getElementById('modal-lock');
+  if (lockLabel) lockLabel.textContent = note.locked ? 'Unlock Note' : 'Lock Note';
+  lockBtn?.classList.toggle('active', !!note.locked);
+
+  // Set Archive button state
+  const archiveLabel = document.getElementById('modal-archive-label');
+  const archiveBtn = document.getElementById('modal-archive');
+  if (archiveLabel) archiveLabel.textContent = note.archived ? 'Send to Feed' : 'Archive Note';
+  archiveBtn?.classList.toggle('active', !!note.archived);
+
   modalDelete.setAttribute('aria-label', note.deleted ? 'Delete forever' : 'Move note to delete page');
   modalDelete.setAttribute('title', note.deleted ? 'Delete forever' : 'Move to delete page');
 
@@ -5238,6 +5342,7 @@ function closeEditModal() {
   }
   
   currentEditingNoteId = null;
+  editModalCard.classList.remove('properties-sheet-open');
   editModal.classList.remove('visible');
   document.body.classList.remove('editor-focus-mode');
   modalColorPicker.classList.remove('visible');
