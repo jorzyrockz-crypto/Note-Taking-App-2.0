@@ -2981,6 +2981,7 @@ function buildNoteShareText(note) {
   const files = normalizeNoteFiles(note.files);
   if (files.length) parts.push(`Attachments: ${files.map(file => file.name).join(', ')}`);
   if (note.audio) parts.push(`Voice note: ${note.audioDuration || 'recorded clip'}`);
+  if (note.videoId) parts.push('Video attached');
   return parts.filter(Boolean).join('\n\n') || 'AtlasNest note';
 }
 
@@ -3012,6 +3013,17 @@ async function shareNote(note) {
           'audio/webm'
         ));
       }
+      if (note.videoId) {
+        try {
+          const blob = await getVideoBlob(note.videoId);
+          if (blob) {
+            const ext = blob.type?.split('/')[1] || 'mp4';
+            shareFiles.push(new File([blob], `${getSafeFileName(note.title || 'note-video')}.${ext}`, { type: blob.type || 'video/mp4' }));
+          }
+        } catch (error) {
+          console.warn('Could not prepare video for sharing:', error);
+        }
+      }
       const payload = { title, text };
       if (shareFiles.length && navigator.canShare?.({ files: shareFiles })) {
         payload.files = shareFiles;
@@ -3037,9 +3049,14 @@ function openImageViewer(src, title = 'Note image') {
     <div class="image-viewer-card" role="dialog" aria-modal="true" aria-label="Image preview">
       <div class="image-viewer-topbar">
         <strong>${title}</strong>
-        <div>
-          <button type="button" class="text-btn image-viewer-download">Download</button>
-          <button type="button" class="text-btn image-viewer-close">Close</button>
+        <div class="image-viewer-topbar-actions">
+          <button type="button" class="image-viewer-download" aria-label="Download image">
+            <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            <span>Download</span>
+          </button>
+          <button type="button" class="image-viewer-close" aria-label="Close image preview">
+            <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+          </button>
         </div>
       </div>
       <img src="${src}" alt="${title}">
@@ -3055,37 +3072,59 @@ function openImageViewer(src, title = 'Note image') {
   document.body.appendChild(overlay);
 }
 
+const SHARE_SHEET_ICONS = {
+  native: '<svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L7.04 9.81C6.5 9.31 5.79 9 5 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>',
+  copy: '<svg viewBox="0 0 24 24"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>',
+  image: '<svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>',
+  video: '<svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>',
+  audio: '<svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.49 6-3.31 6-6.72h-1.7z"/></svg>',
+  file: '<svg viewBox="0 0 24 24"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>'
+};
+
 function openShareSheet(note) {
   document.querySelector('.share-sheet-overlay')?.remove();
   const files = normalizeNoteFiles(note.files);
-  const mediaSummary = [
-    files.length ? `${files.length} attachment${files.length === 1 ? '' : 's'}` : '',
-    note.image ? 'image' : '',
-    note.audio ? 'voice' : ''
-  ].filter(Boolean).join(' • ');
   const overlay = document.createElement('div');
   overlay.className = 'share-sheet-overlay visible';
+
+  const actions = [
+    { key: 'native', label: 'Share', icon: SHARE_SHEET_ICONS.native },
+    { key: 'copy', label: 'Copy text', icon: SHARE_SHEET_ICONS.copy }
+  ];
+  if (note.image) actions.push({ key: 'image', label: 'Save image', icon: SHARE_SHEET_ICONS.image });
+  if (note.videoId) actions.push({ key: 'video', label: 'Save video', icon: SHARE_SHEET_ICONS.video });
+  if (note.audio) actions.push({ key: 'audio', label: 'Save voice', icon: SHARE_SHEET_ICONS.audio });
+
   overlay.innerHTML = `
     <div class="share-sheet-card" role="dialog" aria-modal="true" aria-label="Share note">
+      <div class="share-sheet-handle"></div>
       <div class="share-sheet-header">
         <div>
+          <div class="share-sheet-kicker">Share note</div>
           <h3>${cleanTitleTags(note.title || 'Untitled note')}</h3>
         </div>
-        <button type="button" class="icon-btn share-sheet-close" aria-label="Close share sheet">✕</button>
+        <button type="button" class="icon-btn share-sheet-close" aria-label="Close share sheet">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
       </div>
-      <p>${files.length} attachment${files.length === 1 ? '' : 's'} • ${note.audio ? 'voice clip included' : 'text note'}</p>
       <div class="share-sheet-actions">
-        <button type="button" data-share-action="native">Share</button>
-        <button type="button" data-share-action="copy">Copy</button>
-        ${note.image ? '<button type="button" data-share-action="image">Image</button>' : ''}
-        ${note.audio ? '<button type="button" data-share-action="audio">Voice</button>' : ''}
+        ${actions.map(action => `
+          <button type="button" data-share-action="${action.key}">
+            <span class="share-sheet-action-icon">${action.icon}</span>
+            <span class="share-sheet-action-label">${action.label}</span>
+          </button>
+        `).join('')}
       </div>
       ${files.length ? `
+        <div class="share-sheet-files-label">Attachments</div>
         <div class="share-sheet-files">
           ${files.map(file => `
             <button type="button" data-share-file="${escapeHtml(file.id)}">
-              <span>${escapeHtml(file.name)}</span>
-              <small>${getAttachmentLabel(file)} - ${formatFileSize(file.size)}</small>
+              <span class="share-sheet-file-icon">${SHARE_SHEET_ICONS.file}</span>
+              <span class="share-sheet-file-info">
+                <span class="share-sheet-file-name">${escapeHtml(file.name)}</span>
+                <small>${getAttachmentLabel(file)} · ${formatFileSize(file.size)}</small>
+              </span>
             </button>
           `).join('')}
         </div>
@@ -3106,6 +3145,28 @@ function openShareSheet(note) {
   });
   overlay.querySelector('[data-share-action="image"]')?.addEventListener('click', () => {
     downloadDataUrl(note.image, `${getSafeFileName(note.title || 'note-image')}.${getDataUrlExtension(note.image, 'jpg')}`);
+    overlay.remove();
+  });
+  overlay.querySelector('[data-share-action="video"]')?.addEventListener('click', async () => {
+    try {
+      const blob = await getVideoBlob(note.videoId);
+      if (!blob) {
+        showToast({ title: 'Video unavailable', text: 'This video could not be found.' });
+        return;
+      }
+      const ext = blob.type?.split('/')[1] || 'mp4';
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${getSafeFileName(note.title || 'note-video')}.${ext}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      console.error('Could not save video:', error);
+      showToast({ title: 'Video unavailable', text: 'This video could not be saved.' });
+    }
     overlay.remove();
   });
   overlay.querySelector('[data-share-action="audio"]')?.addEventListener('click', () => {
