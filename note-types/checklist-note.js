@@ -11,6 +11,18 @@ let draggedChecklistIndex = null;
 let draggedChecklistDropPosition = 'before';
 let checklistDragPreview = null;
 
+function getAppSettingsFromStorage() {
+  try {
+    const raw = localStorage.getItem('keep_settings');
+    if (raw) {
+      return JSON.parse(raw);
+    }
+  } catch (e) {
+    // ignore
+  }
+  return { checkedItemsToBottom: true, newChecklistItemsToBottom: true };
+}
+
 function normalizeChecklistLine(line = '') {
   if (line.startsWith('- [ ] ') || line.startsWith('- [x] ')) return line;
   if (line === '- [ ]' || line === '- [x]') return `${line} `;
@@ -112,7 +124,8 @@ export function renderChecklistNoteContent(note, options) {
         content.appendChild(reminderChip);
       }
 
-      if (checked) {
+      const settings = options.appSettings ? options.appSettings() : { checkedItemsToBottom: true };
+      if (checked && settings.checkedItemsToBottom !== false) {
         checkedRows.push(row);
       } else {
         uncheckedRows.push(row);
@@ -128,7 +141,8 @@ export function renderChecklistNoteContent(note, options) {
 
   uncheckedRows.forEach(row => container.appendChild(row));
 
-  if (checkedRows.length > 0) {
+  const settings = options.appSettings ? options.appSettings() : { checkedItemsToBottom: true };
+  if (checkedRows.length > 0 && settings.checkedItemsToBottom !== false) {
     const header = document.createElement('div');
     header.className = 'completed-items-header';
     header.innerHTML = `
@@ -339,12 +353,15 @@ export function syncChecklistEditor(container, rawText, onChange) {
     }
     row.appendChild(deleteBtn);
 
-    if (isChecked) {
+    const settings = getAppSettingsFromStorage();
+    if (isChecked && settings.checkedItemsToBottom !== false) {
       checkedContainer.appendChild(row);
     } else {
       uncheckedContainer.appendChild(row);
     }
   });
+
+  const settings = getAppSettingsFromStorage();
 
   const addRow = document.createElement('div');
   addRow.className = 'checklist-editor-row';
@@ -370,7 +387,12 @@ export function syncChecklistEditor(container, rawText, onChange) {
   addInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && addInput.value.trim() !== '') {
       e.preventDefault();
-      lines.push('- [ ] ' + addInput.value.trim());
+      const newItem = '- [ ] ' + addInput.value.trim();
+      if (settings.newChecklistItemsToBottom === false) {
+        lines.unshift(newItem);
+      } else {
+        lines.push(newItem);
+      }
       checklistFocusIsNew = true;
       onChange(lines.join('\n'));
     }
@@ -378,7 +400,12 @@ export function syncChecklistEditor(container, rawText, onChange) {
 
   addInput.addEventListener('blur', () => {
     if (addInput.value.trim() !== '') {
-      lines.push('- [ ] ' + addInput.value.trim());
+      const newItem = '- [ ] ' + addInput.value.trim();
+      if (settings.newChecklistItemsToBottom === false) {
+        lines.unshift(newItem);
+      } else {
+        lines.push(newItem);
+      }
       onChange(lines.join('\n'));
     }
   });
@@ -387,7 +414,7 @@ export function syncChecklistEditor(container, rawText, onChange) {
   addRow.appendChild(addInput);
   uncheckedContainer.appendChild(addRow);
 
-  if (checkedRowsCount > 0) {
+  if (checkedRowsCount > 0 && settings.checkedItemsToBottom !== false) {
     const header = document.createElement('div');
     header.className = 'completed-items-header';
     header.innerHTML = `

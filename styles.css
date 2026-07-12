@@ -423,6 +423,7 @@ body.sidebar-pinned .app-sidebar .sidebar-divider,
   max-height: 1px;
 }
 
+/* Sidebar item: Google Keep / Material Design 3 compliant layout */
 .sidebar-item {
   display: flex;
   align-items: center;
@@ -431,17 +432,61 @@ body.sidebar-pinned .app-sidebar .sidebar-divider,
   border-radius: 0 24px 24px 0;
   cursor: pointer;
   color: var(--text-primary);
-  transition: background-color 0.2s ease;
+  position: relative;
   flex-shrink: 0;
+  background-color: transparent;
+  transition: color 0.15s ease;
 }
 
-.sidebar-item:hover {
+/* MD3 active/hover highlight pill */
+.sidebar-item::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  /* Collapsed state: neat centered pill behind the icon */
+  left: 7px;
+  top: 8px;
+  width: 56px;
+  height: 32px;
+  border-radius: 16px;
+  background-color: transparent;
+  transition: background-color 0.15s ease, width 0.15s ease, height 0.15s ease, left 0.15s ease, top 0.15s ease, border-radius 0.15s ease;
+}
+
+/* Expanded state: transitions to a full-width Keep row pill */
+.app-sidebar:hover .sidebar-item::before,
+body.sidebar-pinned .app-sidebar .sidebar-item::before,
+.app-sidebar.sidebar-open .sidebar-item::before {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 48px;
+  border-radius: 0 24px 24px 0;
+}
+
+.sidebar-item:hover::before {
   background-color: var(--icon-hover-bg);
 }
 
-.sidebar-item.active {
+.sidebar-item.active::before {
   background-color: var(--bg-sidebar-active);
+}
+
+.sidebar-item.active {
   font-weight: 500;
+  color: var(--accent-color);
+}
+
+body.dark-theme .sidebar-item.active {
+  color: #ffca28; /* Warm gold for active items in dark theme */
+}
+
+/* Ensure contents display above the background highlight */
+.sidebar-icon,
+.sidebar-label {
+  position: relative;
+  z-index: 1;
 }
 
 .sidebar-icon {
@@ -456,9 +501,12 @@ body.sidebar-pinned .app-sidebar .sidebar-divider,
   font-size: 14px;
   white-space: nowrap;
   opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
-.app-sidebar:hover .sidebar-label {
+.app-sidebar:hover .sidebar-label,
+body.sidebar-pinned .app-sidebar .sidebar-label,
+.app-sidebar.sidebar-open .sidebar-label {
   opacity: 1;
 }
 
@@ -1011,9 +1059,73 @@ body.dark-theme .image-source-popover {
 }
 
 .theme-picker-v2-control input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
   width: 100%;
-  accent-color: var(--accent-orange);
+  height: 6px;
+  border-radius: 3px;
+  background: #e2e8f0;
+  outline: none;
   cursor: pointer;
+  margin: 12px 0;
+  transition: background 0.15s ease;
+}
+
+body.dark-theme .theme-picker-v2-control input[type="range"],
+body.theme-dark .theme-picker-v2-control input[type="range"] {
+  background: #475569;
+}
+
+.theme-picker-v2-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary, #1a73e8);
+  border: 3.5px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+  cursor: pointer;
+  transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.12s ease;
+}
+
+body.dark-theme .theme-picker-v2-control input[type="range"]::-webkit-slider-thumb,
+body.theme-dark .theme-picker-v2-control input[type="range"]::-webkit-slider-thumb {
+  border-color: #2d2f31;
+}
+
+.theme-picker-v2-control input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.22);
+  box-shadow: 0 4px 10px rgba(26, 115, 232, 0.3);
+}
+
+.theme-picker-v2-control input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(1.35);
+  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.45);
+}
+
+.theme-picker-v2-control input[type="range"]::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--primary, #1a73e8);
+  border: 3.5px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+body.dark-theme .theme-picker-v2-control input[type="range"]::-moz-range-thumb,
+body.theme-dark .theme-picker-v2-control input[type="range"]::-moz-range-thumb {
+  border-color: #2d2f31;
+}
+
+.theme-picker-v2-control input[type="range"]::-moz-range-thumb:hover {
+  transform: scale(1.22);
+}
+
+.theme-picker-v2-control input[type="range"]::-moz-range-thumb:active {
+  transform: scale(1.35);
 }
 
 .picker-header {
@@ -6066,154 +6178,587 @@ body.dark-theme .productivity-note-card[data-note-kind="image"] {
   }
 }
 
-@media (max-width: 1024px) {
-  .productivity-layout {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "calendar"
-      "todo"
-      "agenda";
-  }
-
-  .productivity-hero {
-    flex-direction: column;
-  }
-}
-/* Page navigation: soft icon menu tiles inspired by the image source popover. */
-.app-sidebar {
-  --page-nav-tile-bg: rgba(255, 255, 255, 0.72);
-  --page-nav-tile-border: rgba(148, 163, 184, 0.16);
-  --page-nav-tile-shadow: 0 14px 34px rgba(15, 23, 42, 0.1);
-  --page-nav-active-bg: linear-gradient(135deg, rgba(251, 188, 4, 0.26), rgba(255, 255, 255, 0.86));
-  --page-nav-active-border: rgba(251, 188, 4, 0.34);
 }
 
-.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted) {
+/* ==========================================================================
+   Settings Modal & Premium Customization Styles
+   ========================================================================== */
+.settings-modal-card {
+  max-width: 620px;
+  width: 90%;
+  border-radius: 28px;
+  background-color: var(--bg-app);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+}
+
+.settings-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  scrollbar-width: thin;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-section h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--accent-color);
+  margin: 0;
+  letter-spacing: 0.3px;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 8px;
+}
+
+.section-desc {
+  font-size: 13px;
+  margin: -4px 0 8px 0;
+  line-height: 1.4;
+}
+
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.settings-row.flex-column {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.settings-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-info.full-width {
+  width: 100%;
+}
+
+.settings-info strong {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.settings-info span {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Dropdown styling */
+.settings-select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.settings-select:focus {
+  border-color: var(--accent-color);
+}
+
+/* Switches (Toggles) */
+.switch {
   position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--border-light);
+  transition: 0.2s ease;
+  border-radius: 24px;
+  border: 1.5px solid transparent;
+}
+
+.slider::before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 2.5px;
+  background-color: var(--text-secondary);
+  transition: 0.2s ease;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: var(--accent-color);
+}
+
+input:checked + .slider::before {
+  transform: translateX(20px);
+  background-color: #ffffff;
+}
+
+/* Time Pickers */
+.time-row {
+  justify-content: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.time-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 120px;
+}
+
+.time-field label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.time-field input[type="time"] {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.time-field input[type="time"]:focus {
+  border-color: var(--accent-color);
+}
+
+/* Live Preview Layout */
+.emoji-preview-layout {
+  display: grid;
+  grid-template-columns: 1fr 180px;
+  gap: 16px;
+  width: 100%;
+  align-items: center;
+}
+
+@media (max-width: 520px) {
+  .emoji-preview-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.emoji-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-live-preview-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.settings-preview-card {
+  width: 100%;
+  max-width: 180px;
+  height: 110px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  user-select: none;
+  pointer-events: none;
+}
+
+.settings-preview-card .note-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.settings-preview-card .note-text {
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+/* Custom Emoji Theme Mixer */
+.custom-theme-creator-form {
+  display: grid;
+  grid-template-columns: 1fr 120px 100px;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+
+@media (max-width: 520px) {
+  .custom-theme-creator-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+.custom-theme-creator-form input {
+  margin: 0;
+  width: 100%;
+}
+
+.custom-theme-creator-form button {
+  height: 40px;
+  padding: 0;
+}
+
+.custom-themes-list-container {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.custom-themes-list-container strong {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.custom-themes-list {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 4px 16px 4px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.48) transparent;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  border: none !important;
+  background-color: transparent !important;
+}
+
+.custom-themes-list::-webkit-scrollbar {
+  height: 8px;
+}
+
+.custom-themes-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-themes-list::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.32);
+  border-radius: 999px;
+}
+
+
+
+.settings-modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-light);
+  background-color: var(--bg-app);
+}
+
+.footer-actions-right {
+  display: flex;
+  gap: 12px;
+}
+
+.danger-btn {
+  color: #ea4335 !important;
+}
+
+.danger-btn:hover {
+  background-color: rgba(234, 67, 53, 0.08) !important;
+}
+
+/* ==========================================================================
+   Appearance Layout Variations (Keep & Glass)
+   ========================================================================== */
+
+/* 1. Keep Style: Solid, flat backgrounds with crisp borders, mimicking Google Keep perfectly */
+body.card-style-keep .note-card,
+body.card-style-keep .note-creator,
+body.card-style-keep .edit-modal-card {
+  border: 1px solid var(--border-light) !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+  animation: none !important;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease !important;
+}
+
+/* Colored cards in Keep Style are borderless to match Keep's flat aesthetic */
+body.card-style-keep .note-card:not([data-color="default"]),
+body.card-style-keep .note-creator:not([data-color="default"]),
+body.card-style-keep .edit-modal-card:not([data-color="default"]) {
+  border-color: transparent !important;
+}
+
+body.card-style-keep .note-card:hover {
+  box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15) !important;
+  border-color: var(--border-light) !important; /* Retain border for default card on hover */
+}
+
+body.card-style-keep .note-card:not([data-color="default"]):hover {
+  border-color: transparent !important; /* Keep colored cards borderless on hover */
+}
+
+/* 2. Glass Style: Vibrant semi-transparent backgrounds with backdrop blur */
+
+/* Preset Colors & Themes --note-color mapping for glass layout */
+[data-color="default"] { --note-color: var(--note-default); }
+[data-color="red"] { --note-color: var(--note-red); }
+[data-color="orange"] { --note-color: var(--note-orange); }
+[data-color="yellow"] { --note-color: var(--note-yellow); }
+[data-color="green"] { --note-color: var(--note-green); }
+[data-color="teal"] { --note-color: var(--note-teal); }
+[data-color="blue"] { --note-color: var(--note-blue); }
+[data-color="darkblue"] { --note-color: var(--note-darkblue); }
+[data-color="purple"] { --note-color: var(--note-purple); }
+[data-color="pink"] { --note-color: var(--note-pink); }
+[data-color="brown"] { --note-color: var(--note-brown); }
+[data-color="grey"] { --note-color: var(--note-grey); }
+
+[data-theme="plants"] { --note-color: var(--theme-plants-bg); }
+[data-theme="animals"] { --note-color: var(--theme-animals-bg); }
+[data-theme="spring"] { --note-color: var(--theme-spring-bg); }
+[data-theme="summer"] { --note-color: var(--theme-summer-bg); }
+[data-theme="autumn"] { --note-color: var(--theme-autumn-bg); }
+[data-theme="winter"] { --note-color: var(--theme-winter-bg); }
+[data-theme="school"] { --note-color: var(--theme-school-bg); }
+[data-theme="office"] { --note-color: var(--theme-office-bg); }
+[data-theme="food"] { --note-color: var(--theme-food-bg); }
+[data-theme="holiday"] { --note-color: var(--theme-holiday-bg); }
+[data-theme="celebration"] { --note-color: var(--theme-celebration-bg); }
+
+body.card-style-glass .note-card,
+body.card-style-glass .note-creator,
+body.card-style-glass .edit-modal-card {
+  background-color: color-mix(in srgb, var(--note-color, var(--note-default)) 45%, transparent) !important;
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  border: 1px solid color-mix(in srgb, var(--note-color, #ffffff) 25%, rgba(255, 255, 255, 0.28)) !important;
+  box-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.05) !important;
+}
+
+body.card-style-glass.dark-theme .note-card,
+body.card-style-glass.dark-theme .note-creator,
+body.card-style-glass.dark-theme .edit-modal-card {
+  background-color: color-mix(in srgb, var(--note-color, var(--note-default)) 35%, transparent) !important;
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  border: 1px solid color-mix(in srgb, var(--note-color, #ffffff) 15%, rgba(255, 255, 255, 0.08)) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.22) !important;
+}
+
+body.card-style-glass .note-creator input,
+body.card-style-glass .note-creator textarea,
+body.card-style-glass .edit-modal-card input,
+body.card-style-glass .edit-modal-card textarea {
+  background: transparent !important;
+}
+
+/* Custom User-generated Emoji Themes support */
+.note-card[data-theme^="user_"],
+.edit-modal-card[data-theme^="user_"],
+.note-creator[data-theme^="user_"] {
+  background-color: var(--note-color) !important;
+  background-image: var(--theme-pattern) !important;
+  background-repeat: repeat !important;
+  background-size: var(--note-theme-pattern-size, 112px 112px) !important;
+  background-blend-mode: normal !important;
+}
+
+/* ==========================================================================
+   Dedicated Settings Page Styling
+   ========================================================================== */
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  max-width: 840px;
+  width: 100%;
+  margin: 16px auto 40px auto;
+  padding: 0 24px;
+  animation: fadeIn 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
+}
+
+.settings-page-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 48px;
-  border: 1px solid transparent;
-  border-radius: 18px;
-  margin: 4px 10px;
-  padding: 8px 10px;
-  background: transparent;
-  transition:
-    background 0.18s ease,
-    border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    transform 0.18s ease;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-light);
 }
 
-.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted)::before {
-  content: "";
-  position: absolute;
-  inset: 5px auto 5px 8px;
-  width: 38px;
-  border-radius: 14px;
-  background: var(--page-nav-tile-bg);
-  border: 1px solid var(--page-nav-tile-border);
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-  transition: inherit;
-}
-
-.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted) .sidebar-icon {
-  flex: 0 0 auto;
+.settings-page-title {
+  font-size: 28px;
+  font-weight: 400;
+  color: var(--text-primary);
   margin: 0;
+  letter-spacing: -0.5px;
 }
 
-.app-sidebar:hover :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted) .sidebar-label,
-.app-sidebar.sidebar-open :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted) .sidebar-label,
-body.sidebar-pinned .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted) .sidebar-label {
-  opacity: 1;
+.settings-page-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.app-sidebar:not(:hover):not(.sidebar-open) :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted) {
-  width: 48px;
-  height: 48px;
-  min-height: 48px;
-  margin: 4px auto;
-  padding: 0;
-  justify-content: center;
+.settings-page .settings-section {
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 16px 0 24px 0 !important;
+  box-shadow: none !important;
+  border-bottom: 1px solid var(--border-light) !important;
 }
 
-.app-sidebar:not(:hover):not(.sidebar-open) :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted)::before {
-  inset: 4px;
-  width: auto;
+.settings-page .settings-section:last-of-type {
+  border-bottom: none !important;
 }
 
-.app-sidebar:hover :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted),
-.app-sidebar.sidebar-open :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted),
-body.sidebar-pinned .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted) {
-  width: auto;
-  justify-content: flex-start;
+.settings-page-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-light);
 }
 
-.app-sidebar:hover :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted)::before,
-.app-sidebar.sidebar-open :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted)::before,
-body.sidebar-pinned .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted)::before {
-  inset: 5px auto 5px 8px;
-  width: 38px;
+/* Ensure settings inputs and toggles are aligned perfectly */
+.settings-page .settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
 }
 
-.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted):hover,
-.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted):focus-visible {
-  background: rgba(255, 255, 255, 0.42);
-  border-color: rgba(148, 163, 184, 0.16);
-  box-shadow: var(--page-nav-tile-shadow);
-  transform: translateX(2px);
+.settings-page .settings-row.flex-column {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.settings-page .settings-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-page .settings-info strong {
+  font-size: 16px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.settings-page .settings-info span {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.settings-page .settings-select {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-size: 14px;
   outline: none;
+  min-width: 200px;
 }
 
-.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted):hover::before,
-.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted):focus-visible::before {
-  background: rgba(255, 255, 255, 0.94);
-  border-color: rgba(79, 134, 255, 0.22);
+/* Align and space the custom emoji mixer list */
+.settings-page .custom-themes-list-container {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted).active,
-.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted).is-active,
-.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted)[aria-current="page"] {
-  background: var(--page-nav-active-bg);
-  border-color: var(--page-nav-active-border);
-  box-shadow: 0 16px 38px rgba(251, 188, 4, 0.16);
+.settings-page .custom-theme-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 12px 16px;
 }
 
-.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted).active::before,
-.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted).is-active::before,
-.app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted)[aria-current="page"]::before {
-  background: #fff7d6;
-  border-color: rgba(251, 188, 4, 0.48);
-  box-shadow: 0 12px 26px rgba(251, 188, 4, 0.18);
+@media (max-width: 600px) {
+  .settings-page {
+    padding: 0 12px;
+    margin-top: 8px;
+  }
+  .settings-page-title {
+    font-size: 24px;
+  }
+  .settings-page .settings-section {
+    padding: 16px;
+  }
 }
 
-body.dark-theme .app-sidebar {
-  --page-nav-tile-bg: rgba(30, 35, 46, 0.82);
-  --page-nav-tile-border: rgba(148, 163, 184, 0.16);
-  --page-nav-tile-shadow: 0 18px 42px rgba(0, 0, 0, 0.36);
-  --page-nav-active-bg: linear-gradient(135deg, rgba(251, 188, 4, 0.22), rgba(30, 35, 46, 0.92));
-  --page-nav-active-border: rgba(251, 188, 4, 0.28);
+/* Responsive visibility rules for settings triggers */
+@media screen and (min-width: 901px) {
+  #settings-btn {
+    display: inline-flex !important;
+  }
+  #sidebar-settings {
+    display: none !important;
+  }
 }
 
-body.dark-theme .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted):hover,
-body.dark-theme .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted):focus-visible {
-  background: rgba(30, 35, 46, 0.56);
-  border-color: rgba(148, 163, 184, 0.14);
+@media screen and (max-width: 900px) {
+  #settings-btn {
+    display: none !important;
+  }
+  #sidebar-settings {
+    display: flex !important;
+  }
 }
 
-body.dark-theme .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted):hover::before,
-body.dark-theme .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted):focus-visible::before {
-  background: rgba(45, 52, 66, 0.95);
-  border-color: rgba(251, 188, 4, 0.2);
-}
 
-body.dark-theme .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted).active::before,
-body.dark-theme .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted).is-active::before,
-body.dark-theme .app-sidebar :is(#sidebar-all-notes, #sidebar-productivity, #sidebar-archive, #sidebar-deleted)[aria-current="page"]::before {
-  background: rgba(251, 188, 4, 0.18);
-  border-color: rgba(251, 188, 4, 0.34);
-  box-shadow: 0 14px 30px rgba(251, 188, 4, 0.1);
-}
 
 
