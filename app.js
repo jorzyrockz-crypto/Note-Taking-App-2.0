@@ -916,10 +916,6 @@ let isEraserActive = false;
 let activeSketchTarget = null; // 'creator' or 'modal'
 
 function enhanceShell() {
-  document.title = 'AtlasNest - Visual Bookmark Studio';
-
-  const logoTitle = document.querySelector('.logo-title');
-  if (logoTitle) logoTitle.textContent = 'AtlasNest';
   const allNotesLabel = sidebarAllNotes?.querySelector('.sidebar-label');
   if (allNotesLabel) allNotesLabel.textContent = 'All Notes';
   if (sidebarAllNotes) {
@@ -1162,7 +1158,10 @@ function enhanceShell() {
   }
 
   folderDrawerList = document.getElementById('folder-drawer-list');
+}
 
+function ensureProductivityPage() {
+  if (productivityPage) return;
   if (!document.getElementById('productivity-page')) {
     productivityPage = document.createElement('section');
     productivityPage.className = 'productivity-page';
@@ -4007,6 +4006,7 @@ function createProductivityNoteCard(note, options = {}) {
 }
 
 function renderProductivityPage() {
+  ensureProductivityPage();
   if (settingsPage) settingsPage.style.display = 'none';
   creatorWrapper.style.display = 'none';
   if (feedFilterRow) feedFilterRow.style.display = 'none';
@@ -4702,7 +4702,7 @@ function legacyRenderChecklistMarkup(note) {
         lines[index] = newPrefix + cleanText;
         note.text = lines.join('\n');
         
-        saveToLocalStorage();
+        debouncedSave();
         renderNotes();
         
         // Sync open modal if editing this note
@@ -4879,7 +4879,7 @@ function openEditModal(note) {
   buildColorGrid(modalColorPicker, note.color, note.theme, note.customTheme, (type, value) => {
     applyAppearanceSelection(note, type, value);
     applyNoteAppearance(editModalCard, note);
-    saveToLocalStorage();
+    debouncedSave();
     renderNotes();
     modalColorPicker.classList.remove('visible');
   });
@@ -4910,13 +4910,13 @@ function openEditModal(note) {
         note.text = applyInlineReminderToChecklistText(note.text, activeChecklistIndex, dateTime);
         note.type = note.recipeData ? 'recipe' : getNoteType(note.text);
         modalText.value = note.text;
-        saveToLocalStorage();
+        debouncedSave();
         renderNotes();
         syncModalInputs(note);
       } else {
         note.reminder = dateTime;
         note.reminderTriggered = false;
-        saveToLocalStorage();
+        debouncedSave();
         renderNotes();
         renderModalReminderChip(note);
       }
@@ -4926,13 +4926,13 @@ function openEditModal(note) {
         note.text = applyInlineReminderToChecklistText(note.text, activeChecklistIndex, '');
         note.type = note.recipeData ? 'recipe' : getNoteType(note.text);
         modalText.value = note.text;
-        saveToLocalStorage();
+        debouncedSave();
         renderNotes();
         syncModalInputs(note);
       } else {
         note.reminder = null;
         note.reminderTriggered = false;
-        saveToLocalStorage();
+        debouncedSave();
         renderNotes();
         renderModalReminderChip(note);
       }
@@ -5017,6 +5017,13 @@ function toggleViewLayout() {
 // ==========================================================================
 // 13. Helpers
 // ==========================================================================
+
+// Debounced save — coalesces rapid sequential calls into one write (400ms window)
+let _saveTimer;
+function debouncedSave() {
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(saveToLocalStorage, 400);
+}
 
 function saveToLocalStorage() {
   try {

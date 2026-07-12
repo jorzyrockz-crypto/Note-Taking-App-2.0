@@ -8,12 +8,18 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="AtlasNest">
-  <title>HyperKeep — Upgraded Keep Clone</title>
+  <title>AtlasNest — Your Visual Note Studio</title>
   
-  <!-- Premium Modern Fonts -->
+  <!-- Non-blocking Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap"></noscript>
+
+  <!-- Modulepreload: fetch JS modules early -->
+  <link rel="modulepreload" href="app.js">
+  <link rel="modulepreload" href="note-types/index.js">
+  <link rel="modulepreload" href="note-types/checklist-note.js">
   
   <link rel="manifest" href="site.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">

@@ -563,10 +563,10 @@ body.sidebar-pinned .app-sidebar .sidebar-label,
 
 @keyframes geminiPulse {
   0% {
-    box-shadow: 0 0 10px rgba(48, 140, 248, 0.15), 0 0 5px rgba(155, 81, 224, 0.1);
+    opacity: 0.9;
   }
   100% {
-    box-shadow: 0 0 20px rgba(48, 140, 248, 0.35), 0 0 10px rgba(155, 81, 224, 0.25);
+    opacity: 1;
   }
 }
 
@@ -5230,6 +5230,8 @@ body.dark-theme .note-card[data-note-kind="image"] {
   flex-direction: column;
   gap: 20px;
   padding: 4px clamp(18px, 4vw, 52px) 40px;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 800px;
 }
 
 .productivity-hero {
@@ -6620,6 +6622,8 @@ body.card-style-glass .edit-modal-card textarea {
   padding: 0 24px;
   animation: fadeIn 0.22s cubic-bezier(0.4, 0, 0.2, 1);
   box-sizing: border-box;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 600px;
 }
 
 .settings-page-header {

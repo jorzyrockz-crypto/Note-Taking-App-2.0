@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlasnest-v22';
+const CACHE_NAME = 'atlasnest-v23';
 const APP_ASSETS = [
   './',
   './index.html',
@@ -43,6 +43,23 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (event.request.method !== 'GET') return;
+
+  // Stale-while-revalidate for Google Fonts (CSS + font files)
+  const url = new URL(event.request.url);
+  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
+    event.respondWith(
+      caches.open('atlasnest-fonts').then(cache =>
+        cache.match(event.request).then(cached => {
+          const networkFetch = fetch(event.request).then(res => {
+            if (res && res.status === 200) cache.put(event.request, res.clone());
+            return res;
+          }).catch(() => cached);
+          return cached || networkFetch;
+        })
+      )
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
