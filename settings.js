@@ -49,6 +49,7 @@ export function initSettings() {
   settingsLinkPreviews = document.getElementById('settings-link-previews');
   settingsCheckedBottom = document.getElementById('settings-checked-bottom');
   settingsNewBottom = document.getElementById('settings-new-bottom');
+  settingsAdvancedEditor = document.getElementById('settings-advanced-editor');
   settingsCardStyle = document.getElementById('settings-card-style');
 
   settingsEmojiOpacity = document.getElementById('settings-emoji-opacity');
@@ -116,6 +117,7 @@ export function renderSettingsPage() {
   if (settingsLinkPreviews) settingsLinkPreviews.checked = appSettings.linkPreviewsEnabled;
   if (settingsCheckedBottom) settingsCheckedBottom.checked = appSettings.checkedItemsToBottom;
   if (settingsNewBottom) settingsNewBottom.checked = appSettings.newChecklistItemsToBottom;
+  if (settingsAdvancedEditor) settingsAdvancedEditor.checked = appSettings.advancedEditorEnabled;
   if (settingsCardStyle) settingsCardStyle.value = appSettings.cardLayoutStyle;
 
   // Sliders
@@ -155,6 +157,10 @@ export function updateSettingsLivePreview() {
   if (opacityLabel) opacityLabel.textContent = `${opacityVal}%`;
   if (sizeLabel) sizeLabel.textContent = `${sizeVal}px`;
   if (spacingLabel) spacingLabel.textContent = `${spacingVal}px`;
+
+  if (settingsEmojiOpacity) updateSliderTrackFill(settingsEmojiOpacity);
+  if (settingsEmojiSize) updateSliderTrackFill(settingsEmojiSize);
+  if (settingsEmojiSpacing) updateSliderTrackFill(settingsEmojiSpacing);
 
   // Draw preview using a dummy preset (spring)
   const tempControls = { opacity: opacityVal, size: sizeVal, spacing: spacingVal };
@@ -390,6 +396,7 @@ export function saveSettingsFromForm() {
     linkPreviewsEnabled: settingsLinkPreviews.checked,
     checkedItemsToBottom: settingsCheckedBottom.checked,
     newChecklistItemsToBottom: settingsNewBottom.checked,
+    advancedEditorEnabled: settingsAdvancedEditor ? settingsAdvancedEditor.checked : true,
     cardLayoutStyle: settingsCardStyle.value,
     reminderTimes: {
       morning: settingsReminderMorning.value,

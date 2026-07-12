@@ -60,6 +60,7 @@ export let appSettings = {
   linkPreviewsEnabled: true,
   checkedItemsToBottom: true,
   newChecklistItemsToBottom: true,
+  advancedEditorEnabled: true,
   cardLayoutStyle: 'default',
   reminderTimes: {
     morning: '08:00',
@@ -297,6 +298,7 @@ function syncThemePickerControlValues() {
     const key = input.getAttribute('data-control-key');
     if (!(key in controls)) return;
     input.value = controls[key];
+    updateSliderTrackFill(input);
   });
   themePickerV2Controls.querySelectorAll('[data-control-value]').forEach(output => {
     const key = output.getAttribute('data-control-value');
@@ -828,6 +830,15 @@ const creatorCollapsed = document.getElementById('creator-collapsed');
 const creatorExpanded = document.getElementById('creator-expanded');
 const creatorTitle = document.getElementById('creator-title');
 const creatorText = document.getElementById('creator-text');
+const creatorAdvancedHeader = document.getElementById('creator-advanced-header');
+const creatorBackBtn = document.getElementById('creator-back-btn');
+const creatorBreadcrumb = document.getElementById('creator-breadcrumb');
+const creatorAutosaveStatus = document.getElementById('creator-autosave-status');
+const creatorShareBtn = document.getElementById('creator-share-btn');
+const creatorMoreBtn = document.getElementById('creator-more-btn');
+const creatorMetadata = document.getElementById('creator-metadata');
+const creatorFloatingToolbar = document.getElementById('creator-floating-toolbar');
+const creatorMorePopover = document.getElementById('creator-more-popover');
 const creatorSave = document.getElementById('creator-save');
 const creatorClose = document.getElementById('creator-close');
 const creatorPin = document.getElementById('creator-pin');
@@ -1660,10 +1671,12 @@ function setupEventHandlers() {
     }
     syncCreatorFolderInput();
     scheduleCreatorLinkPreview();
+    triggerAutosave();
   });
   creatorTitle.addEventListener('input', () => {
     syncCreatorFolderInput();
     scheduleCreatorLinkPreview();
+    triggerAutosave();
   });
   creatorText.addEventListener('paste', () => {
     expandCreator();
@@ -1968,6 +1981,7 @@ function setupEventHandlers() {
     }
   });
   document.addEventListener('click', closeImageSourcePicker);
+  initAdvancedEditorHandlers();
 }
 
 // ==========================================================================
@@ -2206,19 +2220,65 @@ function buildColorGrid(container, activeColor, activeTheme, activeCustomTheme, 
 // 5. Note Creation
 // ==========================================================================
 
+let creatorActiveNoteId = null;
+
 function expandCreator() {
   creatorCollapsed.style.display = 'none';
   creatorExpanded.style.display = 'flex';
-  creatorPin.style.display = 'flex'; // Show pin button when expanded
+  
+  if (appSettings.advancedEditorEnabled) {
+    creatorWrapper.classList.add('advanced-editor-active');
+    document.body.classList.add('advanced-editor-open');
+    creatorAdvancedHeader.style.display = 'flex';
+    creatorMetadata.style.display = 'block';
+    creatorFloatingToolbar.style.display = 'flex';
+    
+    const date = new Date();
+    creatorMetadata.textContent = date.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }) + ' • ' + date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    
+    creatorTitle.placeholder = 'Untitled Note';
+    creatorText.placeholder = 'Start writing...';
+    creatorPin.style.display = 'none';
+    
+    creatorActiveNoteId = 'note-' + Date.now();
+    
+    const selectedFolders = decodeFolderSelection(creatorFolderInput?.value || '');
+    const primaryFolder = selectedFolders[0] || 'Personal';
+    creatorBreadcrumb.textContent = `${primaryFolder} / Ideas`;
+    
+    renderPopoverCategories();
+    renderPopoverColors();
+    initPopoverReminder();
+    
+    creatorTitle.focus();
+  } else {
+    creatorPin.style.display = 'flex';
+    creatorTitle.placeholder = 'Title';
+    creatorText.placeholder = 'Take a note...';
+    creatorText.focus();
+  }
+  
   syncCreatorInputs();
   syncCreatorFolderInput(true);
-  creatorText.focus();
 }
 
 function collapseCreator() {
   creatorCollapsed.style.display = 'flex';
   creatorExpanded.style.display = 'none';
-  creatorPin.style.display = 'none'; // Hide pin button when collapsed
+  creatorPin.style.display = 'none';
+  
+  if (appSettings.advancedEditorEnabled) {
+    creatorWrapper.classList.remove('advanced-editor-active');
+    document.body.classList.remove('advanced-editor-open');
+    creatorAdvancedHeader.style.display = 'none';
+    creatorMetadata.style.display = 'none';
+    creatorFloatingToolbar.style.display = 'none';
+    creatorMorePopover.style.display = 'none';
+    
+    creatorTitle.placeholder = 'Title';
+    creatorText.placeholder = 'Take a note...';
+    creatorActiveNoteId = null;
+  }
   
   creatorTitle.value = '';
   creatorText.value = '';
@@ -2229,10 +2289,10 @@ function collapseCreator() {
   creatorLinkPreviewAbort = null;
   
   creatorColor = 'default';
-  creatorTheme = null; // Reset pattern theme
+  creatorTheme = null;
   creatorCustomTheme = null;
-  creatorReminder = null; // Reset reminder
-  creatorAudio = null; // Reset audio
+  creatorReminder = null;
+  creatorAudio = null;
   creatorFolder = '';
   creatorFolders = [];
   creatorAutoFolder = '';
@@ -2271,6 +2331,309 @@ function collapseCreator() {
     creatorColorPicker.classList.remove('visible');
   });
   creatorColorPicker.classList.remove('visible');
+}
+
+function saveCreatorNoteDraft() {
+  if (!appSettings.advancedEditorEnabled || !creatorActiveNoteId) return;
+
+  const title = creatorTitle.value.trim();
+  const text = creatorText.value.trim();
+
+  // If empty, and it was previously saved, we should remove it from notes
+  if (isNoteEffectivelyEmpty(title, text, creatorImage, creatorAudio, creatorFiles)) {
+    const idx = notes.findIndex(n => n.id === creatorActiveNoteId);
+    if (idx !== -1) {
+      notes.splice(idx, 1);
+      saveToLocalStorage();
+      renderNotes();
+    }
+    creatorAutosaveStatus.textContent = '✓ Saved';
+    return;
+  }
+
+  const selectedFolders = decodeFolderSelection(creatorFolderInput?.value || '');
+
+  // Check if note already exists in the array
+  let note = notes.find(n => n.id === creatorActiveNoteId);
+  if (!note) {
+    // Create new note
+    note = normalizeNoteType(setNoteFolders({
+      id: creatorActiveNoteId,
+      type: creatorIntentType || getNoteType(text),
+      title: title,
+      text: text,
+      color: creatorColor,
+      theme: creatorTheme,
+      customTheme: creatorTheme === CUSTOM_THEME_ID ? creatorCustomTheme : null,
+      reminder: creatorReminder,
+      reminderTriggered: false,
+      audio: creatorAudio,
+      audioDuration: creatorAudioDuration,
+      pinned: creatorPinned,
+      archived: false,
+      archivedAt: null,
+      deleted: false,
+      deletedAt: null,
+      image: creatorImage,
+      files: normalizeNoteFiles(creatorFiles),
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    }, selectedFolders));
+    
+    registerNoteFolders(note);
+    notes.unshift(note);
+  } else {
+    // Update existing note
+    note.title = title;
+    note.text = text;
+    note.type = creatorIntentType || getNoteType(text);
+    note.color = creatorColor;
+    note.theme = creatorTheme;
+    note.customTheme = creatorTheme === CUSTOM_THEME_ID ? creatorCustomTheme : null;
+    note.reminder = creatorReminder;
+    note.audio = creatorAudio;
+    note.audioDuration = creatorAudioDuration;
+    note.pinned = creatorPinned;
+    note.image = creatorImage;
+    note.files = normalizeNoteFiles(creatorFiles);
+    note.updatedAt = Date.now();
+    setNoteFolders(note, selectedFolders);
+    registerNoteFolders(note);
+  }
+
+  saveToLocalStorage();
+  renderNotes();
+
+  creatorAutosaveStatus.textContent = '✓ Saved';
+}
+
+function renderPopoverCategories() {
+  const container = document.getElementById('popover-category-container');
+  if (!container) return;
+  container.innerHTML = '';
+  
+  const currentFolders = getSelectedFolders(creatorFolders.length ? creatorFolders : decodeFolderSelection(creatorFolderInput?.value || ''));
+
+  getAllFolders().forEach(folder => {
+    const isActive = currentFolders.includes(folder);
+    const item = document.createElement('label');
+    item.className = 'popover-category-item';
+    item.innerHTML = `
+      <input type="checkbox" ${isActive ? 'checked' : ''}>
+      <span>${folder}</span>
+    `;
+    item.querySelector('input').addEventListener('change', () => {
+      toggleCreatorFolder(folder);
+      renderPopoverCategories();
+      
+      // Update breadcrumb category
+      const activeFolders = getSelectedFolders(creatorFolders.length ? creatorFolders : decodeFolderSelection(creatorFolderInput?.value || ''));
+      const primaryFolder = activeFolders[0] || 'Personal';
+      creatorBreadcrumb.textContent = `${primaryFolder} / Ideas`;
+      
+      saveCreatorNoteDraft();
+    });
+    container.appendChild(item);
+  });
+}
+
+function renderPopoverColors() {
+  const container = document.getElementById('popover-color-grid');
+  if (!container) return;
+  
+  buildColorGrid(container, creatorColor, creatorTheme, creatorCustomTheme, (type, value) => {
+    const normalized = applyAppearanceSelection({
+      color: creatorColor,
+      theme: creatorTheme,
+      customTheme: creatorCustomTheme
+    }, type, value);
+    
+    creatorColor = normalized.color;
+    creatorTheme = normalized.theme;
+    creatorCustomTheme = normalized.customTheme;
+    
+    applyCreatorAppearance();
+    saveCreatorNoteDraft();
+    renderPopoverColors();
+  });
+}
+
+function initPopoverReminder() {
+  const input = document.getElementById('popover-reminder-input');
+  if (!input) return;
+  
+  if (creatorReminder) {
+    const date = new Date(creatorReminder);
+    if (!Number.isNaN(date.getTime())) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      input.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+  } else {
+    input.value = '';
+  }
+}
+
+function initAdvancedEditorHandlers() {
+  // Back button
+  creatorBackBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    saveCreatorNoteDraft();
+    collapseCreator();
+  });
+
+  // Share button
+  creatorShareBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const mockNote = {
+      id: creatorActiveNoteId || 'note-temp',
+      title: creatorTitle.value,
+      text: creatorText.value,
+      color: creatorColor,
+      theme: creatorTheme,
+      customTheme: creatorTheme === CUSTOM_THEME_ID ? creatorCustomTheme : null,
+      files: creatorFiles,
+      image: creatorImage
+    };
+    openShareSheet(mockNote);
+  });
+
+  // More Popover toggle
+  creatorMoreBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = creatorMorePopover.style.display === 'block';
+    creatorMorePopover.style.display = open ? 'none' : 'block';
+  });
+
+  creatorMorePopover?.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+
+  // Category Popover inputs
+  const popoverCategoryInput = document.getElementById('popover-category-input');
+  const popoverCategoryAddBtn = document.getElementById('popover-category-add-btn');
+  popoverCategoryAddBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const customFolder = popoverCategoryInput.value.trim();
+    if (!customFolder) return;
+    const currentFolders = getSelectedFolders(creatorFolders.length ? creatorFolders : decodeFolderSelection(creatorFolderInput?.value || ''));
+    setCreatorFolderValue([...currentFolders, customFolder]);
+    popoverCategoryInput.value = '';
+    renderPopoverCategories();
+    saveCreatorNoteDraft();
+  });
+
+  // Reminder popover set/clear
+  const reminderInput = document.getElementById('popover-reminder-input');
+  const reminderSaveBtn = document.getElementById('popover-reminder-save-btn');
+  const reminderClearBtn = document.getElementById('popover-reminder-clear-btn');
+  
+  reminderSaveBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!reminderInput.value) return;
+    const timeMs = new Date(reminderInput.value).getTime();
+    if (Number.isNaN(timeMs)) return;
+    creatorReminder = timeMs;
+    renderCreatorReminderChip();
+    saveCreatorNoteDraft();
+    showToast({ title: 'Reminder Set', text: 'Note reminder updated successfully.' });
+  });
+
+  reminderClearBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    creatorReminder = null;
+    reminderInput.value = '';
+    renderCreatorReminderChip();
+    saveCreatorNoteDraft();
+    showToast({ title: 'Reminder Cleared', text: 'Note reminder removed.' });
+  });
+
+  // Formatting toolbar bindings
+  document.getElementById('tb-bold')?.addEventListener('click', () => formatSelectedText('**', '**'));
+  document.getElementById('tb-italic')?.addEventListener('click', () => formatSelectedText('*', '*'));
+  document.getElementById('tb-underline')?.addEventListener('click', () => formatSelectedText('<u>', '</u>'));
+  document.getElementById('tb-checklist')?.addEventListener('click', () => {
+    const isList = isChecklistFormat(creatorText.value);
+    creatorText.value = isList ? checklistToPlain(creatorText.value) : plainToChecklist(creatorText.value);
+    syncCreatorInputs();
+    triggerAutosave();
+  });
+  document.getElementById('tb-bullet')?.addEventListener('click', () => {
+    const pos = creatorText.selectionStart;
+    const text = creatorText.value;
+    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+    creatorText.value = text.substring(0, lineStart) + '• ' + text.substring(lineStart);
+    creatorText.selectionStart = creatorText.selectionEnd = pos + 2;
+    creatorText.focus();
+    triggerAutosave();
+  });
+  document.getElementById('tb-number')?.addEventListener('click', () => {
+    const pos = creatorText.selectionStart;
+    const text = creatorText.value;
+    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+    creatorText.value = text.substring(0, lineStart) + '1. ' + text.substring(lineStart);
+    creatorText.selectionStart = creatorText.selectionEnd = pos + 3;
+    creatorText.focus();
+    triggerAutosave();
+  });
+  document.getElementById('tb-image')?.addEventListener('click', () => creatorImageInput.click());
+  document.getElementById('tb-file')?.addEventListener('click', () => creatorFileInput.click());
+  document.getElementById('tb-link')?.addEventListener('click', () => creatorLinkParserBtn.click());
+  document.getElementById('tb-emoji')?.addEventListener('click', () => {
+    const emoji = prompt("Enter emoji:", "📝");
+    if (emoji) formatSelectedText(emoji);
+  });
+  document.getElementById('tb-code')?.addEventListener('click', () => {
+    const start = creatorText.selectionStart;
+    const end = creatorText.selectionEnd;
+    const isMultiLine = creatorText.value.substring(start, end).includes('\n');
+    if (isMultiLine) {
+      formatSelectedText('```\n', '\n```');
+    } else {
+      formatSelectedText('`', '`');
+    }
+  });
+  document.getElementById('tb-quote')?.addEventListener('click', () => {
+    const pos = creatorText.selectionStart;
+    const text = creatorText.value;
+    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+    creatorText.value = text.substring(0, lineStart) + '> ' + text.substring(lineStart);
+    creatorText.selectionStart = creatorText.selectionEnd = pos + 2;
+    creatorText.focus();
+    triggerAutosave();
+  });
+}
+
+function formatSelectedText(syntaxStart, syntaxEnd = '') {
+  const start = creatorText.selectionStart;
+  const end = creatorText.selectionEnd;
+  const val = creatorText.value;
+  
+  const selectedText = val.substring(start, end);
+  const replacement = syntaxStart + selectedText + syntaxEnd;
+  
+  creatorText.value = val.substring(0, start) + replacement + val.substring(end);
+  creatorText.focus();
+  
+  creatorText.selectionStart = start + syntaxStart.length;
+  creatorText.selectionEnd = start + syntaxStart.length + selectedText.length;
+  
+  triggerAutosave();
+  autoGrowTextarea.call(creatorText);
+}
+
+let autosaveDebounceTimer = null;
+function triggerAutosave() {
+  if (!appSettings.advancedEditorEnabled || !creatorActiveNoteId) return;
+  creatorAutosaveStatus.textContent = 'Saving...';
+  creatorAutosaveStatus.style.opacity = '1';
+  clearTimeout(autosaveDebounceTimer);
+  autosaveDebounceTimer = setTimeout(() => {
+    saveCreatorNoteDraft();
+  }, 1000);
 }
 
 function saveCreatorNote() {
