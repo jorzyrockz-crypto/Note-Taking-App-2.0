@@ -1964,6 +1964,38 @@ function setupEventHandlers() {
     }
   });
   document.addEventListener('click', closeImageSourcePicker);
+
+  // Handle pasting images from clipboard
+  const handlePasteImage = (event, target) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          event.preventDefault();
+          if (target === 'modal' && currentEditingNoteId) {
+            const note = notes.find(n => n.id === currentEditingNoteId);
+            if (note) {
+              note.title = modalTitle.value.trim();
+              note.text = modalText.value.trim();
+            }
+          }
+          handleSelectedImageFile(target, file);
+          break;
+        }
+      }
+    }
+  };
+
+  noteCreator?.addEventListener('paste', (e) => {
+    handlePasteImage(e, 'creator');
+  });
+
+  editModalCard?.addEventListener('paste', (e) => {
+    handlePasteImage(e, 'modal');
+  });
+
   initAdvancedEditorHandlers();
   initModalAdvancedEditorHandlers();
 }
@@ -3692,6 +3724,10 @@ function handleSelectedImageFile(target, file) {
       note.image = base64;
       modalImgPreview.src = base64;
       modalImageBanner.style.display = 'block';
+      modalImgPreview.onclick = (e) => {
+        e.stopPropagation();
+        openImageViewer(note.image, cleanTitleTags(note.title || 'Note image'));
+      };
       saveToLocalStorage();
       renderNotes();
     }
@@ -4313,6 +4349,10 @@ function initCanvasDrawEngine() {
         note.image = dataUrl;
         modalImgPreview.src = dataUrl;
         modalImageBanner.style.display = 'block';
+        modalImgPreview.onclick = (e) => {
+          e.stopPropagation();
+          openImageViewer(note.image, cleanTitleTags(note.title || 'Note image'));
+        };
         saveToLocalStorage();
         renderNotes();
       }

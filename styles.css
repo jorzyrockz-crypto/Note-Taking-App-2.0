@@ -7688,7 +7688,7 @@ body.dark-theme .advanced-editor-header {
 }
 
 .creator-wrapper.advanced-editor-active #creator-text,
-.edit-modal-card #modal-text {
+.edit-modal-card.advanced-editor-active #modal-text {
   font-size: 16px !important;
   /* Make textarea transparent so mirror shows through */
   color: transparent !important;
