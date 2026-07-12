@@ -1381,12 +1381,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
-  if (window.location.protocol === 'file:') return;
-
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch((error) => {
-      console.warn('Service worker registration failed:', error);
-    });
+  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+    for (let registration of registrations) {
+      registration.unregister();
+    }
   });
 }
 
@@ -3495,11 +3493,16 @@ function renderNotes() {
 
 function renderNotesPage() {
   const settingsPageEl = document.getElementById('settings-page');
+  const prodPageEl = document.getElementById('productivity-page');
+  
   if (settingsPageEl) settingsPageEl.style.display = 'none';
-  creatorWrapper.style.display = '';
+  if (prodPageEl) prodPageEl.style.display = 'none';
+  
+  if (creatorWrapper) {
+    creatorWrapper.style.display = (currentPage === 'notes') ? '' : 'none';
+  }
   if (feedFilterRow) feedFilterRow.style.display = '';
   if (notesFeed) notesFeed.style.display = '';
-  if (productivityPage) productivityPage.style.display = 'none';
   if (currentPage !== 'notes') {
     setActiveSidebarPage(currentPage);
   } else if (!selectedFolderFilter && !selectedTagFilter) {

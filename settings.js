@@ -100,7 +100,7 @@ export function initSettings() {
 export function renderSettingsPage() {
   if (!settingsPage) return;
 
-  const creatorWrapper = document.getElementById('creator-wrapper');
+  const creatorWrapper = document.querySelector('.creator-wrapper');
   const feedFilterRow = document.getElementById('feed-filter-row');
   const notesFeed = document.getElementById('notes-feed');
   const productivityPage = document.getElementById('productivity-page');
@@ -410,7 +410,6 @@ export function saveSettingsFromForm() {
 
   // Sync presentation and notes grid
   syncEmojiThemePresentation();
-  renderNotes();
 
   showToast({ title: 'Settings Saved', text: 'Your preferences have been updated successfully.' });
 }

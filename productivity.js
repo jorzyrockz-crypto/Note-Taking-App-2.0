@@ -134,7 +134,7 @@ export function ensureProductivityPage() {
 export function renderProductivityPage() {
   ensureProductivityPage();
   const settingsPage = document.getElementById('settings-page');
-  const creatorWrapper = document.getElementById('creator-wrapper');
+  const creatorWrapper = document.querySelector('.creator-wrapper');
   const feedFilterRow = document.getElementById('feed-filter-row');
   const notesFeed = document.getElementById('notes-feed');
 
