@@ -1,15 +1,10 @@
-const CACHE_NAME = 'atlasnest-v23';
+const CACHE_NAME = 'atlasnest-v24';
+// Static assets that never get hashed — safe to precache by path
 const APP_ASSETS = [
   './',
   './index.html',
-  './styles.css',
-  './app.js',
   './site.webmanifest',
   './icons/icon.svg',
-  './note-types/index.js',
-  './note-types/shared.js',
-  './note-types/text-note.js',
-  './note-types/checklist-note.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -57,6 +52,23 @@ self.addEventListener('fetch', (event) => {
           return cached || networkFetch;
         })
       )
+    );
+    return;
+  }
+
+  // Cache-first for Vite hashed assets (/assets/*) — immutable content-hashed files
+  if (url.pathname.startsWith('/assets/')) {
+    event.respondWith(
+      caches.match(event.request).then(cached => {
+        if (cached) return cached;
+        return fetch(event.request).then(res => {
+          if (res && res.status === 200) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          }
+          return res;
+        });
+      })
     );
     return;
   }
