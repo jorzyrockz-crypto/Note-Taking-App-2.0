@@ -29,7 +29,8 @@ import {
   subscribeToCloudNotes,
   subscribeToVersionUpdates,
   saveSettingsToCloud,
-  fetchSettingsFromCloud
+  fetchSettingsFromCloud,
+  subscribeToSettings
 } from './firebase.js';
 
 // ==========================================================================
@@ -112,6 +113,7 @@ let selectedTypeFilter = 'all';
 export let currentPage = 'notes';
 export let currentUser = null;
 let cloudNotesUnsubscribe = null;
+let settingsUnsubscribe = null;
 let selectedProductivityTaskFilter = 'all';
 export let selectedProductivityDayView = 'agenda';
 export let calendarCursorDate = new Date();
@@ -332,73 +334,79 @@ export function saveCustomThemesAndSync() {
   }
 }
 
-export async function syncSettingsWithCloud(uid) {
-  try {
-    const localUpdatedAt = parseInt(localStorage.getItem(STORAGE_KEYS.settingsUpdatedAt) || '0', 10);
-    const cloudData = await fetchSettingsFromCloud(uid);
+export function initSettingsCloudSync(uid) {
+  if (settingsUnsubscribe) {
+    settingsUnsubscribe();
+    settingsUnsubscribe = null;
+  }
 
-    if (cloudData) {
-      const cloudUpdatedAt = cloudData.updatedAt || 0;
-      if (localUpdatedAt > cloudUpdatedAt) {
+  settingsUnsubscribe = subscribeToSettings(uid, async (cloudData) => {
+    try {
+      const localUpdatedAt = parseInt(localStorage.getItem(STORAGE_KEYS.settingsUpdatedAt) || '0', 10);
+
+      if (cloudData) {
+        const cloudUpdatedAt = cloudData.updatedAt || 0;
+        if (localUpdatedAt > cloudUpdatedAt) {
+          await saveSettingsToCloud(uid, {
+            settings: appSettings,
+            customThemes: customThemes,
+            emojiThemeControls: getEmojiThemeControls(),
+            updatedAt: localUpdatedAt
+          });
+          showToast({ title: 'Settings Synced', text: 'Local preferences synced to cloud.' });
+        } else if (cloudUpdatedAt > localUpdatedAt) {
+          if (cloudData.settings) {
+            Object.assign(appSettings, cloudData.settings);
+            localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
+          }
+          if (cloudData.customThemes) {
+            customThemes.splice(0, customThemes.length, ...cloudData.customThemes);
+            localStorage.setItem(STORAGE_KEYS.customThemes, JSON.stringify(customThemes));
+            THEME_PRESETS.splice(0, THEME_PRESETS.length, ...DEFAULT_THEME_PRESETS, ...customThemes);
+          }
+          if (cloudData.emojiThemeControls) {
+            globalEmojiThemeControls.opacity = clamp(numericSetting(cloudData.emojiThemeControls.opacity, DEFAULT_EMOJI_THEME_CONTROLS.opacity), 0, 28);
+            globalEmojiThemeControls.size = clamp(numericSetting(cloudData.emojiThemeControls.size, DEFAULT_EMOJI_THEME_CONTROLS.size), 10, 34);
+            globalEmojiThemeControls.spacing = clamp(numericSetting(cloudData.emojiThemeControls.spacing, DEFAULT_EMOJI_THEME_CONTROLS.spacing), 64, 160);
+            saveEmojiThemeControls();
+          }
+          
+          localStorage.setItem(STORAGE_KEYS.settingsUpdatedAt, cloudUpdatedAt.toString());
+          
+          applyCardLayoutStyle(appSettings.cardLayoutStyle);
+          syncEmojiThemePresentation();
+          buildColorPickers();
+          renderNotes();
+
+          if (currentPage === 'settings') {
+            const settingsModule = await import('./settings.js').catch(() => null);
+            if (settingsModule) {
+              if (typeof settingsModule.renderSettingsPage === 'function') {
+                settingsModule.renderSettingsPage();
+              }
+              if (typeof settingsModule.renderSettingsCustomThemesList === 'function') {
+                settingsModule.renderSettingsCustomThemesList();
+              }
+            }
+          }
+
+          showToast({ title: 'Settings Restored', text: 'Restored latest preferences from cloud.' });
+        }
+      } else {
         await saveSettingsToCloud(uid, {
           settings: appSettings,
           customThemes: customThemes,
           emojiThemeControls: getEmojiThemeControls(),
-          updatedAt: localUpdatedAt
+          updatedAt: localUpdatedAt || Date.now()
         });
-        showToast({ title: 'Settings Synced', text: 'Local preferences synced to cloud.' });
-      } else if (cloudUpdatedAt > localUpdatedAt) {
-        if (cloudData.settings) {
-          Object.assign(appSettings, cloudData.settings);
-          localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
+        if (!localUpdatedAt) {
+          localStorage.setItem(STORAGE_KEYS.settingsUpdatedAt, Date.now().toString());
         }
-        if (cloudData.customThemes) {
-          customThemes.splice(0, customThemes.length, ...cloudData.customThemes);
-          localStorage.setItem(STORAGE_KEYS.customThemes, JSON.stringify(customThemes));
-          THEME_PRESETS.splice(0, THEME_PRESETS.length, ...DEFAULT_THEME_PRESETS, ...customThemes);
-        }
-        if (cloudData.emojiThemeControls) {
-          globalEmojiThemeControls.opacity = clamp(numericSetting(cloudData.emojiThemeControls.opacity, DEFAULT_EMOJI_THEME_CONTROLS.opacity), 0, 28);
-          globalEmojiThemeControls.size = clamp(numericSetting(cloudData.emojiThemeControls.size, DEFAULT_EMOJI_THEME_CONTROLS.size), 10, 34);
-          globalEmojiThemeControls.spacing = clamp(numericSetting(cloudData.emojiThemeControls.spacing, DEFAULT_EMOJI_THEME_CONTROLS.spacing), 64, 160);
-          saveEmojiThemeControls();
-        }
-        
-        localStorage.setItem(STORAGE_KEYS.settingsUpdatedAt, cloudUpdatedAt.toString());
-        
-        applyCardLayoutStyle(appSettings.cardLayoutStyle);
-        syncEmojiThemePresentation();
-        buildColorPickers();
-        renderNotes();
-
-        if (currentPage === 'settings') {
-          const settingsModule = await import('./settings.js').catch(() => null);
-          if (settingsModule) {
-            if (typeof settingsModule.renderSettingsPage === 'function') {
-              settingsModule.renderSettingsPage();
-            }
-            if (typeof settingsModule.renderSettingsCustomThemesList === 'function') {
-              settingsModule.renderSettingsCustomThemesList();
-            }
-          }
-        }
-
-        showToast({ title: 'Settings Restored', text: 'Restored latest preferences from cloud.' });
       }
-    } else {
-      await saveSettingsToCloud(uid, {
-        settings: appSettings,
-        customThemes: customThemes,
-        emojiThemeControls: getEmojiThemeControls(),
-        updatedAt: localUpdatedAt || Date.now()
-      });
-      if (!localUpdatedAt) {
-        localStorage.setItem(STORAGE_KEYS.settingsUpdatedAt, Date.now().toString());
-      }
+    } catch (error) {
+      console.warn('Failed to sync settings with cloud:', error);
     }
-  } catch (error) {
-    console.warn('Failed to sync settings with cloud:', error);
-  }
+  });
 }
 
 function syncThemePickerControlValues() {
@@ -7945,6 +7953,10 @@ function initAuth() {
       cloudNotesUnsubscribe();
       cloudNotesUnsubscribe = null;
     }
+    if (settingsUnsubscribe) {
+      settingsUnsubscribe();
+      settingsUnsubscribe = null;
+    }
 
     if (user) {
       currentUser = user;
@@ -7982,8 +7994,8 @@ function initAuth() {
         syncText.textContent = isRealFirebase ? 'Cloud Sync Active' : 'Cloud Sync (Simulated)';
       }
 
-      // Sync settings with Firestore
-      syncSettingsWithCloud(user.uid);
+      // Sync settings with Firestore in real-time
+      initSettingsCloudSync(user.uid);
 
       // Subscribe to real-time cloud updates
       try {

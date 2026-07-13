@@ -401,7 +401,7 @@ export async function saveSettingsToCloud(uid, data) {
       throw e;
     }
   } else {
-    localStorage.setItem(`atlasnest_mock_settings_${uid}`, JSON.stringify(data));
+    localStorage.setItem(`paperuss_mock_settings_${uid}`, JSON.stringify(data));
   }
 }
 
@@ -417,10 +417,57 @@ export async function fetchSettingsFromCloud(uid) {
     }
   } else {
     try {
-      const raw = localStorage.getItem(`atlasnest_mock_settings_${uid}`);
+      let raw = localStorage.getItem(`paperuss_mock_settings_${uid}`);
+      if (!raw) {
+        raw = localStorage.getItem(`atlasnest_mock_settings_${uid}`);
+      }
       return raw ? JSON.parse(raw) : null;
     } catch (e) {
       return null;
     }
+  }
+}
+
+export function subscribeToSettings(uid, callback) {
+  if (isRealFirebase) {
+    try {
+      const docRef = doc(db, 'users', uid, 'settings', 'preferences');
+      return onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+          callback(docSnap.data());
+        } else {
+          callback(null);
+        }
+      }, (error) => {
+        console.warn('Real-time settings sync listener failed:', error);
+      });
+    } catch (e) {
+      console.warn('Failed to initialize settings subscription:', e);
+      callback(null);
+      return () => {};
+    }
+  } else {
+    const handleStorageChange = (e) => {
+      if (e.key === `paperuss_mock_settings_${uid}` || e.key === `atlasnest_mock_settings_${uid}`) {
+        try {
+          const raw = localStorage.getItem(e.key);
+          callback(raw ? JSON.parse(raw) : null);
+        } catch (err) {}
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    
+    setTimeout(() => {
+      try {
+        const raw = localStorage.getItem(`paperuss_mock_settings_${uid}`) || localStorage.getItem(`atlasnest_mock_settings_${uid}`);
+        callback(raw ? JSON.parse(raw) : null);
+      } catch (err) {
+        callback(null);
+      }
+    }, 0);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }
 }
