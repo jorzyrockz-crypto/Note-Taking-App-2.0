@@ -3567,8 +3567,8 @@ audio.link-media-player {
   gap: 6px;
   border: none;
   border-radius: 999px;
-  background: rgba(251, 188, 4, 0.16);
-  color: #8A6400;
+  background: rgba(56, 189, 248, 0.16);
+  color: #0369a1;
   cursor: pointer;
   font-size: 13px;
   font-weight: 700;
@@ -3577,7 +3577,7 @@ audio.link-media-player {
 }
 
 .image-viewer-download:hover {
-  background: rgba(251, 188, 4, 0.26);
+  background: rgba(56, 189, 248, 0.26);
 }
 
 .image-viewer-download svg {
@@ -3611,12 +3611,12 @@ audio.link-media-player {
 }
 
 body.dark-theme .image-viewer-download {
-  background: rgba(251, 188, 4, 0.14);
-  color: #FBBC04;
+  background: rgba(56, 189, 248, 0.14);
+  color: #38bdf8;
 }
 
 body.dark-theme .image-viewer-download:hover {
-  background: rgba(251, 188, 4, 0.22);
+  background: rgba(56, 189, 248, 0.22);
 }
 
 body.dark-theme .image-viewer-close {
@@ -4029,8 +4029,8 @@ body.dark-theme .share-sheet-overlay {
 }
 
 .recipe-field-input:focus {
-  border-color: #fbbc04;
-  box-shadow: 0 0 0 2px rgba(251, 188, 4, 0.15);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
 }
 
 .textarea-field {
@@ -5873,7 +5873,7 @@ body.dark-theme .note-card[data-note-kind="image"] {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #fbbc04, #4f86ff);
+  background: linear-gradient(90deg, #38bdf8, #818cf8);
 }
 
 .productivity-progress-caption {
@@ -5957,7 +5957,7 @@ body.dark-theme .note-card[data-note-kind="image"] {
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #fbbc04, #4f86ff);
+  background: linear-gradient(135deg, #38bdf8, #818cf8);
   flex: 0 0 auto;
   margin-top: 4px;
 }
@@ -6911,7 +6911,7 @@ body.card-style-glass .edit-modal-card textarea {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background-color: var(--accent-light, #fbbc04);
+  background-color: var(--accent-color);
   color: #fff;
   font-weight: 700;
   font-size: 18px;
