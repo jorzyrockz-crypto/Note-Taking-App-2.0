@@ -1770,6 +1770,7 @@ function initData() {
 
 function setupEventHandlers() {
   ensureQuickPasteZone();
+  setupMarkdownKeydownHandlers();
 
   settingsBtn = document.getElementById('settings-btn');
   settingsBtn?.addEventListener('click', () => setActivePage('settings'));
@@ -2582,6 +2583,9 @@ function expandCreator() {
     creatorMetadata.style.display = 'block';
     creatorFloatingToolbar.style.display = 'flex';
     
+    const creatorToolbar = document.getElementById('creator-markdown-toolbar');
+    if (creatorToolbar) creatorToolbar.style.display = 'flex';
+    
     const date = new Date();
     creatorMetadata.textContent = date.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }) + ' • ' + date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     
@@ -2608,6 +2612,9 @@ function expandCreator() {
     if (creatorMetadata) creatorMetadata.style.display = 'none';
     if (creatorFloatingToolbar) creatorFloatingToolbar.style.display = 'none';
     
+    const creatorToolbar = document.getElementById('creator-markdown-toolbar');
+    if (creatorToolbar) creatorToolbar.style.display = 'none';
+    
     creatorPin.style.display = 'flex';
     creatorTitle.placeholder = 'Title';
     creatorText.placeholder = 'Take a note...';
@@ -2622,6 +2629,9 @@ function collapseCreator() {
   creatorCollapsed.style.display = 'flex';
   creatorExpanded.style.display = 'none';
   creatorPin.style.display = 'none';
+  
+  const creatorToolbar = document.getElementById('creator-markdown-toolbar');
+  if (creatorToolbar) creatorToolbar.style.display = 'none';
   
   if (appSettings.advancedEditorEnabled) {
     creatorWrapper.classList.remove('advanced-editor-active');
@@ -2909,6 +2919,78 @@ function initModalPopoverReminder(note) {
   }
 }
 
+function applyMarkdownFormat(textarea, format) {
+  if (!textarea) return;
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const text = textarea.value;
+  const selectedText = text.substring(start, end);
+
+  let formatted = '';
+  let cursorOffsetStart = 0;
+  let cursorOffsetEnd = 0;
+
+  switch (format) {
+    case 'bold':
+      formatted = `**${selectedText || 'bold text'}**`;
+      cursorOffsetStart = selectedText ? 0 : 2;
+      cursorOffsetEnd = selectedText ? 0 : -2;
+      break;
+    case 'italic':
+      formatted = `*${selectedText || 'italic text'}*`;
+      cursorOffsetStart = selectedText ? 0 : 1;
+      cursorOffsetEnd = selectedText ? 0 : -1;
+      break;
+    case 'h1':
+      formatted = `\n# ${selectedText || 'Heading 1'}\n`;
+      break;
+    case 'h2':
+      formatted = `\n## ${selectedText || 'Heading 2'}\n`;
+      break;
+    case 'code':
+      formatted = `\`${selectedText || 'code'}\``;
+      cursorOffsetStart = selectedText ? 0 : 1;
+      cursorOffsetEnd = selectedText ? 0 : -1;
+      break;
+    case 'quote':
+      formatted = `\n> ${selectedText || 'Quote'}\n`;
+      break;
+    case 'tasklist':
+      formatted = `\n- [ ] ${selectedText || 'Task'}\n`;
+      break;
+    case 'bullet':
+      formatted = `\n- ${selectedText || 'List item'}\n`;
+      break;
+    default:
+      return;
+  }
+
+  textarea.value = text.substring(0, start) + formatted + text.substring(end);
+  textarea.focus();
+  const newSelectionStart = start + cursorOffsetStart;
+  const newSelectionEnd = start + formatted.length + cursorOffsetEnd;
+  textarea.setSelectionRange(newSelectionStart, newSelectionEnd);
+
+  textarea.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function setupMarkdownKeydownHandlers() {
+  const handleEditorKeydown = (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        applyMarkdownFormat(e.target, 'bold');
+      } else if (e.key.toLowerCase() === 'i') {
+        e.preventDefault();
+        applyMarkdownFormat(e.target, 'italic');
+      }
+    }
+  };
+
+  creatorText?.addEventListener('keydown', handleEditorKeydown);
+  document.getElementById('modal-text')?.addEventListener('keydown', handleEditorKeydown);
+}
+
 function initAdvancedEditorHandlers() {
   // Back button
   creatorBackBtn?.addEventListener('click', (e) => {
@@ -3157,6 +3239,17 @@ function initAdvancedEditorHandlers() {
     creatorText.selectionStart = creatorText.selectionEnd = pos + 2;
     creatorText.focus();
     triggerAutosave();
+  });
+
+  // Markdown Formatting Toolbar Event Listeners
+  const creatorToolbar = document.getElementById('creator-markdown-toolbar');
+  creatorToolbar?.querySelectorAll('.toolbar-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const format = btn.getAttribute('data-format');
+      applyMarkdownFormat(creatorText, format);
+    });
   });
 }
 
@@ -3409,6 +3502,18 @@ function initModalAdvancedEditorHandlers() {
     modalText.selectionStart = modalText.selectionEnd = pos + 2;
     modalText.focus();
     debouncedSave();
+  });
+
+  // Modal Markdown Formatting Toolbar Event Listeners
+  const modalToolbar = document.getElementById('modal-markdown-toolbar');
+  modalToolbar?.querySelectorAll('.toolbar-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const format = btn.getAttribute('data-format');
+      const mText = document.getElementById('modal-text');
+      applyMarkdownFormat(mText, format);
+    });
   });
 }
 
@@ -5698,11 +5803,17 @@ function openEditModal(note) {
     if (modalAdvancedHeader) modalAdvancedHeader.style.display = 'flex';
     if (modalFloatingToolbar) modalFloatingToolbar.style.display = 'flex';
     if (modalMetadata) modalMetadata.style.display = 'block';
+    
+    const modalToolbar = document.getElementById('modal-markdown-toolbar');
+    if (modalToolbar) modalToolbar.style.display = 'flex';
   } else {
     editModalCard.classList.remove('advanced-editor-active');
     if (modalAdvancedHeader) modalAdvancedHeader.style.display = 'flex';
     if (modalFloatingToolbar) modalFloatingToolbar.style.display = 'none';
     if (modalMetadata) modalMetadata.style.display = 'none';
+    
+    const modalToolbar = document.getElementById('modal-markdown-toolbar');
+    if (modalToolbar) modalToolbar.style.display = 'none';
   }
 
   if (!document.getElementById('modal-folder')) {

@@ -209,6 +209,19 @@
             <div class="editor-scroll-container">
               <input type="text" id="creator-title" placeholder="Title" autocomplete="off">
               <div class="editor-metadata" id="creator-metadata" style="display: none;">Today • 12:00 PM</div>
+              
+              <!-- Markdown Formatting Toolbar -->
+              <div class="markdown-toolbar" id="creator-markdown-toolbar" style="display: none;">
+                <button type="button" class="toolbar-btn" data-format="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+                <button type="button" class="toolbar-btn" data-format="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+                <button type="button" class="toolbar-btn" data-format="h1" title="Heading 1">H1</button>
+                <button type="button" class="toolbar-btn" data-format="h2" title="Heading 2">H2</button>
+                <button type="button" class="toolbar-btn" data-format="code" title="Inline Code"><code>&lt;/&gt;</code></button>
+                <button type="button" class="toolbar-btn" data-format="quote" title="Quote">&ldquo;</button>
+                <button type="button" class="toolbar-btn" data-format="tasklist" title="Task List">[&nbsp;]</button>
+                <button type="button" class="toolbar-btn" data-format="bullet" title="Bullet List">&bull;</button>
+              </div>
+
               <!-- Editor render mirror overlays the textarea with formatted markdown -->
               <div class="editor-textarea-wrap">
                 <textarea id="creator-text" placeholder="Take a note..." rows="1"></textarea>
@@ -684,6 +697,19 @@
 
           <input type="text" id="modal-title" placeholder="Title" autocomplete="off">
           <div class="editor-metadata" id="modal-metadata">Today • 12:00 PM</div>
+          
+          <!-- Markdown Formatting Toolbar -->
+          <div class="markdown-toolbar" id="modal-markdown-toolbar" style="display: none;">
+            <button type="button" class="toolbar-btn" data-format="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+            <button type="button" class="toolbar-btn" data-format="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+            <button type="button" class="toolbar-btn" data-format="h1" title="Heading 1">H1</button>
+            <button type="button" class="toolbar-btn" data-format="h2" title="Heading 2">H2</button>
+            <button type="button" class="toolbar-btn" data-format="code" title="Inline Code"><code>&lt;/&gt;</code></button>
+            <button type="button" class="toolbar-btn" data-format="quote" title="Quote">&ldquo;</button>
+            <button type="button" class="toolbar-btn" data-format="tasklist" title="Task List">[&nbsp;]</button>
+            <button type="button" class="toolbar-btn" data-format="bullet" title="Bullet List">&bull;</button>
+          </div>
+
           <!-- Editor render mirror overlays the textarea with formatted markdown -->
           <div class="editor-textarea-wrap">
             <textarea id="modal-text" placeholder="Note" rows="4"></textarea>
