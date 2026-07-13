@@ -77,6 +77,7 @@ export let appSettings = {
   }
 };
 export let customThemes = [];
+export let experimentalSkyTheme = false;
 
 // Settings DOM Elements
 let settingsBtn, settingsModal, settingsClose, settingsCancel, settingsSave, settingsResetData;
@@ -4929,7 +4930,10 @@ function renderNotesPage() {
     creatorWrapper.style.display = (currentPage === 'notes') ? '' : 'none';
   }
   if (feedFilterRow) feedFilterRow.style.display = '';
-  if (notesFeed) notesFeed.style.display = '';
+  if (notesFeed) {
+    notesFeed.style.display = '';
+    applySkyThemeClass(experimentalSkyTheme);
+  }
   if (currentPage !== 'notes') {
     setActiveSidebarPage(currentPage);
   } else if (!selectedFolderFilter && !selectedTagFilter) {
@@ -7720,6 +7724,27 @@ function loadSettings() {
 
   // Apply layout style
   applyCardLayoutStyle(appSettings.cardLayoutStyle);
+
+  // Load experimental sky theme setting
+  const savedSky = localStorage.getItem('paperuss_experimental_sky');
+  experimentalSkyTheme = savedSky === 'true';
+  applySkyThemeClass(experimentalSkyTheme);
+}
+
+export function applySkyThemeClass(enabled) {
+  const notesFeed = document.getElementById('notes-feed');
+  if (notesFeed) {
+    if (enabled) {
+      notesFeed.classList.add('theme-sky-unified');
+    } else {
+      notesFeed.classList.remove('theme-sky-unified');
+    }
+  }
+}
+
+export function setExperimentalSkyTheme(enabled) {
+  experimentalSkyTheme = enabled;
+  applySkyThemeClass(enabled);
 }
 
 function applyCardLayoutStyle(style) {

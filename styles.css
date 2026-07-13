@@ -8975,3 +8975,67 @@ body.dark-theme .auth-guest-btn:hover {
   border-color: rgba(100, 116, 139, 0.5);
   color: #cbd5e1;
 }
+
+/* ==========================================================================
+   Experimental: Unified Sky Theme Card Layout
+   ========================================================================== */
+
+.theme-sky-unified .note-card {
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border-radius: 20px !important; /* Clean squircle shape */
+  border: 1px solid #e0f2fe !important;
+  box-shadow: 0 4px 12px rgba(56, 189, 248, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.theme-sky-unified .note-card:hover,
+.theme-sky-unified .note-card:focus-within {
+  box-shadow: 0 8px 24px rgba(56, 189, 248, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+  border-color: #38bdf8 !important; /* Focus/interactive sky border glow */
+}
+
+/* Clear pseudo elements, patterns, or gradients applied by custom themes */
+.theme-sky-unified .note-card::before,
+.theme-sky-unified .note-card::after {
+  background-image: none !important;
+  background-color: transparent !important;
+  content: none !important;
+  display: none !important;
+}
+
+/* Force note-surface and preview body components to transparent so card background is clean */
+.theme-sky-unified .note-card .note-surface {
+  background: transparent !important;
+}
+
+.theme-sky-unified .note-card .note-card-preview-body {
+  background: transparent !important;
+}
+
+/* Shift category section headers ("PINNED", "NOTES") to deep Sky Blue */
+.theme-sky-unified .section-title {
+  color: #0284c7 !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.1em !important;
+}
+
+/* Shift card structural labels ("TEXT", "RECIPE", etc.) to deep Sky Blue */
+.theme-sky-unified .note-board-accent {
+  color: #0284c7 !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  opacity: 1 !important;
+}
+
+.theme-sky-unified .note-board-title {
+  color: #0284c7 !important;
+  font-weight: 700 !important;
+}
+
+/* Ensure checklists or inner texts don't have custom card backgrounds/accents bleed */
+.theme-sky-unified .note-card .note-text,
+.theme-sky-unified .note-card .note-title {
+  color: #1e293b !important;
+}
+
