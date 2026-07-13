@@ -351,3 +351,30 @@ export function subscribeToCloudNotes(uid, callback) {
     return () => {};
   }
 }
+
+export function subscribeToVersionUpdates(callback) {
+  if (isRealFirebase) {
+    try {
+      const configDoc = doc(db, 'system', 'config');
+      return onSnapshot(configDoc, (docSnap) => {
+        if (docSnap.exists()) {
+          callback(docSnap.data().version);
+        } else {
+          callback(null);
+        }
+      }, (error) => {
+        console.warn('Failed to listen to repo version updates:', error);
+        callback(null);
+      });
+    } catch (e) {
+      console.warn('Failed to initialize version update subscription:', e);
+      callback(null);
+      return () => {};
+    }
+  } else {
+    setTimeout(() => {
+      callback('2.1.0');
+    }, 0);
+    return () => {};
+  }
+}

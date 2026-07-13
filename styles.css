@@ -8507,6 +8507,13 @@ body.editor-focus-mode:not(.advanced-editor-open) .main-content-area {
   background-color: var(--icon-hover-bg, rgba(95, 99, 104, 0.08));
 }
 
+.update-btn:disabled {
+  color: var(--text-muted, #94a3b8);
+  opacity: 0.6;
+  cursor: default;
+  pointer-events: none;
+}
+
 .changelog-container {
   background-color: var(--icon-hover-bg, rgba(95, 99, 104, 0.08));
   border-radius: 8px;

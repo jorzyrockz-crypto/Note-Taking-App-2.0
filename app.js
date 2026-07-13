@@ -26,7 +26,8 @@ import {
   updateUserProfilePic,
   uploadFileToCloud,
   deleteFileFromCloud,
-  subscribeToCloudNotes
+  subscribeToCloudNotes,
+  subscribeToVersionUpdates
 } from './firebase.js';
 
 // ==========================================================================
@@ -2031,6 +2032,21 @@ function setupEventHandlers() {
 
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
+
+  const CURRENT_VERSION = '2.1.0';
+  subscribeToVersionUpdates((serverVersion) => {
+    if (!appUpdateBtn) return;
+    if (serverVersion && serverVersion !== CURRENT_VERSION) {
+      appUpdateBtn.disabled = false;
+      appUpdateBtn.textContent = 'Update';
+      appUpdateBtn.classList.add('update-available');
+    } else {
+      appUpdateBtn.disabled = true;
+      appUpdateBtn.textContent = 'Latest';
+      appUpdateBtn.classList.remove('update-available');
+    }
+  });
+
   appUpdateBtn?.addEventListener('click', async () => {
     appUpdateBtn.disabled = true;
     appUpdateBtn.textContent = 'Updating...';
@@ -3196,6 +3212,11 @@ function triggerAutosave() {
 }
 
 function saveCreatorNote() {
+  if (appSettings.advancedEditorEnabled) {
+    saveCreatorNoteDraft();
+    return;
+  }
+
   const title = creatorTitle.value.trim();
   const text = creatorText.value.trim();
   
