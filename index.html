@@ -47,52 +47,22 @@
   <link rel="modulepreload" href="note-types/checklist-note.js">
   
   <link rel="manifest" href="site.webmanifest">
-  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-  <link rel="alternate icon" href="favicon.ico" type="image/x-icon">
-  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body class="theme-light light-theme">
 
   <!-- PWA Splash Screen -->
   <div id="pwa-splash" role="presentation" aria-hidden="true">
-    <div class="splash-bg-blobs">
-      <div class="splash-blob blob-1"></div>
-      <div class="splash-blob blob-2"></div>
-      <div class="splash-blob blob-3"></div>
-    </div>
     <div class="splash-inner">
-      <div class="logo-wrapper">
-        <div class="logo-glow-ring"></div>
-        <div class="splash-squircle">
-          <img src="/icons/icon-512.png" alt="Paperuss" class="splash-logo" draggable="false">
-        </div>
+      <div class="splash-squircle">
+        <img src="/icons/icon-512.png" alt="Paperuss" class="splash-logo" draggable="false">
       </div>
       <h1 class="splash-title">Paperuss</h1>
       <p class="splash-tagline">Your Visual Note Studio</p>
-      <div class="splash-loader-container">
-        <div class="splash-loader"><div class="splash-loader-bar"></div></div>
-        <p class="splash-status">Initializing Workspace...</p>
-      </div>
+      <div class="splash-loader"><div class="splash-loader-bar"></div></div>
     </div>
-    <script>
-      (function() {
-        var statuses = [
-          "Initializing Workspace...",
-          "Syncing local database...",
-          "Loading modules...",
-          "Preparing note studio..."
-        ];
-        var idx = 0;
-        var statusEl = document.querySelector('#pwa-splash .splash-status');
-        if (statusEl) {
-          window.splashStatusInterval = setInterval(function() {
-            idx = (idx + 1) % statuses.length;
-            statusEl.textContent = statuses[idx];
-          }, 600);
-        }
-      })();
-    </script>
   </div>
 
   <!-- Top Header Navigation -->
@@ -1251,9 +1221,6 @@
       var splash = document.getElementById('pwa-splash');
       if (!splash) return;
       function dismiss() {
-        if (window.splashStatusInterval) {
-          clearInterval(window.splashStatusInterval);
-        }
         splash.style.opacity = '0';
         splash.style.transform = 'scale(1.04)';
         setTimeout(function () {
