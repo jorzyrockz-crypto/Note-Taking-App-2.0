@@ -53,6 +53,18 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body class="theme-light light-theme">
+
+  <!-- PWA Splash Screen -->
+  <div id="pwa-splash" role="presentation" aria-hidden="true">
+    <div class="splash-inner">
+      <div class="splash-squircle">
+        <img src="/icons/icon-512.png" alt="Paperuss" class="splash-logo" draggable="false">
+      </div>
+      <p class="splash-title">Paperuss</p>
+      <p class="splash-tagline">Your Visual Note Studio</p>
+    </div>
+  </div>
+
   <!-- Top Header Navigation -->
   <header class="app-header">
     <div class="header-left">
@@ -1129,5 +1141,27 @@
   <div class="toast-container" id="toast-container"></div>
 
   <script type="module" src="app.js"></script>
+
+  <!-- PWA Splash Screen Removal -->
+  <script>
+    (function () {
+      var splash = document.getElementById('pwa-splash');
+      if (!splash) return;
+      function dismiss() {
+        splash.style.opacity = '0';
+        splash.style.transform = 'scale(1.04)';
+        setTimeout(function () {
+          if (splash.parentNode) splash.parentNode.removeChild(splash);
+        }, 380);
+      }
+      if (document.readyState === 'complete') {
+        dismiss();
+      } else {
+        window.addEventListener('load', dismiss, { once: true });
+        // Safety net: force dismiss after 3s even if load never fires
+        setTimeout(dismiss, 3000);
+      }
+    })();
+  </script>
 </body>
 </html>
