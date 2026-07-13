@@ -2333,6 +2333,38 @@ function setupEventHandlers() {
 
   initAdvancedEditorHandlers();
   initModalAdvancedEditorHandlers();
+
+  // Set up Emoji Picker Popovers
+  const creatorEmojiPopover = document.getElementById('creator-emoji-popover');
+  const modalEmojiPopover = document.getElementById('modal-emoji-popover');
+
+  // Close popovers on click outside
+  document.addEventListener('click', () => {
+    if (creatorEmojiPopover) creatorEmojiPopover.style.display = 'none';
+    if (modalEmojiPopover) modalEmojiPopover.style.display = 'none';
+  });
+
+  // Wire emojis inside popovers
+  document.querySelectorAll('.emoji-popover').forEach(popover => {
+    const isModal = popover.id === 'modal-emoji-popover';
+    const formatFunc = isModal ? formatModalText : formatSelectedText;
+    
+    popover.querySelectorAll('.emoji-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const emojiValue = item.textContent;
+        formatFunc(emojiValue);
+        popover.style.display = 'none';
+        
+        if (isModal) {
+          debouncedSave();
+        } else {
+          syncCreatorInputs();
+          triggerAutosave();
+        }
+      });
+    });
+  });
 }
 
 // ==========================================================================
@@ -3269,9 +3301,12 @@ function initAdvancedEditorHandlers() {
   document.getElementById('tb-image')?.addEventListener('click', () => creatorImageInput.click());
   document.getElementById('tb-file')?.addEventListener('click', () => creatorFileInput.click());
   document.getElementById('tb-link')?.addEventListener('click', () => creatorLinkParserBtn.click());
-  document.getElementById('tb-emoji')?.addEventListener('click', () => {
-    const emoji = prompt("Enter emoji:", "📝");
-    if (emoji) formatSelectedText(emoji);
+  const creatorEmojiBtn = document.getElementById('tb-emoji');
+  const creatorEmojiPopover = document.getElementById('creator-emoji-popover');
+  creatorEmojiBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isVisible = creatorEmojiPopover.style.display === 'block';
+    creatorEmojiPopover.style.display = isVisible ? 'none' : 'block';
   });
   document.getElementById('tb-code')?.addEventListener('click', () => {
     const start = creatorText.selectionStart;
@@ -3533,9 +3568,12 @@ function initModalAdvancedEditorHandlers() {
     const link = prompt("Enter Link URL:", "https://");
     if (link) formatModalText('[', `](${link})`);
   });
-  document.getElementById('modal-tb-emoji')?.addEventListener('click', () => {
-    const emoji = prompt("Enter emoji:", "📝");
-    if (emoji) formatModalText(emoji);
+  const modalEmojiBtn = document.getElementById('modal-tb-emoji');
+  const modalEmojiPopover = document.getElementById('modal-emoji-popover');
+  modalEmojiBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isVisible = modalEmojiPopover.style.display === 'block';
+    modalEmojiPopover.style.display = isVisible ? 'none' : 'block';
   });
   document.getElementById('modal-tb-code')?.addEventListener('click', () => {
     const start = modalText.selectionStart;

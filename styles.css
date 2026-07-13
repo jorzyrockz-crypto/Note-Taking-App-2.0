@@ -9132,3 +9132,64 @@ body:has(#notes-feed.theme-sky-premium) {
   color: #0284c7 !important;
 }
 
+/* ==========================================================================
+   Emoji Picker Popover
+   ========================================================================== */
+
+.emoji-popover {
+  position: absolute !important;
+  background: rgba(15, 23, 42, 0.94) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 12px !important;
+  padding: 10px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3) !important;
+  z-index: 2000 !important;
+  width: 210px !important;
+  box-sizing: border-box !important;
+}
+
+#creator-emoji-popover {
+  bottom: 65px !important;
+  right: 24px !important;
+}
+
+#modal-emoji-popover {
+  bottom: 65px !important;
+  right: 24px !important;
+}
+
+body.dark-theme .emoji-popover {
+  background: rgba(30, 41, 59, 0.96) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.emoji-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 6px !important;
+}
+
+.emoji-item {
+  font-size: 20px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 8px !important;
+  transition: background-color 0.15s ease, transform 0.1s ease !important;
+  user-select: none !important;
+}
+
+.emoji-item:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  transform: scale(1.1) !important;
+}
+
+.emoji-item:active {
+  transform: scale(0.95) !important;
+}
+
