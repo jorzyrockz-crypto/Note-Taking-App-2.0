@@ -2029,6 +2029,39 @@ function setupEventHandlers() {
     handlePasteImage(e, 'modal');
   });
 
+  // App Update Cache Buster
+  const appUpdateBtn = document.getElementById('app-update-btn');
+  appUpdateBtn?.addEventListener('click', async () => {
+    appUpdateBtn.disabled = true;
+    appUpdateBtn.textContent = 'Updating...';
+
+    showToast({ title: 'Updating App', text: 'Clearing application cache and restarting...' });
+
+    try {
+      // 1. Clear PWA / Cache Storage
+      if ('caches' in window) {
+        const cacheKeys = await caches.keys();
+        await Promise.all(cacheKeys.map(key => caches.delete(key)));
+      }
+
+      // 2. Unregister Service Workers
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(reg => reg.unregister()));
+      }
+
+      // 3. Restart / Reload the app
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (err) {
+      console.warn('Failed to clear app cache during update:', err);
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    }
+  });
+
   initAdvancedEditorHandlers();
   initModalAdvancedEditorHandlers();
 }

@@ -8469,3 +8469,69 @@ body.editor-focus-mode:not(.advanced-editor-open) .main-content-area {
     height: 42px;
   }
 }
+
+/* Version Info & Changelog Styles in Profile Dropdown */
+.profile-version-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.version-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.version-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+}
+
+.update-btn {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary, #1a73e8);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+  font-family: 'Outfit', sans-serif;
+}
+
+.update-btn:hover {
+  background-color: var(--icon-hover-bg, rgba(95, 99, 104, 0.08));
+}
+
+.changelog-container {
+  background-color: var(--icon-hover-bg, rgba(95, 99, 104, 0.08));
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: var(--font-sans);
+}
+
+.changelog-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary, #64748b);
+  margin-bottom: 4px;
+  opacity: 0.8;
+}
+
+.changelog-list {
+  margin: 0;
+  padding-left: 14px;
+  font-size: 11px;
+  color: var(--text-secondary, #64748b);
+  line-height: 1.4;
+}
+
+.changelog-list li {
+  margin-bottom: 2px;
+}
