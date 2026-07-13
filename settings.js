@@ -17,7 +17,9 @@ import {
   buildColorPickers,
   setActivePage,
   clearAllCacheAndData,
-  saveToLocalStorage
+  saveToLocalStorage,
+  saveSettingsAndSync,
+  saveCustomThemesAndSync
 } from './app.js';
 
 let settingsPage;
@@ -243,7 +245,7 @@ export function createCustomEmojiTheme() {
   };
 
   customThemes.push(newTheme);
-  localStorage.setItem(STORAGE_KEYS.customThemes, JSON.stringify(customThemes));
+  saveCustomThemesAndSync();
 
   // Merge into preset list
   THEME_PRESETS.splice(0, THEME_PRESETS.length, ...DEFAULT_THEME_PRESETS, ...customThemes);
@@ -265,7 +267,7 @@ export function deleteCustomEmojiTheme(themeId) {
 
   // Clean custom themes list in place
   customThemes.splice(0, customThemes.length, ...customThemes.filter(t => t.id !== themeId));
-  localStorage.setItem(STORAGE_KEYS.customThemes, JSON.stringify(customThemes));
+  saveCustomThemesAndSync();
 
   // Update notes that used this theme
   notes.forEach(note => {
@@ -406,14 +408,13 @@ export function saveSettingsFromForm() {
     }
   });
 
-  // Commit settings
-  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
-
   // Save slider positions as global settings
   globalEmojiThemeControls.opacity = Number(settingsEmojiOpacity.value);
   globalEmojiThemeControls.size = Number(settingsEmojiSize.value);
   globalEmojiThemeControls.spacing = Number(settingsEmojiSpacing.value);
-  saveEmojiThemeControls();
+
+  // Commit and sync settings
+  saveSettingsAndSync();
 
   // Apply layout style
   applyCardLayoutStyle(appSettings.cardLayoutStyle);

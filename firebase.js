@@ -378,3 +378,37 @@ export function subscribeToVersionUpdates(callback) {
     return () => {};
   }
 }
+
+export async function saveSettingsToCloud(uid, data) {
+  if (isRealFirebase) {
+    try {
+      const docRef = doc(db, 'users', uid, 'settings', 'preferences');
+      await setDoc(docRef, data);
+    } catch (e) {
+      console.warn('Failed to save settings to cloud:', e);
+      throw e;
+    }
+  } else {
+    localStorage.setItem(`atlasnest_mock_settings_${uid}`, JSON.stringify(data));
+  }
+}
+
+export async function fetchSettingsFromCloud(uid) {
+  if (isRealFirebase) {
+    try {
+      const docRef = doc(db, 'users', uid, 'settings', 'preferences');
+      const docSnap = await getDoc(docRef);
+      return docSnap.exists() ? docSnap.data() : null;
+    } catch (e) {
+      console.warn('Failed to fetch settings from cloud:', e);
+      return null;
+    }
+  } else {
+    try {
+      const raw = localStorage.getItem(`atlasnest_mock_settings_${uid}`);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+}
