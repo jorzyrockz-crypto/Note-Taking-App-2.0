@@ -8742,3 +8742,213 @@ body.dark-theme .splash-title {
 body.dark-theme .splash-tagline {
   color: rgba(56, 189, 248, 0.5);
 }
+
+/* ==========================================================================
+   Login Gate — Auth Modal Gate Mode
+   ========================================================================== */
+
+/* When the modal is shown as a first-visit blocking gate */
+.auth-modal.gate-mode {
+  /* Disable all dismiss paths */
+  pointer-events: auto; /* keep the card interactive */
+}
+
+/* Hide close button in gate mode */
+.auth-modal.gate-mode .auth-close-btn {
+  display: none;
+}
+
+/* Prevent backdrop click dismissal in gate mode (handled in JS too) */
+.auth-modal.gate-mode {
+  cursor: default;
+}
+
+/* ==========================================================================
+   Guest Mode Banner
+   ========================================================================== */
+
+.guest-mode-banner {
+  width: 100%;
+  background: linear-gradient(90deg, rgba(224, 242, 254, 0.92) 0%, rgba(240, 249, 255, 0.92) 100%);
+  border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  animation: bannerSlideIn 0.4s cubic-bezier(0.34, 1.45, 0.64, 1) both;
+}
+
+body.dark-theme .guest-mode-banner {
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.92) 0%, rgba(30, 41, 59, 0.92) 100%);
+  border-bottom: 1px solid rgba(56, 189, 248, 0.15);
+}
+
+@keyframes bannerSlideIn {
+  from { opacity: 0; transform: translateY(-100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.guest-banner-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 9px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.guest-banner-icon {
+  color: #0284c7;
+  flex-shrink: 0;
+}
+
+body.dark-theme .guest-banner-icon {
+  color: #38bdf8;
+}
+
+.guest-banner-text {
+  flex: 1;
+  font-size: 13px;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #0369a1;
+  line-height: 1.4;
+  min-width: 160px;
+}
+
+body.dark-theme .guest-banner-text {
+  color: #bae6fd;
+}
+
+.guest-banner-text strong {
+  font-weight: 600;
+  color: #0284c7;
+}
+
+body.dark-theme .guest-banner-text strong {
+  color: #38bdf8;
+}
+
+/* CTA button */
+.guest-banner-cta {
+  flex-shrink: 0;
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1.5px solid #0284c7;
+  background: transparent;
+  color: #0284c7;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: 'Inter', system-ui, sans-serif;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.15s ease;
+  white-space: nowrap;
+}
+
+.guest-banner-cta:hover {
+  background: #0284c7;
+  color: #fff;
+  transform: scale(1.03);
+}
+
+body.dark-theme .guest-banner-cta {
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+
+body.dark-theme .guest-banner-cta:hover {
+  background: #38bdf8;
+  color: #0f172a;
+}
+
+/* Dismiss button */
+.guest-banner-dismiss {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: rgba(2, 132, 199, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.guest-banner-dismiss:hover {
+  background: rgba(2, 132, 199, 0.1);
+  color: #0284c7;
+}
+
+body.dark-theme .guest-banner-dismiss {
+  color: rgba(56, 189, 248, 0.4);
+}
+
+body.dark-theme .guest-banner-dismiss:hover {
+  background: rgba(56, 189, 248, 0.1);
+  color: #38bdf8;
+}
+
+/* ==========================================================================
+   Auth Modal — "Continue as Guest" Button
+   ========================================================================== */
+
+.auth-guest-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 2px;
+  color: rgba(100, 116, 139, 0.7);
+  font-size: 12px;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.auth-guest-divider::before,
+.auth-guest-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(148, 163, 184, 0.25);
+}
+
+.auth-guest-btn {
+  width: 100%;
+  padding: 11px 16px;
+  border-radius: 12px;
+  border: 1.5px dashed rgba(148, 163, 184, 0.35);
+  background: rgba(248, 250, 252, 0.6);
+  color: #64748b;
+  font-size: 13.5px;
+  font-weight: 500;
+  font-family: 'Inter', system-ui, sans-serif;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.18s ease, border-color 0.18s ease,
+              color 0.18s ease, transform 0.15s ease;
+  margin-top: 2px;
+}
+
+.auth-guest-btn:hover {
+  background: rgba(241, 245, 249, 0.9);
+  border-color: rgba(100, 116, 139, 0.4);
+  color: #475569;
+  transform: translateY(-1px);
+}
+
+body.dark-theme .auth-guest-btn {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: rgba(71, 85, 105, 0.4);
+  color: #94a3b8;
+}
+
+body.dark-theme .auth-guest-btn:hover {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(100, 116, 139, 0.5);
+  color: #cbd5e1;
+}

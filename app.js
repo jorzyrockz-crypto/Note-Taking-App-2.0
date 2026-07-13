@@ -7925,6 +7925,55 @@ function initAuth() {
   
   let activeTab = 'login'; // 'login' or 'register'
 
+  // ── Guest Banner elements ──
+  const guestBanner = document.getElementById('guest-mode-banner');
+  const guestBannerSignin = document.getElementById('guest-banner-signin-btn');
+  const guestBannerDismiss = document.getElementById('guest-banner-dismiss');
+  const guestBtn = document.getElementById('auth-guest-btn');
+
+  // Helper: show guest banner with slide-in animation
+  function showGuestBanner() {
+    if (!guestBanner) return;
+    guestBanner.style.display = 'block';
+    // Re-trigger animation by toggling the class
+    guestBanner.style.animation = 'none';
+    guestBanner.offsetHeight; // reflow
+    guestBanner.style.animation = '';
+  }
+
+  function hideGuestBanner() {
+    if (!guestBanner) return;
+    guestBanner.style.opacity = '0';
+    guestBanner.style.transition = 'opacity 0.25s ease';
+    setTimeout(() => {
+      guestBanner.style.display = 'none';
+      guestBanner.style.opacity = '';
+      guestBanner.style.transition = '';
+    }, 260);
+  }
+
+  // Helper: enter guest mode programmatically
+  function enterGuestMode() {
+    localStorage.setItem('paperuss_auth_choice', 'guest');
+    authModal?.classList.remove('visible', 'gate-mode');
+    showGuestBanner();
+    initData();
+    renderNotes();
+  }
+
+  // ── Startup gate ──
+  // If Firebase hasn't resolved a user yet AND no prior choice recorded,
+  // show the auth modal in blocking gate-mode.
+  const priorChoice = localStorage.getItem('paperuss_auth_choice');
+  if (!priorChoice) {
+    // First-time visitor — show blocking gate
+    authModal?.classList.add('visible', 'gate-mode');
+  } else if (priorChoice === 'guest') {
+    // Returning guest — skip modal, show banner after a tick
+    setTimeout(() => showGuestBanner(), 300);
+  }
+  // If priorChoice === 'user', Firebase onAuthChange will handle the signed-in state.
+
   // Toggle Dropdown
   avatarBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -7947,14 +7996,31 @@ function initAuth() {
     if (authErrorMsg) authErrorMsg.style.display = 'none';
   });
 
-  // Close Auth Modal
-  authClose?.addEventListener('click', () => {
-    authModal?.classList.remove('visible');
+  // Guest button inside auth modal
+  guestBtn?.addEventListener('click', () => {
+    enterGuestMode();
   });
-  
+
+  // Guest banner: Sign In CTA
+  guestBannerSignin?.addEventListener('click', () => {
+    authModal?.classList.add('visible');
+    if (authErrorMsg) authErrorMsg.style.display = 'none';
+  });
+
+  // Guest banner: Dismiss
+  guestBannerDismiss?.addEventListener('click', () => {
+    hideGuestBanner();
+  });
+
+  // Close Auth Modal (disabled in gate-mode via CSS hiding the button)
+  authClose?.addEventListener('click', () => {
+    authModal?.classList.remove('visible', 'gate-mode');
+  });
+
+  // Backdrop click — only dismiss when NOT in gate mode
   authModal?.addEventListener('click', (e) => {
-    if (e.target === authModal) {
-      authModal?.classList.remove('visible');
+    if (e.target === authModal && !authModal.classList.contains('gate-mode')) {
+      authModal.classList.remove('visible');
     }
   });
 
@@ -8024,7 +8090,10 @@ function initAuth() {
           await registerUser(email, password, name);
           showToast({ title: 'Account Created', text: 'Your new account is ready.' });
         }
-        authModal?.classList.remove('visible');
+        // Record that user chose to sign in
+        localStorage.setItem('paperuss_auth_choice', 'user');
+        authModal?.classList.remove('visible', 'gate-mode');
+        hideGuestBanner();
         if (authEmailInput) authEmailInput.value = '';
         if (authPasswordInput) authPasswordInput.value = '';
         if (authNameInput) authNameInput.value = '';
@@ -8041,11 +8110,12 @@ function initAuth() {
     }
   });
 
-  // Sign Out
+  // Sign Out — clear auth choice so next session re-shows the gate
   signoutBtn?.addEventListener('click', async () => {
     await logoutUser();
+    localStorage.removeItem('paperuss_auth_choice');
     dropdown?.classList.remove('is-open');
-    showToast({ title: 'Signed Out', text: 'Logged out of account.' });
+    showToast({ title: 'Signed Out', text: 'You have been signed out.' });
   });
 
   // Profile picture upload handlers
@@ -8127,6 +8197,10 @@ function initAuth() {
       
       if (guestView) guestView.style.display = 'none';
       if (userView) userView.style.display = 'block';
+      // Signed in — hide guest banner and remove gate
+      hideGuestBanner();
+      authModal?.classList.remove('gate-mode');
+      localStorage.setItem('paperuss_auth_choice', 'user');
       
       const syncText = document.getElementById('profile-sync-text');
       if (syncText) {
@@ -8183,9 +8257,15 @@ function initAuth() {
       // Restore guest local notes
       initData();
       renderNotes();
-      
-      // Push welcoming toast for guest users
-      showGuestWelcomeNotification();
+
+      // Show guest banner instead of toast (only if they chose guest mode)
+      const choice = localStorage.getItem('paperuss_auth_choice');
+      if (choice === 'guest') {
+        setTimeout(() => showGuestBanner(), 400);
+      } else if (!choice) {
+        // No choice yet — keep gate modal open
+        authModal?.classList.add('visible', 'gate-mode');
+      }
     }
   });
 }

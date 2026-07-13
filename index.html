@@ -151,6 +151,18 @@
     </div>
   </header>
 
+  <!-- Guest Mode Banner -->
+  <div id="guest-mode-banner" class="guest-mode-banner" style="display:none;" role="status" aria-live="polite">
+    <div class="guest-banner-inner">
+      <svg class="guest-banner-icon" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+      <span class="guest-banner-text">You are in <strong>Guest Mode</strong> &mdash; notes are saved locally only.</span>
+      <button class="guest-banner-cta" id="guest-banner-signin-btn" type="button">Sign In to Sync</button>
+      <button class="guest-banner-dismiss" id="guest-banner-dismiss" aria-label="Dismiss banner" type="button">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+    </div>
+  </div>
+
   <!-- Sidebar (Dynamic Tag Filter List) -->
   <aside class="app-sidebar">
     <div class="sidebar-item active" id="sidebar-all-notes" title="All Notes" aria-label="All Notes">
@@ -1133,6 +1145,15 @@
           <span>GitHub</span>
         </button>
       </div>
+
+      <!-- Guest Mode Divider + Button -->
+      <div class="auth-guest-divider">
+        <span>or</span>
+      </div>
+      <button class="auth-guest-btn" id="auth-guest-btn" type="button">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+        Continue as Guest
+      </button>
 
     </div><!-- /auth-card -->
   </div><!-- /auth-modal -->
