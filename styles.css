@@ -8723,30 +8723,44 @@ body.dark-theme #pwa-splash {
   }
 }
 
-/* Icon wrapper — floats the transparent PNG naturally */
-.splash-icon-wrap {
-  width: 140px;
-  height: 140px;
+/* Squircle icon frame — white card, clips the transparent PNG cleanly */
+.splash-squircle {
+  width: 120px;
+  height: 120px;
+  border-radius: 30px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(56, 189, 248, 0.18),
+    0 8px 32px rgba(56, 189, 248, 0.2),
+    0 2px 8px rgba(0, 0, 0, 0.06);
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: splashFloat 3s ease-in-out infinite;
-  filter:
-    drop-shadow(0 8px 24px rgba(2, 132, 199, 0.22))
-    drop-shadow(0 2px 8px rgba(0, 0, 0, 0.08));
+  animation: splashPulse 2.8s ease-in-out infinite;
 }
 
-body.dark-theme .splash-icon-wrap {
-  filter:
-    drop-shadow(0 8px 32px rgba(56, 189, 248, 0.28))
-    drop-shadow(0 2px 10px rgba(0, 0, 0, 0.5));
+body.dark-theme .splash-squircle {
+  background: #1e293b;
+  box-shadow:
+    0 0 0 1px rgba(56, 189, 248, 0.15),
+    0 8px 32px rgba(56, 189, 248, 0.15),
+    0 2px 8px rgba(0, 0, 0, 0.45);
 }
 
-/* Gentle floating animation */
-@keyframes splashFloat {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-8px); }
+@keyframes splashPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(56, 189, 248, 0.18),
+      0 8px 32px rgba(56, 189, 248, 0.2),
+      0 2px 8px rgba(0, 0, 0, 0.06);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow:
+      0 0 0 4px rgba(56, 189, 248, 0.1),
+      0 12px 40px rgba(56, 189, 248, 0.28),
+      0 2px 10px rgba(0, 0, 0, 0.08);
+    transform: scale(1.025);
+  }
 }
 
 .splash-logo {
@@ -8754,20 +8768,13 @@ body.dark-theme .splash-icon-wrap {
   height: 100%;
   object-fit: contain;
   display: block;
-}
-
-/* Text group */
-.splash-text-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  margin-top: 20px;
+  padding: 10px;
+  box-sizing: border-box;
 }
 
 /* App title */
 .splash-title {
-  margin: 0;
+  margin: 22px 0 0;
   font-family: 'Inter', 'Outfit', system-ui, -apple-system, sans-serif;
   font-size: 30px;
   font-weight: 800;
@@ -8782,7 +8789,7 @@ body.dark-theme .splash-title {
 
 /* Tagline */
 .splash-tagline {
-  margin: 0;
+  margin: 6px 0 0;
   font-family: 'Inter', 'Outfit', system-ui, -apple-system, sans-serif;
   font-size: 12.5px;
   font-weight: 500;
@@ -8797,8 +8804,8 @@ body.dark-theme .splash-tagline {
 
 /* Loading bar */
 .splash-loader {
-  margin-top: 36px;
-  width: 100px;
+  margin-top: 32px;
+  width: 90px;
   height: 3px;
   border-radius: 999px;
   background: rgba(2, 132, 199, 0.12);
