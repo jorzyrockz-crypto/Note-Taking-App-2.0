@@ -12,19 +12,19 @@
 /* 1. LIGHT THEME */
 body.theme-light,
 body.light-theme {
-  --bg-app: linear-gradient(135deg, #f0f9ff 0%, #ffffff 100%);
-  --bg-sidebar-active: #e0f2fe;
-  --accent-dark: #0284c7; /* Contrast sky blue */
+  /* Sky Theme Canvas: soft top-to-bottom gradient */
+  --bg-app: linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%);
+  --bg-sidebar-active: #e0f2fe;    /* Muted sky blue pill */
+  --accent-dark: #0284c7;           /* Deep sky blue for contrast */
   --text-primary: #202124;
   --text-secondary: #5f6368;
   --border-light: #e0e0e0;
   --shadow-card: 0 1px 2px 0 rgba(60,64,67,0.3), 0 2px 6px 2px rgba(60,64,67,0.15);
   --shadow-hover: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
-  --shadow-creator: 0 1px 2px 0 rgba(60,64,67,0.3), 0 2px 6px 2px rgba(60,64,67,0.15);
+  --shadow-creator: 0 2px 8px 0 rgba(56,189,248,0.10), 0 1px 3px 0 rgba(60,64,67,0.12);
   --icon-color: #5f6368;
   --icon-hover-bg: rgba(95, 99, 104, 0.08);
   --modal-overlay: rgba(229, 229, 229, 0.6);
-  --bg-body-gradient: none;
   --grid-pattern: none;
 
   /* Note Card Preset Colors */
@@ -57,7 +57,6 @@ body.dark-theme {
   --icon-color: #9aa0a6;
   --icon-hover-bg: rgba(232, 234, 237, 0.08);
   --modal-overlay: rgba(0, 0, 0, 0.6);
-  --bg-body-gradient: none;
   --grid-pattern: none;
 
   /* Note Card Preset Colors */
@@ -173,13 +172,13 @@ body.dark-theme {
 
 body {
   font-family: var(--font-sans);
-  background-color: var(--bg-app);
-  background-image: var(--bg-body-gradient, none);
+  /* Use background shorthand so --bg-app gradient renders correctly */
+  background: var(--bg-app);
   color: var(--text-primary);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  transition: background-color 0.2s ease, color 0.2s ease, background-image 0.2s ease;
+  transition: background 0.25s ease, color 0.2s ease;
   overflow-x: hidden;
   background-attachment: fixed;
 }
@@ -484,7 +483,7 @@ body.sidebar-pinned .app-sidebar .sidebar-item::before,
 }
 
 body.dark-theme .sidebar-item.active {
-  color: #ffca28; /* Warm gold for active items in dark theme */
+  color: var(--accent-color); /* Sky blue active item in dark theme */
 }
 
 /* Ensure contents display above the background highlight */
@@ -549,30 +548,54 @@ body.sidebar-pinned .app-sidebar .sidebar-label,
 .note-creator {
   --bg-current-creator: var(--note-default);
   --theme-pattern: none;
-  background-image: var(--theme-pattern), 
-                    linear-gradient(var(--bg-current-creator), var(--bg-current-creator)), 
+
+  /* Default: clean white card — gradient border only activates when
+     a colour or theme is picked (see colour overrides below) */
+  background: var(--theme-pattern, none) var(--bg-current-creator);
+  background-size: var(--note-theme-pattern-size, 112px 112px);
+  background-repeat: repeat;
+
+  border: 1.5px solid rgba(56, 189, 248, 0.22);
+  border-radius: 14px;
+  box-shadow: var(--shadow-creator);
+  padding: 12px 16px;
+  position: relative;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  overflow: visible;
+}
+
+/* Sky-blue focus glow when interacted with */
+.note-creator:focus-within {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15),
+              0 4px 16px rgba(56, 189, 248, 0.12);
+}
+
+body.dark-theme .note-creator {
+  border-color: rgba(56, 189, 248, 0.15);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-theme .note-creator:focus-within {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12),
+              0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Re-enable the gradient border animation only when a non-default colour
+   or theme is active (i.e. --bg-current-creator has been overridden) */
+.note-creator:not([data-color="default"]):not([data-color=""]):not([data-theme=""]),
+.note-creator[data-color]:not([data-color="default"]),
+.note-creator[data-theme]:not([data-theme=""]) {
+  background-image: var(--theme-pattern),
+                    linear-gradient(var(--bg-current-creator), var(--bg-current-creator)),
                     linear-gradient(135deg, #308cf8, #9b51e0, #ff5e62, #05cd99);
   background-origin: padding-box, border-box, border-box;
   background-clip: padding-box, padding-box, border-box;
   background-size: var(--note-theme-pattern-size, 112px 112px), auto, auto;
   background-repeat: repeat, no-repeat, no-repeat;
-  border: 2.5px solid transparent;
-  border-radius: 12px;
-  box-shadow: 0 0 15px rgba(155, 81, 224, 0.15);
-  padding: 12px 16px;
-  position: relative;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  overflow: visible;
-  animation: geminiPulse 4s infinite alternate ease-in-out;
-}
-
-@keyframes geminiPulse {
-  0% {
-    opacity: 0.9;
-  }
-  100% {
-    opacity: 1;
-  }
+  border: 2px solid transparent;
+  box-shadow: 0 0 15px rgba(155, 81, 224, 0.12);
 }
 
 .creator-pin {
@@ -780,7 +803,7 @@ body.dark-theme .image-source-popover {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  background: rgba(251, 188, 4, 0.18);
+  background: rgba(56, 189, 248, 0.14); /* Sky blue tint */
   color: var(--accent-color);
   font-size: 18px;
   font-weight: 800;
