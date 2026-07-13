@@ -369,7 +369,11 @@ body.dark-theme .search-bar {
   left: 0;
   bottom: 0;
   width: 70px;
-  background-color: var(--bg-app);
+  /* Frosted glass — matches header treatment */
+  background: rgba(240, 249, 255, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-right: 1px solid rgba(224, 224, 224, 0.5);
   display: flex;
   flex-direction: column;
   padding: 8px 0;
@@ -377,7 +381,12 @@ body.dark-theme .search-bar {
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: none;
-  transition: width 0.2s ease, background-color 0.2s ease;
+  transition: width 0.2s ease, background 0.2s ease;
+}
+
+body.dark-theme .app-sidebar {
+  background: rgba(15, 23, 42, 0.88);
+  border-right-color: rgba(95, 99, 104, 0.25);
 }
 
 .app-sidebar::-webkit-scrollbar {
@@ -2331,7 +2340,13 @@ body.dark-theme .brush-slider::-webkit-slider-runnable-track {
     width: 240px !important;
     z-index: 250;
     box-shadow: 4px 0 16px rgba(0, 0, 0, 0.25);
-    background-color: var(--bg-app);
+    background: rgba(240, 249, 255, 0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  body.dark-theme .app-sidebar.sidebar-open {
+    background: rgba(15, 23, 42, 0.97);
   }
 
   .app-sidebar.sidebar-open .sidebar-label,
@@ -2417,7 +2432,13 @@ body.dark-theme .brush-slider::-webkit-slider-runnable-track {
     width: 240px !important;
     z-index: 250;
     box-shadow: 4px 0 16px rgba(0, 0, 0, 0.25);
-    background-color: var(--bg-app);
+    background: rgba(240, 249, 255, 0.97);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  body.dark-theme .app-sidebar.sidebar-open {
+    background: rgba(15, 23, 42, 0.98);
   }
   
   .app-sidebar.sidebar-open .sidebar-label,
@@ -2519,7 +2540,13 @@ body.dark-theme .brush-slider::-webkit-slider-runnable-track {
     width: 240px !important;
     z-index: 250;
     box-shadow: 4px 0 16px rgba(0, 0, 0, 0.25);
-    background-color: var(--bg-app);
+    background: rgba(240, 249, 255, 0.97);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  body.dark-theme .app-sidebar.sidebar-open {
+    background: rgba(15, 23, 42, 0.98);
   }
 
   .app-sidebar.sidebar-open .sidebar-label,
