@@ -791,6 +791,7 @@ let menuPanel = null;
 let folderDrawer = null;
 let folderDrawerList = null;
 let productivityPage = null;
+let quickPasteZone = null;
 
 const editModal = document.getElementById('edit-modal');
 const editModalCard = document.getElementById('edit-modal-card');
@@ -1142,6 +1143,33 @@ function collapseSidebarAfterSelection() {
   if (window.innerWidth < 1024) {
     document.body.classList.remove('sidebar-pinned');
   }
+}
+
+function ensureQuickPasteZone() {
+  if (!creatorWrapper || quickPasteZone) return;
+
+  const shortcut = navigator.platform?.toLowerCase().includes('mac') ? '⌘V' : 'Ctrl+V';
+  quickPasteZone = document.createElement('button');
+  quickPasteZone.type = 'button';
+  quickPasteZone.className = 'quick-paste-zone';
+  quickPasteZone.innerHTML = `
+    <span class="quick-paste-icon" aria-hidden="true">📋</span>
+    <span class="quick-paste-copy">
+      <strong>Quick Paste Mode</strong>
+      <span>Copy text, links, or pictures in split screen, then click here and press ${shortcut}.</span>
+    </span>
+  `;
+  quickPasteZone.addEventListener('click', activateQuickPasteMode);
+  creatorWrapper.insertAdjacentElement('afterend', quickPasteZone);
+}
+
+function activateQuickPasteMode() {
+  expandCreator();
+  creatorText.focus();
+  showToast({
+    title: 'Quick Paste Mode',
+    text: 'Now paste with Ctrl+V or ⌘V to add copied text, links, or images.'
+  });
 }
 
 function ensureCalendarSelection() {
@@ -1503,6 +1531,8 @@ function initData() {
 }
 
 function setupEventHandlers() {
+  ensureQuickPasteZone();
+
   settingsBtn = document.getElementById('settings-btn');
   settingsBtn?.addEventListener('click', () => setActivePage('settings'));
   sidebarSettings?.addEventListener('click', () => setActivePage('settings'));
@@ -1658,14 +1688,17 @@ function setupEventHandlers() {
     scheduleCreatorLinkPreview();
     triggerAutosave();
   });
-  creatorText.addEventListener('paste', () => {
+  creatorText.addEventListener('paste', (event) => {
+    if (handleCreatorClipboardPaste(event)) return;
     expandCreator();
     setTimeout(() => scheduleCreatorLinkPreview(80), 0);
   });
-  creatorTitle.addEventListener('paste', () => {
+  creatorTitle.addEventListener('paste', (event) => {
+    if (handleCreatorClipboardPaste(event)) return;
     expandCreator();
     setTimeout(() => scheduleCreatorLinkPreview(80), 0);
   });
+  document.addEventListener('paste', handleGlobalClipboardPaste);
   creatorText.addEventListener('keydown', handleRichListEditing);
   modalText.addEventListener('input', function() {
     autoGrowTextarea.call(modalText);
@@ -3736,6 +3769,57 @@ function handleSelectedImageFile(target, file) {
   });
 }
 
+function handleCreatorClipboardPaste(event) {
+  const imageFile = getClipboardImageFile(event);
+  if (!imageFile) return false;
+
+  event.preventDefault();
+  expandCreator();
+  handleSelectedImageFile('creator', imageFile);
+  showToast({ title: 'Image pasted', text: 'Clipboard image added to your draft note.' });
+  return true;
+}
+
+function handleGlobalClipboardPaste(event) {
+  if (isEditableClipboardTarget(event.target)) return;
+
+  const imageFile = getClipboardImageFile(event);
+  if (imageFile) {
+    event.preventDefault();
+    expandCreator();
+    handleSelectedImageFile('creator', imageFile);
+    showToast({ title: 'Image pasted', text: 'Clipboard image added to your draft note.' });
+    return;
+  }
+
+  const pastedText = event.clipboardData?.getData('text/plain')?.trim();
+  if (!pastedText) return;
+
+  event.preventDefault();
+  expandCreator();
+  const separator = creatorText.value.trim() ? '\n\n' : '';
+  creatorText.value = `${creatorText.value}${separator}${pastedText}`;
+  syncCreatorInputs();
+  syncCreatorFolderInput();
+  autoGrowTextarea.call(creatorText);
+  scheduleCreatorLinkPreview(80);
+  triggerAutosave();
+  creatorText.focus();
+  showToast({ title: 'Clipboard pasted', text: 'Text or link added to your draft note.' });
+}
+
+function getClipboardImageFile(event) {
+  const items = Array.from(event.clipboardData?.items || []);
+  const imageItem = items.find(item => item.kind === 'file' && item.type?.startsWith('image/'));
+  return imageItem?.getAsFile() || null;
+}
+
+function isEditableClipboardTarget(target) {
+  const element = target instanceof Element ? target : target?.parentElement;
+  if (!element) return false;
+  return Boolean(element.closest('input, textarea, [contenteditable="true"], [contenteditable=""]'));
+}
+
 function normalizeNoteFiles(files = []) {
   return Array.isArray(files) ? files.filter(file => file && file.dataUrl && file.name) : [];
 }
@@ -5679,6 +5763,65 @@ function saveToLocalStorage() {
   }
 }
 
+function saveNotesLocalOnly() {
+  notes.forEach((note, index) => {
+    setNoteFolders(note, getNoteFolders(note, inferDefaultFolder(note, index)));
+  });
+  localStorage.setItem(STORAGE_KEYS.notes, JSON.stringify(notes));
+  localStorage.setItem(STORAGE_KEYS.folders, JSON.stringify(customFolders));
+}
+
+function getNoteSyncTimestamp(note) {
+  return Math.max(
+    Number(note?.updatedAt) || 0,
+    Number(note?.deletedAt) || 0,
+    Number(note?.archivedAt) || 0,
+    Number(note?.createdAt) || 0
+  );
+}
+
+function mergeCloudNotesWithLocal(cloudNotes = []) {
+  const mergedById = new Map();
+  const dirtyLocalNotes = [];
+  const normalizedCloudNotes = cloudNotes.map(normalizeNoteType);
+
+  normalizedCloudNotes.forEach((cloudNote, index) => {
+    const normalized = normalizeNoteAppearance(cloudNote);
+    setNoteFolders(normalized, getNoteFolders(normalized, inferDefaultFolder(normalized, index)));
+    mergedById.set(normalized.id, normalized);
+  });
+
+  notes.map(normalizeNoteType).forEach((localNote, index) => {
+    const normalized = normalizeNoteAppearance(localNote);
+    setNoteFolders(normalized, getNoteFolders(normalized, inferDefaultFolder(normalized, index)));
+    const cloudNote = mergedById.get(normalized.id);
+    const localTimestamp = getNoteSyncTimestamp(normalized);
+    const cloudTimestamp = getNoteSyncTimestamp(cloudNote);
+
+    if (!cloudNote || localTimestamp >= cloudTimestamp) {
+      mergedById.set(normalized.id, normalized);
+      if (!cloudNote || localTimestamp > cloudTimestamp) {
+        dirtyLocalNotes.push(normalized);
+      }
+    }
+  });
+
+  notes = Array.from(mergedById.values()).sort((a, b) => getNoteSyncTimestamp(b) - getNoteSyncTimestamp(a));
+  notes.forEach(registerNoteFolders);
+  saveNotesLocalOnly();
+
+  return dirtyLocalNotes;
+}
+
+function pushDirtyLocalNotesToCloud(uid, dirtyLocalNotes = []) {
+  dirtyLocalNotes.forEach(note => {
+    saveNoteToCloud(uid, note).catch(err => {
+      console.warn('Failed to preserve local offline note in cloud:', err);
+    });
+    syncLocalFilesToCloud(note);
+  });
+}
+
 function autoGrowTextarea() {
   this.style.height = 'auto';
   this.style.height = this.scrollHeight + 'px';
@@ -7574,9 +7717,8 @@ function initAuth() {
       // Subscribe to real-time cloud updates
       try {
         cloudNotesUnsubscribe = subscribeToCloudNotes(user.uid, (cloudNotes) => {
-          notes = cloudNotes.map(normalizeNoteType);
-          notes.sort((a, b) => b.updatedAt - a.updatedAt);
-          notes.forEach(registerNoteFolders);
+          const dirtyLocalNotes = mergeCloudNotesWithLocal(cloudNotes);
+          pushDirtyLocalNotesToCloud(user.uid, dirtyLocalNotes);
           renderNotes();
 
           // If the user has a note open in the edit modal, update the fields in real-time
