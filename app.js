@@ -2948,6 +2948,11 @@ function applyMarkdownFormat(textarea, format) {
     case 'h2':
       formatted = `\n## ${selectedText || 'Heading 2'}\n`;
       break;
+    case 'link':
+      const url = prompt("Enter Link URL:", "https://");
+      if (!url) return;
+      formatted = `[${selectedText || 'link text'}](${url})`;
+      break;
     case 'code':
       formatted = `\`${selectedText || 'code'}\``;
       cursorOffsetStart = selectedText ? 0 : 1;
@@ -2973,6 +2978,51 @@ function applyMarkdownFormat(textarea, format) {
   textarea.setSelectionRange(newSelectionStart, newSelectionEnd);
 
   textarea.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function setupFloatingSelectionToolbar(textarea, toolbar) {
+  if (!textarea || !toolbar) return;
+
+  const handleSelection = () => {
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    
+    if (start !== end && start !== undefined && end !== undefined && (end - start) > 0) {
+      const textBeforeSelection = textarea.value.substring(0, start);
+      const lineNumber = textBeforeSelection.split('\n').length;
+      const lineHeight = 24;
+      
+      let topPosition = (lineNumber * lineHeight) - textarea.scrollTop - 44;
+      if (topPosition < 10) {
+        topPosition = (lineNumber * lineHeight) - textarea.scrollTop + 28;
+      }
+      
+      toolbar.style.top = `${topPosition}px`;
+      toolbar.style.display = 'flex';
+      setTimeout(() => {
+        toolbar.classList.add('visible');
+      }, 10);
+    } else {
+      toolbar.classList.remove('visible');
+      setTimeout(() => {
+        if (!toolbar.classList.contains('visible')) {
+          toolbar.style.display = 'none';
+        }
+      }, 200);
+    }
+  };
+
+  textarea.addEventListener('mouseup', handleSelection);
+  textarea.addEventListener('keyup', handleSelection);
+  textarea.addEventListener('select', handleSelection);
+  textarea.addEventListener('scroll', handleSelection);
+
+  document.addEventListener('mousedown', (e) => {
+    if (!toolbar.contains(e.target) && e.target !== textarea) {
+      toolbar.classList.remove('visible');
+      toolbar.style.display = 'none';
+    }
+  });
 }
 
 function setupMarkdownKeydownHandlers() {
@@ -3245,13 +3295,14 @@ function initAdvancedEditorHandlers() {
   // Markdown Formatting Toolbar Event Listeners
   const creatorToolbar = document.getElementById('creator-markdown-toolbar');
   creatorToolbar?.querySelectorAll('.toolbar-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('mousedown', (e) => {
       e.preventDefault();
       e.stopPropagation();
       const format = btn.getAttribute('data-format');
       applyMarkdownFormat(creatorText, format);
     });
   });
+  setupFloatingSelectionToolbar(creatorText, creatorToolbar);
 }
 
 function initModalAdvancedEditorHandlers() {
@@ -3508,7 +3559,7 @@ function initModalAdvancedEditorHandlers() {
   // Modal Markdown Formatting Toolbar Event Listeners
   const modalToolbar = document.getElementById('modal-markdown-toolbar');
   modalToolbar?.querySelectorAll('.toolbar-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('mousedown', (e) => {
       e.preventDefault();
       e.stopPropagation();
       const format = btn.getAttribute('data-format');
@@ -3516,6 +3567,7 @@ function initModalAdvancedEditorHandlers() {
       applyMarkdownFormat(mText, format);
     });
   });
+  setupFloatingSelectionToolbar(modalText, modalToolbar);
 }
 
 function formatModalText(syntaxStart, syntaxEnd = '') {
