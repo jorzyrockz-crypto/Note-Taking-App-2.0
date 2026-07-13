@@ -370,7 +370,7 @@ export function subscribeToVersionUpdates(callback) {
       const configDoc = doc(db, 'system', 'config');
       return onSnapshot(configDoc, (docSnap) => {
         if (docSnap.exists()) {
-          callback(docSnap.data().version);
+          callback(docSnap.data());
         } else {
           callback(null);
         }
@@ -385,7 +385,14 @@ export function subscribeToVersionUpdates(callback) {
     }
   } else {
     setTimeout(() => {
-      callback('2.1.0');
+      callback({
+        version: '2.1.0',
+        changelog: [
+          'Firestore offline caching and automatic background syncing enabled',
+          'Stay signed in offline; data merges seamlessly when back online',
+          'Dynamic app update button clears cache storage & service workers'
+        ]
+      });
     }, 0);
     return () => {};
   }

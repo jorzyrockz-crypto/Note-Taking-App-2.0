@@ -2256,8 +2256,21 @@ function setupEventHandlers() {
   const appUpdateBtn = document.getElementById('app-update-btn');
 
   const CURRENT_VERSION = '2.1.0';
-  subscribeToVersionUpdates((serverVersion) => {
+  subscribeToVersionUpdates((serverConfig) => {
     if (!appUpdateBtn) return;
+    const serverVersion = serverConfig?.version || CURRENT_VERSION;
+    const serverChangelog = serverConfig?.changelog || [];
+
+    const changelogList = document.querySelector('.changelog-list');
+    if (changelogList && serverChangelog.length > 0) {
+      changelogList.innerHTML = serverChangelog.map(item => `<li>${escapeHtml(item)}</li>`).join('');
+    }
+
+    const versionLabel = document.querySelector('.version-label');
+    if (versionLabel) {
+      versionLabel.textContent = `Version ${CURRENT_VERSION}`;
+    }
+
     if (serverVersion && serverVersion !== CURRENT_VERSION) {
       appUpdateBtn.disabled = false;
       appUpdateBtn.textContent = 'Update';
