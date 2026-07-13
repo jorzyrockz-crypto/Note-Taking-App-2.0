@@ -21,11 +21,14 @@ import {
   saveSettingsAndSync,
   saveCustomThemesAndSync,
   experimentalSkyTheme,
-  setExperimentalSkyTheme
+  setExperimentalSkyTheme,
+  premiumSkyTheme,
+  setPremiumSkyTheme
 } from './app.js';
 
 let settingsPage;
 let settingsExperimentalSkyTheme;
+let settingsPremiumSkyTheme;
 let settingsBackBtn;
 let settingsSave;
 let settingsResetData;
@@ -58,6 +61,7 @@ export function initSettings() {
   settingsAdvancedEditor = document.getElementById('settings-advanced-editor');
   settingsCardStyle = document.getElementById('settings-card-style');
   settingsExperimentalSkyTheme = document.getElementById('settings-experimental-sky-theme');
+  settingsPremiumSkyTheme = document.getElementById('settings-premium-floating-theme');
 
   settingsEmojiOpacity = document.getElementById('settings-emoji-opacity');
   settingsEmojiSize = document.getElementById('settings-emoji-size');
@@ -100,6 +104,12 @@ export function initSettings() {
     localStorage.setItem('paperuss_experimental_sky', enabled ? 'true' : 'false');
   });
 
+  settingsPremiumSkyTheme?.addEventListener('change', () => {
+    const enabled = settingsPremiumSkyTheme.checked;
+    setPremiumSkyTheme(enabled);
+    localStorage.setItem('paperuss_theme_premium_ambient', enabled ? 'true' : 'false');
+  });
+
   // Custom theme create
   settingsCustomThemeCreate?.addEventListener('click', createCustomEmojiTheme);
   settingsCustomThemeCreate?.removeAttribute('disabled');
@@ -133,6 +143,7 @@ export function renderSettingsPage() {
   if (settingsAdvancedEditor) settingsAdvancedEditor.checked = appSettings.advancedEditorEnabled;
   if (settingsCardStyle) settingsCardStyle.value = appSettings.cardLayoutStyle;
   if (settingsExperimentalSkyTheme) settingsExperimentalSkyTheme.checked = experimentalSkyTheme;
+  if (settingsPremiumSkyTheme) settingsPremiumSkyTheme.checked = premiumSkyTheme;
 
   // Sliders
   const controls = getEmojiThemeControls();
@@ -423,6 +434,12 @@ export function saveSettingsFromForm() {
     const enabled = settingsExperimentalSkyTheme.checked;
     setExperimentalSkyTheme(enabled);
     localStorage.setItem('paperuss_experimental_sky', enabled ? 'true' : 'false');
+  }
+
+  if (settingsPremiumSkyTheme) {
+    const enabled = settingsPremiumSkyTheme.checked;
+    setPremiumSkyTheme(enabled);
+    localStorage.setItem('paperuss_theme_premium_ambient', enabled ? 'true' : 'false');
   }
 
   // Save slider positions as global settings

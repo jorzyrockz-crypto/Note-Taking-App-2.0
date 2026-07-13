@@ -78,6 +78,7 @@ export let appSettings = {
 };
 export let customThemes = [];
 export let experimentalSkyTheme = false;
+export let premiumSkyTheme = false;
 
 // Settings DOM Elements
 let settingsBtn, settingsModal, settingsClose, settingsCancel, settingsSave, settingsResetData;
@@ -4985,6 +4986,7 @@ function renderNotesPage() {
   if (notesFeed) {
     notesFeed.style.display = '';
     applySkyThemeClass(experimentalSkyTheme);
+    applyPremiumSkyThemeClass(premiumSkyTheme);
   }
   if (currentPage !== 'notes') {
     setActiveSidebarPage(currentPage);
@@ -7776,11 +7778,15 @@ function loadSettings() {
 
   // Apply layout style
   applyCardLayoutStyle(appSettings.cardLayoutStyle);
-
   // Load experimental sky theme setting
   const savedSky = localStorage.getItem('paperuss_experimental_sky');
   experimentalSkyTheme = savedSky === 'true';
   applySkyThemeClass(experimentalSkyTheme);
+
+  // Load experimental premium sky theme setting
+  const savedPremiumSky = localStorage.getItem('paperuss_theme_premium_ambient');
+  premiumSkyTheme = savedPremiumSky === 'true';
+  applyPremiumSkyThemeClass(premiumSkyTheme);
 }
 
 export function applySkyThemeClass(enabled) {
@@ -7797,6 +7803,22 @@ export function applySkyThemeClass(enabled) {
 export function setExperimentalSkyTheme(enabled) {
   experimentalSkyTheme = enabled;
   applySkyThemeClass(enabled);
+}
+
+export function applyPremiumSkyThemeClass(enabled) {
+  const notesFeed = document.getElementById('notes-feed');
+  if (notesFeed) {
+    if (enabled) {
+      notesFeed.classList.add('theme-sky-premium');
+    } else {
+      notesFeed.classList.remove('theme-sky-premium');
+    }
+  }
+}
+
+export function setPremiumSkyTheme(enabled) {
+  premiumSkyTheme = enabled;
+  applyPremiumSkyThemeClass(enabled);
 }
 
 function applyCardLayoutStyle(style) {
