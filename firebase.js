@@ -6,8 +6,8 @@ import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'fire
 let app, auth, db, storage;
 export let isRealFirebase = false;
 
-// Load config from LocalStorage or Environment Variables
-export const CONFIG_KEY = 'atlasnest_firebase_config';
+export const CONFIG_KEY = 'paperuss_firebase_config';
+const OLD_CONFIG_KEY = 'atlasnest_firebase_config';
 let savedConfig = null;
 
 // 1. Try Environment Variables first (guarded for non-Vite environments)
@@ -26,7 +26,13 @@ if (envConfig.apiKey && envConfig.projectId) {
 } else {
   // 2. Fall back to LocalStorage
   try {
-    const stored = localStorage.getItem(CONFIG_KEY);
+    let stored = localStorage.getItem(CONFIG_KEY);
+    if (!stored) {
+      stored = localStorage.getItem(OLD_CONFIG_KEY);
+      if (stored) {
+        localStorage.setItem(CONFIG_KEY, stored);
+      }
+    }
     if (stored) {
       savedConfig = JSON.parse(stored);
     }
@@ -60,14 +66,20 @@ if (!isRealFirebase) {
 // Simulated/Mock Authentication and Database Logic
 // ─────────────────────────────────────────────────────────────
 
-const MOCK_USERS_KEY = 'atlasnest_mock_users';
-const MOCK_NOTES_PREFIX = 'atlasnest_mock_notes_';
+const MOCK_USERS_KEY = 'paperuss_mock_users';
+const MOCK_NOTES_PREFIX = 'paperuss_mock_notes_';
 let mockCurrentUser = null;
 let authCallbacks = [];
 
 // Try to auto-restore mock session if page is reloaded
 try {
-  const activeSession = localStorage.getItem('atlasnest_active_mock_session');
+  let activeSession = localStorage.getItem('paperuss_active_mock_session');
+  if (!activeSession) {
+    activeSession = localStorage.getItem('atlasnest_active_mock_session');
+    if (activeSession) {
+      localStorage.setItem('paperuss_active_mock_session', activeSession);
+    }
+  }
   if (activeSession) {
     mockCurrentUser = JSON.parse(activeSession);
   }
@@ -118,7 +130,7 @@ export async function registerUser(email, password, displayName) {
     saveMockUsers(users);
     
     mockCurrentUser = { uid: newUser.uid, email: newUser.email, displayName: newUser.displayName, photoURL: newUser.photoURL };
-    localStorage.setItem('atlasnest_active_mock_session', JSON.stringify(mockCurrentUser));
+    localStorage.setItem('paperuss_active_mock_session', JSON.stringify(mockCurrentUser));
     triggerAuthCallbacks();
     return mockCurrentUser;
   }
@@ -141,7 +153,7 @@ export async function loginUser(email, password) {
       throw new Error('auth/invalid-credential');
     }
     mockCurrentUser = { uid: match.uid, email: match.email, displayName: match.displayName, photoURL: match.photoURL };
-    localStorage.setItem('atlasnest_active_mock_session', JSON.stringify(mockCurrentUser));
+    localStorage.setItem('paperuss_active_mock_session', JSON.stringify(mockCurrentUser));
     triggerAuthCallbacks();
     return mockCurrentUser;
   }
@@ -152,7 +164,7 @@ export async function logoutUser() {
     await signOut(auth);
   } else {
     mockCurrentUser = null;
-    localStorage.removeItem('atlasnest_active_mock_session');
+    localStorage.removeItem('paperuss_active_mock_session');
     triggerAuthCallbacks();
   }
 }
@@ -179,7 +191,7 @@ export async function updateUserProfilePic(photoURL) {
   } else {
     if (mockCurrentUser) {
       mockCurrentUser.photoURL = photoURL;
-      localStorage.setItem('atlasnest_active_mock_session', JSON.stringify(mockCurrentUser));
+      localStorage.setItem('paperuss_active_mock_session', JSON.stringify(mockCurrentUser));
       
       const users = getMockUsers();
       const match = users.find(u => u.uid === mockCurrentUser.uid);

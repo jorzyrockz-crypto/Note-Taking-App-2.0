@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlasnest-v36';
+const CACHE_NAME = 'paperuss-v36';
 // Static assets that never get hashed — safe to precache by path
 const APP_ASSETS = [
   './',
@@ -30,7 +30,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-const SHARE_CACHE = 'atlasnest-share-temp';
+const SHARE_CACHE = 'paperuss-share-temp';
 
 self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
@@ -46,7 +46,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
     event.respondWith(
-      caches.open('atlasnest-fonts').then(cache =>
+      caches.open('paperuss-fonts').then(cache =>
         cache.match(event.request).then(cached => {
           const networkFetch = fetch(event.request).then(res => {
             if (res && res.status === 200) cache.put(event.request, res.clone());
@@ -120,7 +120,7 @@ async function handleShareTarget(event) {
         new Response(file, {
           headers: {
             'Content-Type': file.type || 'application/octet-stream',
-            'X-AtlasNest-File-Name': encodeURIComponent(file.name || 'shared-file')
+            'X-Paperuss-File-Name': encodeURIComponent(file.name || 'shared-file')
           }
         })
       );

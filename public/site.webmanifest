@@ -1,6 +1,6 @@
 {
-  "name": "AtlasNest",
-  "short_name": "AtlasNest",
+  "name": "Paperuss",
+  "short_name": "Paperuss",
   "description": "A visual bookmarking and note-taking studio for links, voice notes, checklists, and quick ideas.",
   "start_url": "./index.html",
   "scope": "./",

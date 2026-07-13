@@ -583,9 +583,120 @@ function readFileAsDataUrl(file) {
   });
 }
 
-const DB_NAME = 'AtlasNestFileDB';
+const DB_NAME = 'PaperussFileDB';
+const OLD_DB_NAME = 'AtlasNestFileDB';
 const STORE_NAME = 'attachments';
 const DB_VERSION = 1;
+
+async function migrateIndexedDBData() {
+  try {
+    const oldDBExists = await new Promise((resolve) => {
+      const req = indexedDB.open(OLD_DB_NAME);
+      let existed = true;
+      req.onupgradeneeded = (e) => {
+        existed = false;
+        e.target.transaction.abort();
+      };
+      req.onsuccess = (e) => {
+        const db = e.target.result;
+        db.close();
+        resolve(existed);
+      };
+      req.onerror = () => resolve(false);
+    });
+
+    if (!oldDBExists) return;
+
+    const newDBEmpty = await new Promise((resolve) => {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME);
+        }
+      };
+      request.onsuccess = (e) => {
+        const db = e.target.result;
+        const transaction = db.transaction(STORE_NAME, 'readonly');
+        const store = transaction.objectStore(STORE_NAME);
+        const countReq = store.count();
+        countReq.onsuccess = () => {
+          db.close();
+          resolve(countReq.result === 0);
+        };
+        countReq.onerror = () => {
+          db.close();
+          resolve(false);
+        };
+      };
+      request.onerror = () => resolve(false);
+    });
+
+    if (!newDBEmpty) return;
+
+    console.log('Migrating data from AtlasNestFileDB to PaperussFileDB...');
+    const oldDB = await new Promise((resolve, reject) => {
+      const req = indexedDB.open(OLD_DB_NAME, DB_VERSION);
+      req.onsuccess = (e) => resolve(e.target.result);
+      req.onerror = (e) => reject(e.target.error);
+    });
+
+    const items = await new Promise((resolve, reject) => {
+      const transaction = oldDB.transaction(STORE_NAME, 'readonly');
+      const store = transaction.objectStore(STORE_NAME);
+      const keys = [];
+      const values = [];
+      const cursorReq = store.openCursor();
+      cursorReq.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) {
+          keys.push(cursor.key);
+          values.push(cursor.value);
+          cursor.continue();
+        } else {
+          resolve({ keys, values });
+        }
+      };
+      cursorReq.onerror = () => reject(cursorReq.error);
+    });
+    oldDB.close();
+
+    if (items.keys.length > 0) {
+      const newDB = await new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onsuccess = (e) => resolve(e.target.result);
+        req.onerror = (e) => reject(e.target.error);
+      });
+
+      await new Promise((resolve, reject) => {
+        const transaction = newDB.transaction(STORE_NAME, 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        for (let i = 0; i < items.keys.length; i++) {
+          store.put(items.values[i], items.keys[i]);
+        }
+        transaction.oncomplete = () => {
+          newDB.close();
+          resolve();
+        };
+        transaction.onerror = () => {
+          newDB.close();
+          reject(transaction.error);
+        };
+      });
+      console.log(`Successfully migrated ${items.keys.length} items to PaperussFileDB.`);
+    }
+
+    await new Promise((resolve) => {
+      const req = indexedDB.deleteDatabase(OLD_DB_NAME);
+      req.onsuccess = () => resolve();
+      req.onerror = () => resolve();
+    });
+  } catch (err) {
+    console.error('Error during IndexedDB migration:', err);
+  }
+}
+
+migrateIndexedDBData();
 
 function openFileDB() {
   return new Promise((resolve, reject) => {
@@ -774,8 +885,8 @@ export const STORAGE_KEYS = {
 const STARTER_NOTES = [
   {
     id: 'starter-welcome',
-    title: '🚀 Welcome to AtlasNest',
-    text: '# Welcome to AtlasNest 🚀\n\nAtlasNest is a visual bookmarking and note-taking studio designed for links, voice notes, drawing, and checklists.\n\n**Best of all, you don\'t even need to sign in to start!**\n• Your notes are saved locally to your device\'s browser database.\n• You can sync them to the cloud at any time by signing in.\n• Open the user profile dropdown (top right) to upload a custom profile picture.\n\nExplore the other cards to learn about AtlasNest\'s features!',
+    title: '🚀 Welcome to Paperuss',
+    text: '# Welcome to Paperuss 🚀\n\nPaperuss is a visual bookmarking and note-taking studio designed for links, voice notes, drawing, and checklists.\n\n**Best of all, you don\'t even need to sign in to start!**\n• Your notes are saved locally to your device\'s browser database.\n• You can sync them to the cloud at any time by signing in.\n• Open the user profile dropdown (top right) to upload a custom profile picture.\n\nExplore the other cards to learn about Paperuss\'s features!',
     color: 'default',
     theme: 'plants',
     pinned: true,
@@ -786,7 +897,7 @@ const STARTER_NOTES = [
   {
     id: 'starter-pwa',
     title: '📲 Install App & Go Offline (PWA)',
-    text: '# Go Offline with PWA 📲\n\nAtlasNest is a Progressive Web App (PWA). You can install it on your home screen or desktop:\n\n1. Click the **Install App** button inside your **Settings** panel (or look for the install icon in your browser address bar).\n2. Once installed, AtlasNest launches in standalone mode.\n3. Enjoy full **offline support**! All notes, drawings, and files will load instantly even without an internet connection.',
+    text: '# Go Offline with PWA 📲\n\nPaperuss is a Progressive Web App (PWA). You can install it on your home screen or desktop:\n\n1. Click the **Install App** button inside your **Settings** panel (or look for the install icon in your browser address bar).\n2. Once installed, Paperuss launches in standalone mode.\n3. Enjoy full **offline support**! All notes, drawings, and files will load instantly even without an internet connection.',
     color: 'default',
     theme: 'winter',
     pinned: true,
@@ -808,7 +919,7 @@ const STARTER_NOTES = [
   {
     id: 'starter-voice-sketch',
     title: '🎙️ Voice Memos & Sketching',
-    text: '# Voice Notes & Canvas Sketches 🎙️🎨\n\nAtlasNest features built-in tools for audio recording and drawing:\n\n• **Voice Notes**: Click the microphone icon to record audio on-the-fly. Listen back right inside the note.\n• **Canvas Sketches**: Tap the paint icon to launch the touch-friendly whiteboard. Draw diagrams, ideas, or write handwritten notes, then save them directly to your card.',
+    text: '# Voice Notes & Canvas Sketches 🎙️🎨\n\nPaperuss features built-in tools for audio recording and drawing:\n\n• **Voice Notes**: Click the microphone icon to record audio on-the-fly. Listen back right inside the note.\n• **Canvas Sketches**: Tap the paint icon to launch the touch-friendly whiteboard. Draw diagrams, ideas, or write handwritten notes, then save them directly to your card.',
     color: 'default',
     theme: 'celebration',
     pinned: false,
@@ -819,7 +930,7 @@ const STARTER_NOTES = [
   {
     id: 'starter-links-recipes',
     title: '🍽️ Rich Link Previews & Recipes',
-    text: '# Web Previews & Recipe Imports 🔗\n\nAtlasNest automatically parses links to create rich previews:\n\n• Paste any URL (like https://github.com) into a note, and AtlasNest will generate a premium preview card.\n• **Recipe Builder**: Paste a cooking recipe link (like a WordPress Recipe Maker print page). AtlasNest will parse it and build a structured recipe card with checkable ingredients and directions.',
+    text: '# Web Previews & Recipe Imports 🔗\n\nPaperuss automatically parses links to create rich previews:\n\n• Paste any URL (like https://github.com) into a note, and Paperuss will generate a premium preview card.\n• **Recipe Builder**: Paste a cooking recipe link (like a WordPress Recipe Maker print page). Paperuss will parse it and build a structured recipe card with checkable ingredients and directions.',
     color: 'default',
     theme: 'food',
     pinned: false,
@@ -1044,7 +1155,7 @@ function enhanceShell() {
       titleText.replaceWith(lockup);
       const brand = document.createElement('span');
       brand.className = 'logo-title';
-      brand.textContent = 'AtlasNest';
+      brand.textContent = 'Paperuss';
       lockup.appendChild(brand);
     }
   }
@@ -1498,7 +1609,7 @@ window.addEventListener('appinstalled', () => {
   if (installRow) {
     installRow.style.display = 'none';
   }
-  showToast({ title: 'App Installed', text: 'AtlasNest has been installed successfully!' });
+  showToast({ title: 'App Installed', text: 'Paperuss has been installed successfully!' });
 });
 
 function showInstallNotification() {
@@ -1507,7 +1618,7 @@ function showInstallNotification() {
 
   showToast({
     title: 'Install App',
-    text: 'Install AtlasNest on your device for offline support and standalone launch.',
+    text: 'Install Paperuss on your device for offline support and standalone launch.',
     action: {
       text: 'Install',
       callback: () => {
@@ -4065,11 +4176,11 @@ function buildNoteShareText(note) {
   if (files.length) parts.push(`Attachments: ${files.map(file => file.name).join(', ')}`);
   if (note.audio) parts.push(`Voice note: ${note.audioDuration || 'recorded clip'}`);
   if (note.videoId) parts.push('Video attached');
-  return parts.filter(Boolean).join('\n\n') || 'AtlasNest note';
+  return parts.filter(Boolean).join('\n\n') || 'Paperuss note';
 }
 
 async function shareNote(note) {
-  const title = cleanTitleTags(note.title || 'AtlasNest note');
+  const title = cleanTitleTags(note.title || 'Paperuss note');
   const text = buildNoteShareText(note);
   if (navigator.share) {
     try {
@@ -6438,13 +6549,13 @@ async function handleSharedLaunchData() {
 
   if (hasSharedFile && 'caches' in window) {
     try {
-      const cache = await caches.open('atlasnest-share-temp');
+      const cache = await caches.open('paperuss-share-temp');
       const response = await cache.match('shared-file');
       if (response) {
         const blob = await response.blob();
         const dataUrl = await blobToDataUrl(blob);
         const sharedType = response.headers.get('Content-Type') || params.get('sharedFileType') || blob.type || 'application/octet-stream';
-        const sharedName = decodeURIComponent(response.headers.get('X-AtlasNest-File-Name') || params.get('sharedFileName') || 'shared-file');
+        const sharedName = decodeURIComponent(response.headers.get('X-Paperuss-File-Name') || params.get('sharedFileName') || 'shared-file');
         if (sharedType.startsWith('image/') && !creatorImage) {
           creatorImage = dataUrl;
           creatorImageBanner.style.display = 'block';
@@ -6564,7 +6675,7 @@ function createPreviewFallbackImage(domain, title) {
       <rect x="78" y="78" width="1044" height="474" rx="34" fill="rgba(255,255,255,0.82)" stroke="rgba(15,23,42,0.08)"/>
       <text x="132" y="180" fill="#64748b" font-family="Outfit, Arial, sans-serif" font-size="36" font-weight="700" letter-spacing="6">${safeDomain.toUpperCase()}</text>
       <text x="132" y="276" fill="#0f172a" font-family="Outfit, Arial, sans-serif" font-size="62" font-weight="800">${safeTitle}</text>
-      <text x="132" y="462" fill="#f59e0b" font-family="Outfit, Arial, sans-serif" font-size="28" font-weight="700">AtlasNest saved preview</text>
+      <text x="132" y="462" fill="#f59e0b" font-family="Outfit, Arial, sans-serif" font-size="28" font-weight="700">Paperuss saved preview</text>
     </svg>
   `;
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
@@ -7934,7 +8045,7 @@ function showGuestWelcomeNotification() {
   
   setTimeout(() => {
     showToast({
-      title: 'Welcome to AtlasNest! 🚀',
+      title: 'Welcome to Paperuss! 🚀',
       text: 'You are in Guest Mode. Notes are saved locally. Sign in to activate Cloud Sync!'
     });
   }, 2000);
