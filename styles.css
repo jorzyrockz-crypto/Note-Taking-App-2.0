@@ -1,19 +1,20 @@
 /* ==========================================================================
-   Google Keep Clone Design System (Upgraded)
+   Paperuss Modern Airy Design System
    ========================================================================== */
 
 :root {
   /* Fonts */
   --font-sans: 'Roboto', 'Outfit', sans-serif;
   --touch-target: 48px;
-  --accent-color: #fbbc04; /* Keep Yellow */
+  --accent-color: #38bdf8; /* Airy Sky Blue */
 }
 
 /* 1. LIGHT THEME */
 body.theme-light,
 body.light-theme {
-  --bg-app: #ffffff;
-  --bg-sidebar-active: #feefc3;
+  --bg-app: linear-gradient(135deg, #f0f9ff 0%, #ffffff 100%);
+  --bg-sidebar-active: #e0f2fe;
+  --accent-dark: #0284c7; /* Contrast sky blue */
   --text-primary: #202124;
   --text-secondary: #5f6368;
   --border-light: #e0e0e0;
@@ -44,8 +45,9 @@ body.light-theme {
 /* 2. DARK THEME */
 body.theme-dark,
 body.dark-theme {
-  --bg-app: #202124;
-  --bg-sidebar-active: #41331c;
+  --bg-app: #0f172a;
+  --bg-sidebar-active: #1e293b;
+  --accent-dark: #38bdf8;
   --text-primary: #e8eaed;
   --text-secondary: #9aa0a6;
   --border-light: #5f6368;
@@ -277,7 +279,7 @@ body {
   gap: 8px;
 }
 
-.keep-logo {
+.paperuss-logo {
   width: 32px;
   height: 32px;
   fill: var(--accent-color);
@@ -426,7 +428,7 @@ body.sidebar-pinned .app-sidebar .sidebar-divider,
   max-height: 1px;
 }
 
-/* Sidebar item: Google Keep / Material Design 3 compliant layout */
+/* Sidebar item styling rules */
 .sidebar-item {
   display: flex;
   align-items: center;
@@ -457,7 +459,7 @@ body.sidebar-pinned .app-sidebar .sidebar-divider,
   transition: background-color 0.15s ease, width 0.15s ease, height 0.15s ease, left 0.15s ease, top 0.15s ease, border-radius 0.15s ease;
 }
 
-/* Expanded state: transitions to a full-width Keep row pill */
+/* Expanded state: transitions to a full-width active row highlight */
 .app-sidebar:hover .sidebar-item::before,
 body.sidebar-pinned .app-sidebar .sidebar-item::before,
 .app-sidebar.sidebar-open .sidebar-item::before {
@@ -2358,7 +2360,7 @@ body.dark-theme .brush-slider::-webkit-slider-runnable-track {
     margin-left: 4px;
   }
   
-  .keep-logo {
+  .paperuss-logo {
     width: 28px;
     height: 28px;
   }
@@ -6579,35 +6581,42 @@ input:checked + .slider::before {
   background-color: rgba(234, 67, 53, 0.08) !important;
 }
 
-/* ==========================================================================
-   Appearance Layout Variations (Keep & Glass)
-   ========================================================================== */
-
-/* 1. Keep Style: Solid, flat backgrounds with crisp borders, mimicking Google Keep perfectly */
-body.card-style-keep .note-card,
-body.card-style-keep .note-creator,
-body.card-style-keep .edit-modal-card {
-  border: 1px solid var(--border-light) !important;
-  box-shadow: none !important;
-  border-radius: 8px !important;
+/* 1. Classic Flat Style: Solid backgrounds with very soft borders and subtle shadow definition */
+body.card-style-flat .note-card,
+body.card-style-flat .note-creator,
+body.card-style-flat .edit-modal-card {
+  border: 1px solid rgba(56, 189, 248, 0.12) !important;
+  box-shadow: 0 4px 12px 0 rgba(100, 160, 210, 0.05) !important;
+  border-radius: 16px !important;
   animation: none !important;
-  transition: box-shadow 0.15s ease, border-color 0.15s ease !important;
+  transition: box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-/* Colored cards in Keep Style are borderless to match Keep's flat aesthetic */
-body.card-style-keep .note-card:not([data-color="default"]),
-body.card-style-keep .note-creator:not([data-color="default"]),
-body.card-style-keep .edit-modal-card:not([data-color="default"]) {
+body.dark-theme.card-style-flat .note-card,
+body.dark-theme.card-style-flat .note-creator,
+body.dark-theme.card-style-flat .edit-modal-card {
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.15) !important;
+}
+
+body.card-style-flat .note-card:not([data-color="default"]),
+body.card-style-flat .note-creator:not([data-color="default"]),
+body.card-style-flat .edit-modal-card:not([data-color="default"]) {
   border-color: transparent !important;
 }
 
-body.card-style-keep .note-card:hover {
-  box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15) !important;
-  border-color: var(--border-light) !important; /* Retain border for default card on hover */
+body.card-style-flat .note-card:hover {
+  box-shadow: 0 8px 24px 0 rgba(100, 160, 210, 0.12) !important;
+  border-color: rgba(56, 189, 248, 0.24) !important;
 }
 
-body.card-style-keep .note-card:not([data-color="default"]):hover {
-  border-color: transparent !important; /* Keep colored cards borderless on hover */
+body.dark-theme.card-style-flat .note-card:hover {
+  box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.25) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+body.card-style-flat .note-card:not([data-color="default"]):hover {
+  border-color: transparent !important;
 }
 
 /* 2. Glass Style: Vibrant semi-transparent backgrounds with backdrop blur */

@@ -13,7 +13,7 @@ let checklistDragPreview = null;
 
 function getAppSettingsFromStorage() {
   try {
-    const raw = localStorage.getItem('keep_settings');
+    const raw = localStorage.getItem('paperuss_settings') || localStorage.getItem('keep_settings');
     if (raw) {
       return JSON.parse(raw);
     }

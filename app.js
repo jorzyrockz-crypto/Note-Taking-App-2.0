@@ -879,16 +879,31 @@ async function createCustomThemeFromFile(file) {
 }
 
 export const STORAGE_KEYS = {
-  settings: 'keep_settings',
-  customThemes: 'keep_custom_themes',
-  notes: 'keep_notes',
-  folders: 'keep_folders',
-  theme: 'keep_theme',
-  emojiThemeControls: 'keep_emoji_theme_controls',
-  view: 'keep_view',
-  starterSeeded: 'keep_starter_seeded_v3',
-  settingsUpdatedAt: 'keep_settings_updated_at'
+  settings: 'paperuss_settings',
+  customThemes: 'paperuss_custom_themes',
+  notes: 'paperuss_notes',
+  folders: 'paperuss_folders',
+  theme: 'paperuss_theme',
+  emojiThemeControls: 'paperuss_emoji_theme_controls',
+  view: 'paperuss_view',
+  starterSeeded: 'paperuss_starter_seeded_v3',
+  settingsUpdatedAt: 'paperuss_settings_updated_at'
 };
+
+function migrateLocalStorageKeys() {
+  const keys = ['settings', 'customThemes', 'notes', 'folders', 'theme', 'emojiThemeControls', 'view', 'starterSeeded', 'settingsUpdatedAt'];
+  keys.forEach(key => {
+    const oldKey = `keep_${key}`;
+    const newKey = `paperuss_${key}`;
+    if (!localStorage.getItem(newKey)) {
+      const oldValue = localStorage.getItem(oldKey);
+      if (oldValue !== null) {
+        localStorage.setItem(newKey, oldValue);
+      }
+    }
+  });
+}
+migrateLocalStorageKeys();
 
 const STARTER_NOTES = [
   {
@@ -6956,8 +6971,8 @@ const SOCIAL_MOCK_METADATA = {
     badge: 'Pinterest Inspiration'
   },
   'facebook.com': {
-    title: 'Announcing HyperKeep 2.0 - Advanced Note Taking',
-    description: 'We are thrilled to release HyperKeep 2.0! Full reminders, interactive checklists, voice notes transcribing, and custom themes are now live.',
+    title: 'Announcing Paperuss 2.0 - Advanced Note Taking',
+    description: 'We are thrilled to release Paperuss 2.0! Full reminders, interactive checklists, voice notes transcribing, and custom themes are now live.',
     image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=500',
     badge: 'Facebook Post'
   },
@@ -7597,9 +7612,9 @@ function loadSettings() {
 }
 
 function applyCardLayoutStyle(style) {
-  document.body.classList.remove('card-style-keep', 'card-style-glass');
-  if (style === 'keep') {
-    document.body.classList.add('card-style-keep');
+  document.body.classList.remove('card-style-keep', 'card-style-flat', 'card-style-glass');
+  if (style === 'flat' || style === 'keep') {
+    document.body.classList.add('card-style-flat');
   } else if (style === 'glass') {
     document.body.classList.add('card-style-glass');
   }
