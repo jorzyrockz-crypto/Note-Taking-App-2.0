@@ -14,6 +14,7 @@ body.theme-light,
 body.light-theme {
   /* Sky Theme Canvas: soft top-to-bottom gradient */
   --bg-app: linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%);
+  --bg-header: rgba(240, 249, 255, 0.96); /* Semi-solid sky blue tinted white */
   --bg-sidebar-active: #e0f2fe;    /* Muted sky blue pill */
   --accent-dark: #0284c7;           /* Deep sky blue for contrast */
   --text-primary: #202124;
@@ -46,6 +47,7 @@ body.light-theme {
 body.theme-dark,
 body.dark-theme {
   --bg-app: #0f172a;
+  --bg-header: rgba(15, 23, 42, 0.96); /* Semi-solid deep slate */
   --bg-sidebar-active: #1e293b;
   --accent-dark: #38bdf8;
   --text-primary: #e8eaed;
@@ -261,9 +263,11 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  background-color: var(--bg-app);
+  background: var(--bg-header);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   z-index: 100;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .header-left {
