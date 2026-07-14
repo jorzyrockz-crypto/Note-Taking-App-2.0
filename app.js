@@ -2232,6 +2232,23 @@ function setupEventHandlers() {
       closeCreatorFolderPicker();
     }
 
+    // Close Creator and Modal More options popovers on click outside
+    const creatorMorePopover = document.getElementById('creator-more-popover');
+    if (creatorMorePopover && creatorMorePopover.style.display === 'flex') {
+      const creatorMoreBtn = document.getElementById('creator-more-btn');
+      if (!creatorMorePopover.contains(e.target) && e.target !== creatorMoreBtn && !creatorMoreBtn?.contains(e.target)) {
+        document.getElementById('note-creator')?.classList.remove('properties-sheet-open');
+        creatorMorePopover.style.display = 'none';
+      }
+    }
+    const modalMorePopover = document.getElementById('modal-more-popover');
+    if (modalMorePopover && modalMorePopover.style.display === 'flex') {
+      const modalMoreBtn = document.getElementById('modal-more-btn');
+      if (!modalMorePopover.contains(e.target) && e.target !== modalMoreBtn && !modalMoreBtn?.contains(e.target)) {
+        document.getElementById('edit-modal-card')?.classList.remove('properties-sheet-open');
+        modalMorePopover.style.display = 'none';
+      }
+    }
   });
 
   // Edit Modal Event Handlers
@@ -8919,6 +8936,54 @@ window.execGlassCmd = function(cmd, val = null) {
   if (cmd === 'underline') {
     stripUnderlineStylesInSelection();
   }
+  
+  if (cmd === 'insertUnorderedList' || cmd === 'insertOrderedList') {
+    const mode = savedGlassElement && (savedGlassElement.closest('#modal-glass-editor') !== null || savedGlassElement.id === 'modal-glass-editor') ? 'modal' : 'creator';
+    const editor = document.getElementById(`${mode}-glass-editor`);
+    if (editor) {
+      const items = getConvertibleItems(editor);
+      const hasChecklist = items.some(item => item.element.classList.contains('checklist-item'));
+      if (hasChecklist) {
+        const listTag = cmd === 'insertUnorderedList' ? 'ul' : 'ol';
+        const list = document.createElement(listTag);
+        
+        const firstEl = items[0].element;
+        const insertParent = firstEl.parentNode === editor ? editor : firstEl.parentNode;
+        insertParent.insertBefore(list, firstEl);
+        
+        items.forEach(item => {
+          const li = document.createElement('li');
+          li.innerText = item.text;
+          list.appendChild(li);
+          
+          if (item.parentList) {
+            item.element.remove();
+            if (item.parentList.children.length === 0) {
+              item.parentList.remove();
+            }
+          } else {
+            item.element.remove();
+          }
+        });
+        
+        const firstLi = list.querySelector('li');
+        if (firstLi) {
+          firstLi.focus();
+          const range = document.createRange();
+          range.selectNodeContents(firstLi);
+          range.collapse(false);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+        
+        saveGlassSelection();
+        saveGlassEditorChanges(mode);
+        return;
+      }
+    }
+  }
+
   document.execCommand(cmd, false, val);
   saveGlassSelection();
   saveGlassEditorChanges();
@@ -9038,89 +9103,188 @@ window.wireGlassChecklistEvents = function(container) {
   });
 };
 
+function getSelectedBlocks(editor) {
+  const sel = window.getSelection();
+  if (sel.rangeCount === 0) return [];
+  const range = sel.getRangeAt(0);
+  const blocks = [];
+  
+  if (sel.isCollapsed) {
+    let node = sel.anchorNode;
+    while (node && node !== editor) {
+      if (node.parentNode === editor) {
+        return [node];
+      }
+      node = node.parentNode;
+    }
+    return [];
+  }
+  
+  for (let child of editor.childNodes) {
+    if (range.intersectsNode(child)) {
+      blocks.push(child);
+    }
+  }
+  
+  return blocks;
+}
+
+function getConvertibleItems(editor) {
+  const blocks = getSelectedBlocks(editor);
+  const items = [];
+  
+  blocks.forEach(block => {
+    if (block.nodeType === Node.TEXT_NODE) {
+      if (block.textContent.trim() !== '') {
+        items.push({
+          text: block.textContent.trim(),
+          element: block
+        });
+      }
+    } else if (block.nodeType === Node.ELEMENT_NODE) {
+      const tagName = block.tagName.toLowerCase();
+      if (tagName === 'ul' || tagName === 'ol') {
+        const sel = window.getSelection();
+        const range = sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+        const lis = block.querySelectorAll('li');
+        lis.forEach(li => {
+          if (!range || range.intersectsNode(li)) {
+            items.push({
+              text: li.innerText || li.textContent || '',
+              element: li,
+              parentList: block
+            });
+          }
+        });
+      } else if (block.classList.contains('checklist-item')) {
+        const span = block.querySelector('span[contenteditable]');
+        items.push({
+          text: span ? span.innerText : (block.innerText || ''),
+          element: block
+        });
+      } else {
+        items.push({
+          text: block.innerText || block.textContent || '',
+          element: block
+        });
+      }
+    }
+  });
+  
+  return items;
+}
+
 window.addGlassChecklist = function(mode) {
   restoreGlassSelection();
   const sel = window.getSelection();
   const editor = document.getElementById(`${mode}-glass-editor`);
   if (!editor) return;
 
-  let range = null;
-  let selectedText = '';
-
-  if (sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
-    if (!sel.isCollapsed) {
-      range = sel.getRangeAt(0);
-      selectedText = range.toString();
-    }
-  }
-
-  // Find the block element (direct child of the editor) containing the cursor
-  let block = null;
-  if (sel.rangeCount > 0) {
-    let node = sel.anchorNode;
-    while (node && node !== editor) {
-      if (node.parentNode === editor) {
-        block = node;
-        break;
+  const items = getConvertibleItems(editor);
+  
+  if (items.length === 0) {
+    // If nothing selected, insert an empty checklist item at cursor
+    const div = document.createElement('div');
+    div.className = 'checklist-item';
+    div.innerHTML = `
+        <div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)">
+                <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
+                <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+            </svg>
+        </div>
+        <input type="checkbox">
+        <span contenteditable="true"></span>
+        <button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        </button>
+    `;
+    
+    let block = null;
+    if (sel.rangeCount > 0) {
+      let node = sel.anchorNode;
+      while (node && node !== editor) {
+        if (node.parentNode === editor) {
+          block = node;
+          break;
+        }
+        node = node.parentNode;
       }
-      node = node.parentNode;
     }
-  }
-
-  // Get current line text
-  let textContent = selectedText;
-  if (!selectedText && block) {
-    textContent = block.innerText || block.textContent || '';
-  }
-
-  const div = document.createElement('div');
-  div.className = 'checklist-item';
-  div.innerHTML = `
-      <div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)">
-              <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
-              <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
-              <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
-          </svg>
-      </div>
-      <input type="checkbox">
-      <span contenteditable="true">${textContent.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
-      <button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-      </button>
-  `;
-
-  if (block && editor.contains(block)) {
-    editor.replaceChild(div, block);
-  } else if (savedGlassRange && editor.contains(savedGlassRange.startContainer)) {
-    // Fallback: replace target containing selection
-    let fallbackBlock = savedGlassRange.startContainer;
-    while (fallbackBlock && fallbackBlock.parentNode !== editor) {
-      fallbackBlock = fallbackBlock.parentNode;
-    }
-    if (fallbackBlock && editor.contains(fallbackBlock)) {
-      editor.replaceChild(div, fallbackBlock);
+    
+    if (block && editor.contains(block)) {
+      editor.replaceChild(div, block);
     } else {
       editor.appendChild(div);
     }
-  } else {
-    editor.appendChild(div);
+    
+    window.wireGlassChecklistEvents(editor);
+    saveGlassEditorChanges(mode);
+    
+    const span = div.querySelector('span[contenteditable]');
+    if (span) {
+      span.focus();
+    }
+    return;
   }
 
+  // Convert selected blocks to checklist items
+  const createdItems = [];
+  items.forEach(item => {
+    if (item.element.classList.contains('checklist-item')) {
+      createdItems.push(item.element);
+      return;
+    }
+    
+    const newItem = document.createElement('div');
+    newItem.className = 'checklist-item';
+    newItem.innerHTML = `
+        <div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)">
+                <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
+                <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+            </svg>
+        </div>
+        <input type="checkbox">
+        <span contenteditable="true">${item.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
+        <button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        </button>
+    `;
+    
+    const parent = item.element.parentNode;
+    if (parent === editor) {
+      editor.replaceChild(newItem, item.element);
+    } else if (item.parentList) {
+      item.parentList.parentNode.insertBefore(newItem, item.parentList.nextSibling);
+      item.element.remove();
+      if (item.parentList.children.length === 0) {
+        item.parentList.remove();
+      }
+    } else {
+      parent.replaceChild(newItem, item.element);
+    }
+    createdItems.push(newItem);
+  });
+
   window.wireGlassChecklistEvents(editor);
-  triggerAutosave();
-  
-  const span = div.querySelector('span[contenteditable]');
-  if (span) {
-    span.focus();
-    // Position cursor at end of text
-    const range = document.createRange();
-    range.selectNodeContents(span);
-    range.collapse(false);
-    sel.removeAllRanges();
-    sel.addRange(range);
+  saveGlassEditorChanges(mode);
+
+  // Focus the last created item's span
+  if (createdItems.length > 0) {
+    const lastItem = createdItems[createdItems.length - 1];
+    const span = lastItem.querySelector('span[contenteditable]');
+    if (span) {
+      span.focus();
+      const range = document.createRange();
+      range.selectNodeContents(span);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
   }
-  saveGlassSelection();
 };
 
 function initGlassDrag(el) {

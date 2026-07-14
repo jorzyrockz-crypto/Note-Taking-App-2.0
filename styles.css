@@ -2285,13 +2285,15 @@ body.dark-theme .brush-slider::-webkit-slider-runnable-track {
     width: 240px !important;
     z-index: 250;
     box-shadow: 4px 0 16px rgba(0, 0, 0, 0.25);
-    background: rgba(240, 249, 255, 0.96);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: rgba(255, 255, 255, 0.8) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
   }
 
   body.dark-theme .app-sidebar.sidebar-open {
-    background: rgba(15, 23, 42, 0.97);
+    background: rgba(15, 23, 42, 0.8) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
   }
 
   .app-sidebar.sidebar-open .sidebar-label,
@@ -2377,13 +2379,15 @@ body.dark-theme .brush-slider::-webkit-slider-runnable-track {
     width: 240px !important;
     z-index: 250;
     box-shadow: 4px 0 16px rgba(0, 0, 0, 0.25);
-    background: rgba(240, 249, 255, 0.97);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: rgba(255, 255, 255, 0.8) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
   }
 
   body.dark-theme .app-sidebar.sidebar-open {
-    background: rgba(15, 23, 42, 0.98);
+    background: rgba(15, 23, 42, 0.8) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
   }
   
   .app-sidebar.sidebar-open .sidebar-label,
@@ -2485,13 +2489,15 @@ body.dark-theme .brush-slider::-webkit-slider-runnable-track {
     width: 240px !important;
     z-index: 250;
     box-shadow: 4px 0 16px rgba(0, 0, 0, 0.25);
-    background: rgba(240, 249, 255, 0.97);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: rgba(255, 255, 255, 0.8) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
   }
 
   body.dark-theme .app-sidebar.sidebar-open {
-    background: rgba(15, 23, 42, 0.98);
+    background: rgba(15, 23, 42, 0.8) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
   }
 
   .app-sidebar.sidebar-open .sidebar-label,
@@ -4886,10 +4892,17 @@ body.dark-theme .share-sheet-overlay {
 }
 
 .note-card[data-theme="custom"] .note-surface {
-  background: #ffffff;
+  background: var(--note-theme-surface, rgba(255, 255, 255, 0.82));
   border-color: rgba(255, 255, 255, 0.92);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.92), 0 14px 30px rgba(15, 23, 42, 0.18);
   color: #0f172a;
+}
+
+.note-card[data-theme]:not([data-theme="custom"]) .note-surface,
+.note-card:not([data-color="default"]) .note-surface {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .note-card[data-theme="custom"] .note-title,
