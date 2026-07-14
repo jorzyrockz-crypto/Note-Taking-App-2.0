@@ -9728,12 +9728,14 @@ body.dark-theme .checklist-item input[type="checkbox"] {
   transform: rotate(-45deg) translate(0.5px, -1.5px);
 }
 
-.checklist-item.checked span[contenteditable] {
+.checklist-item.checked span[contenteditable],
+.checklist-item.checked span {
   text-decoration: line-through;
   color: rgba(0, 0, 0, 0.4);
 }
 
-body.dark-theme .checklist-item.checked span[contenteditable] {
+body.dark-theme .checklist-item.checked span[contenteditable],
+body.dark-theme .checklist-item.checked span {
   color: rgba(255, 255, 255, 0.4);
 }
 
@@ -9951,6 +9953,104 @@ body.dark-theme .glass-link-popover input {
 body.editor-focus-mode .feed-filter-row {
   display: none !important;
 }
+
+/* ==========================================================================
+   Page Action Bar (Trash & Archive)
+   ========================================================================== */
+.page-action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 1200px;
+  background: var(--note-default);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 16px 24px;
+  margin: 16px auto 24px auto;
+  box-shadow: var(--shadow-creator);
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  box-sizing: border-box;
+}
+
+.page-action-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.page-action-title {
+  font-family: var(--font-sans);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.page-action-subtitle {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.action-bar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #ef4444; /* Premium Red for Delete All */
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+  transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.action-bar-btn:hover {
+  background-color: #dc2626;
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+}
+
+.action-bar-btn:active {
+  transform: scale(0.98);
+}
+
+/* Secondary Action Button styling (e.g. for Archive Trash All) */
+.action-bar-btn.btn-warning {
+  background-color: #f97316; /* Premium Orange for Trash All */
+  box-shadow: 0 2px 4px rgba(249, 115, 22, 0.2);
+}
+
+.action-bar-btn.btn-warning:hover {
+  background-color: #ea580c;
+  box-shadow: 0 4px 8px rgba(249, 115, 22, 0.3);
+}
+
+.action-bar-btn .btn-icon {
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 600px) {
+  .page-action-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px;
+  }
+  .action-bar-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 
 
 

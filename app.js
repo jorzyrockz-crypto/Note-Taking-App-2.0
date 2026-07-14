@@ -1535,6 +1535,99 @@ function deleteNotePermanently(id) {
   renderNotes();
 }
 
+function deleteAllDeletedNotes() {
+  const deletedNotes = notes.filter(isDeletedNote);
+  if (deletedNotes.length === 0) return;
+  
+  deletedNotes.forEach(note => {
+    if (note.files) {
+      normalizeNoteFiles(note.files).forEach(file => {
+        if (file.storedInDB || file.dataUrl === 'db') {
+          deleteFileFromDB(file.id).catch(err => {
+            console.warn('Failed to delete file from DB:', err);
+          });
+        }
+        if (currentUser) {
+          deleteFileFromCloud(currentUser.uid, file.id).catch(err => {
+            console.warn('Failed to delete file from Cloud Storage:', err);
+          });
+        }
+      });
+    }
+  });
+
+  notes = notes.filter(n => !isDeletedNote(n));
+
+  if (currentUser) {
+    deletedNotes.forEach(note => {
+      deleteNoteFromCloud(currentUser.uid, note.id).catch(err => {
+        console.warn('Failed to delete note from cloud:', err);
+      });
+    });
+  }
+
+  saveToLocalStorage();
+  closeAllNoteCardMenus();
+  renderNotes();
+}
+
+function trashAllArchivedNotes() {
+  const archivedNotes = notes.filter(isArchivedNote);
+  if (archivedNotes.length === 0) return;
+
+  const now = Date.now();
+  archivedNotes.forEach(note => {
+    note.deleted = true;
+    note.deletedAt = now;
+    note.archived = false;
+    note.archivedAt = null;
+    note.updatedAt = now;
+  });
+
+  saveToLocalStorage();
+  closeAllNoteCardMenus();
+  renderNotes();
+}
+
+function updatePageActionBar() {
+  const bar = document.getElementById('page-action-bar');
+  const titleEl = document.getElementById('page-action-title');
+  const subtitleEl = document.getElementById('page-action-subtitle');
+  const btnEl = document.getElementById('page-action-btn');
+  
+  if (!bar) return;
+
+  if (currentPage === 'deleted' || currentPage === 'archive') {
+    const pageNotes = getPageNotes(currentPage);
+    if (pageNotes.length > 0) {
+      bar.style.display = 'flex';
+      if (currentPage === 'deleted') {
+        if (titleEl) titleEl.textContent = 'Trash';
+        if (subtitleEl) subtitleEl.textContent = 'Notes in trash are deleted permanently. This action cannot be undone.';
+        if (btnEl) {
+          btnEl.className = 'action-bar-btn';
+          btnEl.innerHTML = `
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            <span>Delete All</span>
+          `;
+        }
+      } else {
+        if (titleEl) titleEl.textContent = 'Archive';
+        if (subtitleEl) subtitleEl.textContent = 'Move all archived notes to the Trash.';
+        if (btnEl) {
+          btnEl.className = 'action-bar-btn btn-warning';
+          btnEl.innerHTML = `
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13H5v-2h14v2z"/></svg>
+            <span>Trash All</span>
+          `;
+        }
+      }
+      return;
+    }
+  }
+  bar.style.display = 'none';
+}
+
 // ==========================================================================
 // 3. Core Initialization & Event Listeners
 // ==========================================================================
@@ -1796,6 +1889,19 @@ function setupEventHandlers() {
 
   // View toggle (Grid / List)
   viewToggle.addEventListener('click', toggleViewLayout);
+
+  const pageActionBarBtn = document.getElementById('page-action-btn');
+  pageActionBarBtn?.addEventListener('click', () => {
+    if (currentPage === 'deleted') {
+      if (confirm("Are you sure you want to permanently delete all notes in Trash? This action cannot be undone.")) {
+        deleteAllDeletedNotes();
+      }
+    } else if (currentPage === 'archive') {
+      if (confirm("Are you sure you want to move all archived notes to Trash?")) {
+        trashAllArchivedNotes();
+      }
+    }
+  });
 
   // Search filter
   searchInput.addEventListener('input', () => {
@@ -5174,6 +5280,7 @@ function renderNotes() {
 }
 
 function renderNotesPage() {
+  updatePageActionBar();
   const settingsPageEl = document.getElementById('settings-page');
   const prodPageEl = document.getElementById('productivity-page');
   
@@ -6549,6 +6656,12 @@ function mergeCloudNotesWithLocal(cloudNotes = []) {
     const cloudTimestamp = getNoteSyncTimestamp(cloudNote);
 
     if (!cloudNote || localTimestamp >= cloudTimestamp) {
+      const isStarter = normalized.id && normalized.id.startsWith('starter-');
+      const isExistingUser = currentUser && sessionStorage.getItem('paperuss_just_registered') !== 'true';
+      if (isStarter && isExistingUser && !cloudNote) {
+        return;
+      }
+
       mergedById.set(normalized.id, normalized);
       if (!cloudNote || localTimestamp > cloudTimestamp) {
         dirtyLocalNotes.push(normalized);
@@ -8488,6 +8601,7 @@ function initAuth() {
           await loginUser(email, password);
           showToast({ title: 'Welcome Back', text: 'Logged in successfully.' });
         } else {
+          sessionStorage.setItem('paperuss_just_registered', 'true');
           await registerUser(email, password, name);
           showToast({ title: 'Account Created', text: 'Your new account is ready.' });
         }
@@ -8879,9 +8993,7 @@ window.wireGlassChecklistEvents = function(container) {
       
       if (!checkbox.dataset.bound) {
         checkbox.addEventListener('click', (e) => {
-          e.preventDefault();
           e.stopPropagation();
-          checkbox.checked = !checkbox.checked;
           if (checkbox.checked) {
             checkbox.setAttribute('checked', 'checked');
           } else {
@@ -8920,142 +9032,6 @@ window.wireGlassChecklistEvents = function(container) {
     const span = item.querySelector('span[contenteditable]');
     if (span) {
       span.setAttribute('contenteditable', 'true');
-      if (!span.dataset.keybound) {
-      span.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          const text = span.innerText;
-          const selection = window.getSelection();
-          let offset = 0;
-          try {
-            if (selection.rangeCount > 0) {
-              const range = selection.getRangeAt(0);
-              if (span.contains(range.startContainer)) {
-                const preRange = range.cloneRange();
-                preRange.selectNodeContents(span);
-                preRange.setEnd(range.startContainer, range.startOffset);
-                offset = preRange.toString().length;
-              }
-            }
-          } catch (err) {}
-          
-          const textBefore = text.substring(0, offset);
-          const textAfter = text.substring(offset);
-          
-          span.innerText = textBefore;
-          
-          // Create new checklist item below using same tag name
-          const newItem = document.createElement(item.tagName.toLowerCase());
-          newItem.className = 'checklist-item';
-          newItem.innerHTML = `
-              <div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)">
-                      <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
-                      <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
-                      <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
-                  </svg>
-              </div>
-              <input type="checkbox">
-              <span contenteditable="true">${textAfter.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
-              <button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-              </button>
-          `;
-          
-          item.parentNode.insertBefore(newItem, item.nextSibling);
-          window.wireGlassChecklistEvents(container);
-          
-          const newSpan = newItem.querySelector('span[contenteditable]');
-          newSpan.focus();
-          const range = document.createRange();
-          range.selectNodeContents(newSpan);
-          range.collapse(true);
-          selection.removeAllRanges();
-          selection.addRange(range);
-          
-          const isModal = item.closest('#modal-glass-editor') !== null;
-          if (isModal) {
-            saveModalNoteDraft();
-          } else {
-            triggerAutosave();
-          }
-        } else if (e.key === 'Backspace') {
-          const selection = window.getSelection();
-          if (selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            let isAtStart = false;
-            try {
-              if (span.contains(range.startContainer)) {
-                const preRange = range.cloneRange();
-                preRange.selectNodeContents(span);
-                preRange.setEnd(range.startContainer, range.startOffset);
-                isAtStart = preRange.toString().length === 0;
-              }
-            } catch (err) {}
-            
-            if (isAtStart && range.collapsed) {
-              e.preventDefault();
-              const prev = item.previousSibling;
-              const isModal = item.closest('#modal-glass-editor') !== null;
-              
-              if (prev && prev.classList && prev.classList.contains('checklist-item')) {
-                // Merge into previous checklist item
-                const prevSpan = prev.querySelector('span[contenteditable]');
-                if (prevSpan) {
-                  const prevText = prevSpan.innerText;
-                  const currentText = span.innerText;
-                  prevSpan.innerText = prevText + currentText;
-                  
-                  item.remove();
-                  prevSpan.focus();
-                  
-                  const newRange = document.createRange();
-                  if (prevSpan.childNodes.length > 0) {
-                    let textNode = prevSpan.childNodes[0];
-                    newRange.setStart(textNode, prevText.length);
-                    newRange.setEnd(textNode, prevText.length);
-                  } else {
-                    newRange.selectNodeContents(prevSpan);
-                    newRange.collapse(false);
-                  }
-                  selection.removeAllRanges();
-                  selection.addRange(newRange);
-                  
-                  if (isModal) {
-                    saveModalNoteDraft();
-                  } else {
-                    triggerAutosave();
-                  }
-                }
-              } else {
-                // Convert checklist item back to normal tag
-                const text = span.innerText;
-                const p = document.createElement(item.tagName.toLowerCase() === 'li' ? 'li' : 'div');
-                if (p.tagName.toLowerCase() === 'li') {
-                  p.className = 'plain-list-item';
-                }
-                p.innerText = text || '\n';
-                item.parentNode.replaceChild(p, item);
-                p.focus();
-                
-                const newRange = document.createRange();
-                newRange.selectNodeContents(p);
-                newRange.collapse(true);
-                selection.removeAllRanges();
-                selection.addRange(newRange);
-                
-                if (isModal) {
-                  saveModalNoteDraft();
-                } else {
-                  triggerAutosave();
-                }
-              }
-            }
-          }
-        }
-      });
-        span.dataset.keybound = 'true';
-      }
     }
     
     initGlassDrag(item);
@@ -9519,6 +9495,140 @@ function initModernGlassEditorListeners() {
           if (linkPopover) linkPopover.style.display = 'none';
           const colorPopup = document.getElementById(`${mode}-glass-color-popup`);
           if (colorPopup) colorPopup.style.display = 'none';
+        }
+
+        // Checklist delegated keydown handling
+        const selection = window.getSelection();
+        if (selection.rangeCount === 0) return;
+        const range = selection.getRangeAt(0);
+        
+        let item = null;
+        let node = range.startContainer;
+        while (node && node !== editor) {
+          if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains('checklist-item')) {
+            item = node;
+            break;
+          }
+          node = node.parentNode;
+        }
+
+        if (!item) return;
+
+        const span = item.querySelector('span[contenteditable]');
+        if (!span) return;
+
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          const text = span.innerText;
+          let offset = 0;
+          try {
+            if (span.contains(range.startContainer)) {
+              const preRange = range.cloneRange();
+              preRange.selectNodeContents(span);
+              preRange.setEnd(range.startContainer, range.startOffset);
+              offset = preRange.toString().length;
+            } else {
+              offset = text.length;
+            }
+          } catch (err) {}
+
+          const textBefore = text.substring(0, offset);
+          const textAfter = text.substring(offset);
+
+          span.innerText = textBefore;
+
+          const newItem = document.createElement(item.tagName.toLowerCase());
+          newItem.className = 'checklist-item';
+          newItem.innerHTML = `
+              <div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)">
+                      <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
+                      <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                      <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+                  </svg>
+              </div>
+              <input type="checkbox">
+              <span contenteditable="true">${textAfter.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
+              <button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+              </button>
+          `;
+
+          item.parentNode.insertBefore(newItem, item.nextSibling);
+          window.wireGlassChecklistEvents(editor);
+
+          const newSpan = newItem.querySelector('span[contenteditable]');
+          if (newSpan) {
+            newSpan.focus();
+            const newRange = document.createRange();
+            newRange.selectNodeContents(newSpan);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+          }
+
+          saveGlassEditorChanges(mode);
+        } else if (e.key === 'Backspace') {
+          let isAtStart = false;
+          try {
+            if (span.contains(range.startContainer)) {
+              const preRange = range.cloneRange();
+              preRange.selectNodeContents(span);
+              preRange.setEnd(range.startContainer, range.startOffset);
+              isAtStart = preRange.toString().length === 0;
+            } else {
+              isAtStart = range.startOffset === 0;
+            }
+          } catch (err) {}
+
+          if (isAtStart && range.collapsed) {
+            e.preventDefault();
+            const prevItem = item.previousElementSibling;
+            if (prevItem && prevItem.classList.contains('checklist-item')) {
+              // Merge into previous checklist item
+              const prevSpan = prevItem.querySelector('span[contenteditable]');
+              if (prevSpan) {
+                const prevText = prevSpan.innerText;
+                const currentText = span.innerText;
+                prevSpan.innerText = prevText + currentText;
+
+                item.remove();
+                prevSpan.focus();
+
+                const newRange = document.createRange();
+                if (prevSpan.childNodes.length > 0) {
+                  let textNode = prevSpan.childNodes[0];
+                  newRange.setStart(textNode, prevText.length);
+                  newRange.setEnd(textNode, prevText.length);
+                } else {
+                  newRange.selectNodeContents(prevSpan);
+                  newRange.collapse(false);
+                }
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+
+                saveGlassEditorChanges(mode);
+              }
+            } else {
+              // Convert checklist item back to normal tag
+              const text = span.innerText;
+              const p = document.createElement(item.tagName.toLowerCase() === 'li' ? 'li' : 'div');
+              if (p.tagName.toLowerCase() === 'li') {
+                p.className = 'plain-list-item';
+              }
+              p.innerText = text || '\n';
+              item.parentNode.replaceChild(p, item);
+              p.focus();
+
+              const newRange = document.createRange();
+              newRange.selectNodeContents(p);
+              newRange.collapse(true);
+              selection.removeAllRanges();
+              selection.addRange(newRange);
+
+              saveGlassEditorChanges(mode);
+            }
+          }
         }
       });
       
