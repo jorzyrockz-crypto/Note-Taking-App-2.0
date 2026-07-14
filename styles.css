@@ -1771,13 +1771,9 @@ body.dark-theme .note-card-menu-action:hover {
     right: 0;
     bottom: 0;
     height: 54px;
-    background: linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,0.94));
+    background: linear-gradient(180deg, color-mix(in srgb, var(--note-color, var(--note-default)) 0%, transparent), color-mix(in srgb, var(--note-color, var(--note-default)) 94%, transparent));
     pointer-events: none;
     transition: opacity 0.2s ease;
-  }
-
-  body.dark-theme .note-card-preview-body::after {
-    background: linear-gradient(180deg, rgba(18,22,30,0), rgba(18,22,30,0.94));
   }
 
   .note-card:hover .note-card-preview-body,
@@ -1811,13 +1807,9 @@ body.dark-theme .note-card-menu-action:hover {
     right: 0;
     bottom: 0;
     height: 54px;
-    background: linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,0.94));
+    background: linear-gradient(180deg, color-mix(in srgb, var(--note-color, var(--note-default)) 0%, transparent), color-mix(in srgb, var(--note-color, var(--note-default)) 94%, transparent));
     pointer-events: none;
     transition: opacity 0.2s ease;
-  }
-
-  body.dark-theme .note-card-preview-body::after {
-    background: linear-gradient(180deg, rgba(18,22,30,0), rgba(18,22,30,0.94));
   }
 
   .note-card.touch-expanded .note-card-preview-body {
@@ -6668,8 +6660,7 @@ body.card-style-flat .note-card:not([data-color="default"]):hover {
 [data-theme="celebration"] { --note-color: var(--theme-celebration-bg); }
 
 body.card-style-glass .note-card,
-body.card-style-glass .note-creator,
-body.card-style-glass .edit-modal-card {
+body.card-style-glass .note-creator {
   background-color: color-mix(in srgb, var(--note-color, var(--note-default)) 45%, transparent) !important;
   backdrop-filter: blur(14px) saturate(180%);
   -webkit-backdrop-filter: blur(14px) saturate(180%);
@@ -6678,8 +6669,7 @@ body.card-style-glass .edit-modal-card {
 }
 
 body.card-style-glass.dark-theme .note-card,
-body.card-style-glass.dark-theme .note-creator,
-body.card-style-glass.dark-theme .edit-modal-card {
+body.card-style-glass.dark-theme .note-creator {
   background-color: color-mix(in srgb, var(--note-color, var(--note-default)) 35%, transparent) !important;
   backdrop-filter: blur(14px) saturate(180%);
   -webkit-backdrop-filter: blur(14px) saturate(180%);
