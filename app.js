@@ -1031,7 +1031,7 @@ let menuPanel = null;
 let folderDrawer = null;
 let folderDrawerList = null;
 let productivityPage = null;
-let quickPasteZone = null;
+
 
 const editModal = document.getElementById('edit-modal');
 const editModalCard = document.getElementById('edit-modal-card');
@@ -1385,32 +1385,7 @@ function collapseSidebarAfterSelection() {
   }
 }
 
-function ensureQuickPasteZone() {
-  if (!creatorWrapper || quickPasteZone) return;
 
-  const shortcut = navigator.platform?.toLowerCase().includes('mac') ? '⌘V' : 'Ctrl+V';
-  quickPasteZone = document.createElement('button');
-  quickPasteZone.type = 'button';
-  quickPasteZone.className = 'quick-paste-zone';
-  quickPasteZone.innerHTML = `
-    <span class="quick-paste-icon" aria-hidden="true">📋</span>
-    <span class="quick-paste-copy">
-      <strong>Quick Paste Mode</strong>
-      <span>Copy text, links, or pictures in split screen, then click here and press ${shortcut}.</span>
-    </span>
-  `;
-  quickPasteZone.addEventListener('click', activateQuickPasteMode);
-  creatorWrapper.insertAdjacentElement('afterend', quickPasteZone);
-}
-
-function activateQuickPasteMode() {
-  expandCreator();
-  creatorText.focus();
-  showToast({
-    title: 'Quick Paste Mode',
-    text: 'Now paste with Ctrl+V or ⌘V to add copied text, links, or images.'
-  });
-}
 
 function ensureCalendarSelection() {
   if (!selectedCalendarDate) {
@@ -1771,7 +1746,7 @@ function initData() {
 }
 
 function setupEventHandlers() {
-  ensureQuickPasteZone();
+
   setupMarkdownKeydownHandlers();
 
   settingsBtn = document.getElementById('settings-btn');
@@ -2365,6 +2340,11 @@ function setupEventHandlers() {
       });
     });
   });
+
+  // Set macOS command key text on the paste hint badge if present
+  const shortcut = navigator.platform?.toLowerCase().includes('mac') ? '⌘V' : 'Ctrl+V';
+  const badge = document.querySelector('.paste-hint-badge');
+  if (badge) badge.textContent = shortcut;
 }
 
 // ==========================================================================

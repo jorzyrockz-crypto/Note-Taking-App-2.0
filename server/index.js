@@ -66,6 +66,7 @@ app.post('/api/link-preview', async (req, res) => {
   }
 });
 
+app.use(express.static(path.join(rootDir, 'public')));
 app.use(express.static(rootDir));
 
 app.get('*', (_req, res) => {
