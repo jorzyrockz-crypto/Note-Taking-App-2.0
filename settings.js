@@ -424,7 +424,7 @@ export function saveSettingsFromForm() {
     linkPreviewsEnabled: settingsLinkPreviews.checked,
     checkedItemsToBottom: settingsCheckedBottom.checked,
     newChecklistItemsToBottom: settingsNewBottom.checked,
-    advancedEditorEnabled: settingsAdvancedEditor ? settingsAdvancedEditor.checked : true,
+    advancedEditorEnabled: false,
     modernGlassEditorEnabled: settingsModernGlassEditor ? settingsModernGlassEditor.checked : false,
     cardLayoutStyle: settingsCardStyle.value,
     reminderTimes: {

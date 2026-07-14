@@ -9294,26 +9294,26 @@ body {
 
 /* Apply glassmorphism styling to main UI elements to blend with the background */
 .app-header {
-  background: rgba(255, 255, 255, 0.4) !important;
+  background: rgba(255, 255, 255, 0.85) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.3) !important;
 }
 
 body.dark-theme .app-header {
-  background: rgba(9, 13, 22, 0.4) !important;
+  background: rgba(15, 23, 42, 0.85) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
 
 .app-sidebar {
-  background: rgba(255, 255, 255, 0.3) !important;
+  background: rgba(255, 255, 255, 0.8) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
   border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
 }
 
 body.dark-theme .app-sidebar {
-  background: rgba(9, 13, 22, 0.3) !important;
+  background: rgba(15, 23, 42, 0.8) !important;
   border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
 
@@ -9365,14 +9365,16 @@ body.dark-theme .note-creator {
 /* Glass Modal Overlay active states */
 .creator-wrapper.modern-glass-editor-active,
 .edit-modal-overlay.modern-glass-editor-active {
-  background: rgba(15, 23, 42, 0.12) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
+  background: rgba(15, 23, 42, 0.3) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 body.dark-theme .creator-wrapper.modern-glass-editor-active,
 body.dark-theme .edit-modal-overlay.modern-glass-editor-active {
-  background: rgba(0, 0, 0, 0.25) !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 /* Hide original elements */
@@ -9389,21 +9391,19 @@ body.dark-theme .edit-modal-overlay.modern-glass-editor-active {
 /* Glass Modal Card Styling */
 .creator-wrapper.modern-glass-editor-active .note-creator,
 .edit-modal-card.modern-glass-editor-active {
-  background: rgba(255, 255, 255, 0.22) !important;
-  backdrop-filter: blur(18px) !important;
-  -webkit-backdrop-filter: blur(18px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.4) !important;
-  border-top: 1.5px solid rgba(255, 255, 255, 0.65) !important;
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
   border-radius: 24px !important;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.1) !important;
 }
 
 body.dark-theme .creator-wrapper.modern-glass-editor-active .note-creator,
 body.dark-theme .edit-modal-card.modern-glass-editor-active {
-  background: rgba(15, 23, 42, 0.25) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  border-top: 1.5px solid rgba(255, 255, 255, 0.15) !important;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
+  background: #0f172a !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35) !important;
 }
 
 /* Glass Editor Workspace */
@@ -9566,24 +9566,22 @@ body.dark-theme .note-content-field a {
   bottom: 32px;
   left: 50%;
   transform: translateX(-50%) translateY(0);
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 999px;
   padding: 8px 16px;
   display: flex;
   gap: 6px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
   z-index: 1000;
   align-items: center;
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
 }
 
 body.dark-theme .glass-floating-toolbar {
-  background: rgba(15, 23, 42, 0.6);
+  background: #1e293b;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
 }
 
 .glass-floating-toolbar.toolbar-hidden {
@@ -9769,22 +9767,20 @@ body.dark-theme .checklist-delete-btn {
   bottom: 82px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: #ffffff;
   padding: 12px 14px;
   border-radius: 16px;
   display: none;
   flex-direction: column;
   gap: 8px;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.1);
   z-index: 1001;
   border: 1px solid rgba(0, 0, 0, 0.08);
   min-width: 190px;
 }
 
 body.dark-theme .color-popup {
-  background: rgba(30, 41, 59, 0.9);
+  background: #1e293b;
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
 }
@@ -9840,21 +9836,19 @@ body.dark-theme .color-swatch.text-swatch {
   bottom: 82px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 14px;
   padding: 10px;
   display: none;
   gap: 8px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   z-index: 1001;
   align-items: center;
 }
 
 body.dark-theme .glass-link-popover {
-  background: rgba(30, 41, 59, 0.9);
+  background: #1e293b;
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.3);
 }
@@ -9928,6 +9922,10 @@ body.dark-theme .glass-link-popover input {
 
 .note-text.rich-preview {
   white-space: normal;
+}
+
+body.editor-focus-mode .feed-filter-row {
+  display: none !important;
 }
 
 
