@@ -9368,6 +9368,17 @@ body.dark-theme .note-creator {
   background: rgba(15, 23, 42, 0.25) !important;
 }
 
+/* Hide original elements */
+.creator-wrapper.modern-glass-editor-active .creator-footer,
+.edit-modal-card.modern-glass-editor-active .modal-footer {
+  display: none !important;
+}
+
+/* Note card checkbox click bubble behavior */
+.note-card input[type="checkbox"] {
+  pointer-events: none;
+}
+
 /* Glass Modal Card Styling */
 .creator-wrapper.modern-glass-editor-active .note-creator,
 .edit-modal-card.modern-glass-editor-active {

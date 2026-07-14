@@ -12,6 +12,9 @@ export function renderTextNoteContent(note, options) {
   textEl.className = 'note-text';
   if (note.isRichText) {
     textEl.innerHTML = textVal;
+    textEl.querySelectorAll('[contenteditable]').forEach(el => {
+      el.removeAttribute('contenteditable');
+    });
   } else {
     textEl.appendChild(renderFormattedText(cleanTextTags(textVal), { urlRegex }));
   }

@@ -5983,6 +5983,7 @@ function openEditModal(note) {
     const glassEditor = document.getElementById('modal-glass-editor');
     glassTitle.innerHTML = note.title || '';
     glassEditor.innerHTML = note.text || '';
+    window.wireGlassChecklistEvents(glassEditor);
     
     const date = note.updatedAt ? new Date(note.updatedAt) : new Date();
     const glassTimestamp = document.getElementById('modal-glass-timestamp');
@@ -8592,6 +8593,7 @@ window.execGlassCmd = function(cmd, val = null) {
   restoreGlassSelection();
   document.execCommand(cmd, false, val);
   saveGlassSelection();
+  triggerAutosave();
 };
 
 window.updateGlassEmptyState = function(el) {
@@ -8615,12 +8617,49 @@ window.applyGlassHighlight = function(color) {
     document.execCommand('backColor', false, 'transparent');
   }
   saveGlassSelection();
+  triggerAutosave();
   
   // Hide both popups
   const creatorPopup = document.getElementById('creator-glass-color-popup');
   if (creatorPopup) creatorPopup.style.display = 'none';
   const modalPopup = document.getElementById('modal-glass-color-popup');
   if (modalPopup) modalPopup.style.display = 'none';
+};
+
+window.wireGlassChecklistEvents = function(container) {
+  if (!container) return;
+  container.querySelectorAll('.checklist-item').forEach(item => {
+    const checkbox = item.querySelector('input[type="checkbox"]');
+    if (checkbox) {
+      const isChecked = checkbox.checked || checkbox.hasAttribute('checked');
+      checkbox.checked = isChecked;
+      item.classList.toggle('checked', isChecked);
+      
+      if (!checkbox.dataset.bound) {
+        checkbox.addEventListener('change', () => {
+          if (checkbox.checked) {
+            checkbox.setAttribute('checked', 'checked');
+          } else {
+            checkbox.removeAttribute('checked');
+          }
+          item.classList.toggle('checked', checkbox.checked);
+          triggerAutosave();
+        });
+        checkbox.dataset.bound = 'true';
+      }
+    }
+    
+    const delBtn = item.querySelector('.checklist-delete-btn');
+    if (delBtn && !delBtn.dataset.bound) {
+      delBtn.addEventListener('click', () => {
+        item.remove();
+        triggerAutosave();
+      });
+      delBtn.dataset.bound = 'true';
+    }
+    
+    initGlassDrag(item);
+  });
 };
 
 window.addGlassChecklist = function(mode) {
@@ -8648,7 +8687,7 @@ window.addGlassChecklist = function(mode) {
       </svg>
       <input type="checkbox">
       <span contenteditable="true">${selectedText ? selectedText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : ''}</span>
-      <button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()" onclick="this.closest('.checklist-item').remove()">
+      <button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
       </button>
   `;
@@ -8667,8 +8706,8 @@ window.addGlassChecklist = function(mode) {
     editor.appendChild(div);
   }
 
-  initGlassDrag(div);
-  wireGlassChecklistCheckbox(div);
+  window.wireGlassChecklistEvents(editor);
+  triggerAutosave();
   
   if (!selectedText) {
     div.querySelector('span[contenteditable]').focus();
@@ -8676,18 +8715,15 @@ window.addGlassChecklist = function(mode) {
   saveGlassSelection();
 };
 
-function wireGlassChecklistCheckbox(item) {
-  const checkbox = item.querySelector('input[type="checkbox"]');
-  if (checkbox) {
-    checkbox.addEventListener('change', () => {
-      item.classList.toggle('checked', checkbox.checked);
-    });
-  }
-}
-
 function initGlassDrag(el) {
-  el.addEventListener('dragstart', () => el.classList.add('dragging'));
-  el.addEventListener('dragend', () => el.classList.remove('dragging'));
+  if (!el.dataset.dragBound) {
+    el.addEventListener('dragstart', () => el.classList.add('dragging'));
+    el.addEventListener('dragend', () => {
+      el.classList.remove('dragging');
+      triggerAutosave();
+    });
+    el.dataset.dragBound = 'true';
+  }
 }
 
 window.addGlassLink = function() {
@@ -8700,6 +8736,7 @@ window.addGlassLink = function() {
     return;
   }
   document.execCommand('createLink', false, url);
+  triggerAutosave();
 };
 
 const GLASS_URL_PATTERN = /((https?:\/\/|www\.)[^\s<]+|\b[a-zA-Z0-9-]+\.(com|net|org|io|dev|app|co)(\/[^\s<]*)?)/gi;
@@ -8829,6 +8866,7 @@ window.handleGlassImage = function(input, mode) {
       restoreGlassSelection();
       document.execCommand('insertImage', false, result.dataUrl);
       saveGlassSelection();
+      triggerAutosave();
       const finalKb = Math.round(estimateGlassBase64Bytes(result.dataUrl) / 1024);
       showToast({
         title: 'Image Added',
@@ -8904,6 +8942,8 @@ function initModernGlassEditorListeners() {
         if (!after) editor.appendChild(dragging);
         else editor.insertBefore(dragging, after);
       });
+      
+      window.wireGlassChecklistEvents(editor);
     }
   });
 
