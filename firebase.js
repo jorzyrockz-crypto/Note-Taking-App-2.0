@@ -386,11 +386,15 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '2.1.0',
+        version: '2.2.0',
         changelog: [
-          'Firestore offline caching and automatic background syncing enabled',
-          'Stay signed in offline; data merges seamlessly when back online',
-          'Dynamic app update button clears cache storage & service workers'
+          'Unified Modern Glass Editor selection-to-list conversions (checklist, bullets, numbered lists)',
+          'Instant responsive checkbox toggling and note card feed preview crossed-out styling',
+          'Delegated checklist keyboard handlers preventing browser default plain lines on Enter',
+          'Note card grid theme styling and custom background/patterns instant rendering',
+          'Auto-close options sheets and properties drawers on clicking outside',
+          'Cohesive glassmorphism drawer navigation sidebar styling on portrait/mobile viewports',
+          'Page action bars with Delete All Trash / Trash All Archive bulk operations'
         ]
       });
     }, 0);

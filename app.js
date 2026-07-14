@@ -2489,7 +2489,7 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.1.0';
+  const CURRENT_VERSION = '2.2.0';
   subscribeToVersionUpdates((serverConfig) => {
     if (!appUpdateBtn) return;
     const serverVersion = serverConfig?.version || CURRENT_VERSION;
