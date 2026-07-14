@@ -9365,7 +9365,14 @@ body.dark-theme .note-creator {
 /* Glass Modal Overlay active states */
 .creator-wrapper.modern-glass-editor-active,
 .edit-modal-overlay.modern-glass-editor-active {
-  background: rgba(15, 23, 42, 0.25) !important;
+  background: rgba(15, 23, 42, 0.12) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+body.dark-theme .creator-wrapper.modern-glass-editor-active,
+body.dark-theme .edit-modal-overlay.modern-glass-editor-active {
+  background: rgba(0, 0, 0, 0.25) !important;
 }
 
 /* Hide original elements */
@@ -9382,21 +9389,21 @@ body.dark-theme .note-creator {
 /* Glass Modal Card Styling */
 .creator-wrapper.modern-glass-editor-active .note-creator,
 .edit-modal-card.modern-glass-editor-active {
-  background: rgba(255, 255, 255, 0.4) !important;
-  backdrop-filter: blur(32px) !important;
-  -webkit-backdrop-filter: blur(32px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.5) !important;
-  border-top: 1.5px solid rgba(255, 255, 255, 0.75) !important;
+  background: rgba(255, 255, 255, 0.22) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, 0.65) !important;
   border-radius: 24px !important;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
 }
 
 body.dark-theme .creator-wrapper.modern-glass-editor-active .note-creator,
 body.dark-theme .edit-modal-card.modern-glass-editor-active {
-  background: rgba(15, 23, 42, 0.45) !important;
+  background: rgba(15, 23, 42, 0.25) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-top: 1.5px solid rgba(255, 255, 255, 0.15) !important;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
 }
 
 /* Glass Editor Workspace */

@@ -5969,6 +5969,7 @@ function openEditModal(note) {
 
   if (appSettings.modernGlassEditorEnabled) {
     editModalCard.classList.add('modern-glass-editor-active');
+    editModal.classList.add('modern-glass-editor-active');
     editModalCard.classList.remove('advanced-editor-active');
     if (modalAdvancedHeader) modalAdvancedHeader.style.display = 'flex';
     if (modalFloatingToolbar) modalFloatingToolbar.style.display = 'none';
@@ -6317,6 +6318,7 @@ function closeEditModal() {
   currentEditingNoteId = null;
   editModalCard.classList.remove('properties-sheet-open');
   editModalCard.classList.remove('modern-glass-editor-active');
+  editModal.classList.remove('modern-glass-editor-active');
   editModal.classList.remove('visible');
   document.body.classList.remove('editor-focus-mode');
   modalColorPicker.classList.remove('visible');
