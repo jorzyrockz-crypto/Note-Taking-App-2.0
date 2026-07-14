@@ -36,6 +36,7 @@ let settingsLinkPreviews;
 let settingsCheckedBottom;
 let settingsNewBottom;
 let settingsAdvancedEditor;
+let settingsModernGlassEditor;
 let settingsCardStyle;
 let settingsEmojiOpacity;
 let settingsEmojiSize;
@@ -59,6 +60,7 @@ export function initSettings() {
   settingsCheckedBottom = document.getElementById('settings-checked-bottom');
   settingsNewBottom = document.getElementById('settings-new-bottom');
   settingsAdvancedEditor = document.getElementById('settings-advanced-editor');
+  settingsModernGlassEditor = document.getElementById('settings-modern-glass-editor');
   settingsCardStyle = document.getElementById('settings-card-style');
   settingsExperimentalSkyTheme = document.getElementById('settings-experimental-sky-theme');
   settingsPremiumSkyTheme = document.getElementById('settings-premium-floating-theme');
@@ -141,6 +143,7 @@ export function renderSettingsPage() {
   if (settingsCheckedBottom) settingsCheckedBottom.checked = appSettings.checkedItemsToBottom;
   if (settingsNewBottom) settingsNewBottom.checked = appSettings.newChecklistItemsToBottom;
   if (settingsAdvancedEditor) settingsAdvancedEditor.checked = appSettings.advancedEditorEnabled;
+  if (settingsModernGlassEditor) settingsModernGlassEditor.checked = appSettings.modernGlassEditorEnabled || false;
   if (settingsCardStyle) settingsCardStyle.value = appSettings.cardLayoutStyle;
   if (settingsExperimentalSkyTheme) settingsExperimentalSkyTheme.checked = experimentalSkyTheme;
   if (settingsPremiumSkyTheme) settingsPremiumSkyTheme.checked = premiumSkyTheme;
@@ -422,6 +425,7 @@ export function saveSettingsFromForm() {
     checkedItemsToBottom: settingsCheckedBottom.checked,
     newChecklistItemsToBottom: settingsNewBottom.checked,
     advancedEditorEnabled: settingsAdvancedEditor ? settingsAdvancedEditor.checked : true,
+    modernGlassEditorEnabled: settingsModernGlassEditor ? settingsModernGlassEditor.checked : false,
     cardLayoutStyle: settingsCardStyle.value,
     reminderTimes: {
       morning: settingsReminderMorning.value,

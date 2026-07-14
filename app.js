@@ -69,6 +69,7 @@ export let appSettings = {
   checkedItemsToBottom: true,
   newChecklistItemsToBottom: true,
   advancedEditorEnabled: true,
+  modernGlassEditorEnabled: false,
   cardLayoutStyle: 'default',
   reminderTimes: {
     morning: '08:00',
@@ -1551,6 +1552,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderAppView();
   handleSharedLaunchData();
   initAuth();
+  initModernGlassEditorListeners();
 
   registerServiceWorker();
   
@@ -2589,23 +2591,34 @@ function expandCreator() {
   creatorCollapsed.style.display = 'none';
   creatorExpanded.style.display = 'flex';
   
-  if (appSettings.advancedEditorEnabled) {
-    creatorWrapper.classList.add('advanced-editor-active');
+  if (appSettings.modernGlassEditorEnabled) {
+    creatorWrapper.classList.add('modern-glass-editor-active');
     document.body.classList.add('advanced-editor-open');
     document.body.classList.add('editor-focus-mode');
-    creatorAdvancedHeader.style.display = 'flex';
-    creatorMetadata.style.display = 'block';
-    creatorFloatingToolbar.style.display = 'flex';
+    if (creatorAdvancedHeader) creatorAdvancedHeader.style.display = 'flex';
+    if (creatorMetadata) creatorMetadata.style.display = 'none';
+    if (creatorFloatingToolbar) creatorFloatingToolbar.style.display = 'none';
     
-    const creatorToolbar = document.getElementById('creator-markdown-toolbar');
-    if (creatorToolbar) creatorToolbar.style.display = 'flex';
+    document.getElementById('creator-glass-workspace').style.display = 'block';
+    document.getElementById('creator-glass-floating-toolbar').style.display = 'flex';
+    creatorTitle.style.display = 'none';
+    creatorWrapper.querySelector('.editor-textarea-wrap').style.display = 'none';
+    
+    const glassTitle = document.getElementById('creator-glass-title');
+    const glassEditor = document.getElementById('creator-glass-editor');
+    glassTitle.innerHTML = '';
+    glassEditor.innerHTML = '';
     
     const date = new Date();
-    creatorMetadata.textContent = date.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }) + ' • ' + date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const glassTimestamp = document.getElementById('creator-glass-timestamp');
+    if (glassTimestamp) {
+      glassTimestamp.textContent = date.toLocaleString(undefined, {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+      });
+    }
     
-    creatorTitle.placeholder = 'Untitled Note';
-    creatorText.placeholder = 'Start writing...';
-    creatorPin.style.display = 'none';
+    window.updateGlassEmptyState(glassTitle);
+    window.updateGlassEmptyState(glassEditor);
     
     creatorActiveNoteId = 'note-' + Date.now();
     
@@ -2617,22 +2630,59 @@ function expandCreator() {
     renderPopoverColors();
     initPopoverReminder();
     
-    creatorTitle.focus();
+    glassTitle.focus();
   } else {
-    creatorWrapper.classList.remove('advanced-editor-active');
-    document.body.classList.remove('advanced-editor-open');
-    document.body.classList.remove('editor-focus-mode');
-    if (creatorAdvancedHeader) creatorAdvancedHeader.style.display = 'none';
-    if (creatorMetadata) creatorMetadata.style.display = 'none';
-    if (creatorFloatingToolbar) creatorFloatingToolbar.style.display = 'none';
-    
-    const creatorToolbar = document.getElementById('creator-markdown-toolbar');
-    if (creatorToolbar) creatorToolbar.style.display = 'none';
-    
-    creatorPin.style.display = 'flex';
-    creatorTitle.placeholder = 'Title';
-    creatorText.placeholder = 'Take a note...';
-    creatorText.focus();
+    creatorWrapper.classList.remove('modern-glass-editor-active');
+    document.getElementById('creator-glass-workspace').style.display = 'none';
+    document.getElementById('creator-glass-floating-toolbar').style.display = 'none';
+    creatorTitle.style.display = 'block';
+    creatorWrapper.querySelector('.editor-textarea-wrap').style.display = 'block';
+
+    if (appSettings.advancedEditorEnabled) {
+      creatorWrapper.classList.add('advanced-editor-active');
+      document.body.classList.add('advanced-editor-open');
+      document.body.classList.add('editor-focus-mode');
+      creatorAdvancedHeader.style.display = 'flex';
+      creatorMetadata.style.display = 'block';
+      creatorFloatingToolbar.style.display = 'flex';
+      
+      const creatorToolbar = document.getElementById('creator-markdown-toolbar');
+      if (creatorToolbar) creatorToolbar.style.display = 'flex';
+      
+      const date = new Date();
+      creatorMetadata.textContent = date.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }) + ' • ' + date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      
+      creatorTitle.placeholder = 'Untitled Note';
+      creatorText.placeholder = 'Start writing...';
+      creatorPin.style.display = 'none';
+      
+      creatorActiveNoteId = 'note-' + Date.now();
+      
+      const selectedFolders = decodeFolderSelection(creatorFolderInput?.value || '');
+      const primaryFolder = selectedFolders[0] || 'Personal';
+      creatorBreadcrumb.textContent = `${primaryFolder} / Ideas`;
+      
+      renderPopoverCategories();
+      renderPopoverColors();
+      initPopoverReminder();
+      
+      creatorTitle.focus();
+    } else {
+      creatorWrapper.classList.remove('advanced-editor-active');
+      document.body.classList.remove('advanced-editor-open');
+      document.body.classList.remove('editor-focus-mode');
+      if (creatorAdvancedHeader) creatorAdvancedHeader.style.display = 'none';
+      if (creatorMetadata) creatorMetadata.style.display = 'none';
+      if (creatorFloatingToolbar) creatorFloatingToolbar.style.display = 'none';
+      
+      const creatorToolbar = document.getElementById('creator-markdown-toolbar');
+      if (creatorToolbar) creatorToolbar.style.display = 'none';
+      
+      creatorPin.style.display = 'flex';
+      creatorTitle.placeholder = 'Title';
+      creatorText.placeholder = 'Take a note...';
+      creatorText.focus();
+    }
   }
   
   syncCreatorInputs();
@@ -2647,7 +2697,22 @@ function collapseCreator() {
   const creatorToolbar = document.getElementById('creator-markdown-toolbar');
   if (creatorToolbar) creatorToolbar.style.display = 'none';
   
-  if (appSettings.advancedEditorEnabled) {
+  if (appSettings.modernGlassEditorEnabled) {
+    creatorWrapper.classList.remove('modern-glass-editor-active');
+    document.body.classList.remove('advanced-editor-open');
+    document.body.classList.remove('editor-focus-mode');
+    if (creatorAdvancedHeader) creatorAdvancedHeader.style.display = 'none';
+    if (creatorMetadata) creatorMetadata.style.display = 'none';
+    document.getElementById('creator-glass-workspace').style.display = 'none';
+    document.getElementById('creator-glass-floating-toolbar').style.display = 'none';
+    const glassColorPopup = document.getElementById('creator-glass-color-popup');
+    if (glassColorPopup) glassColorPopup.style.display = 'none';
+    creatorMorePopover.style.display = 'none';
+    creatorActiveNoteId = null;
+    
+    document.getElementById('creator-glass-title').innerHTML = '';
+    document.getElementById('creator-glass-editor').innerHTML = '';
+  } else if (appSettings.advancedEditorEnabled) {
     creatorWrapper.classList.remove('advanced-editor-active');
     document.body.classList.remove('advanced-editor-open');
     document.body.classList.remove('editor-focus-mode');
@@ -2715,10 +2780,14 @@ function collapseCreator() {
 }
 
 function saveCreatorNoteDraft() {
-  if (!appSettings.advancedEditorEnabled || !creatorActiveNoteId) return;
+  if ((!appSettings.advancedEditorEnabled && !appSettings.modernGlassEditorEnabled) || !creatorActiveNoteId) return;
 
-  const title = creatorTitle.value.trim();
-  const text = creatorText.value.trim();
+  const title = appSettings.modernGlassEditorEnabled
+    ? document.getElementById('creator-glass-title').innerHTML.trim()
+    : creatorTitle.value.trim();
+  const text = appSettings.modernGlassEditorEnabled
+    ? document.getElementById('creator-glass-editor').innerHTML.trim()
+    : creatorText.value.trim();
 
   // If empty, and it was previously saved, we should remove it from notes
   if (isNoteEffectivelyEmpty(title, text, creatorImage, creatorAudio, creatorFiles)) {
@@ -2743,6 +2812,8 @@ function saveCreatorNoteDraft() {
       type: creatorIntentType || getNoteType(text),
       title: title,
       text: text,
+      isRichText: appSettings.modernGlassEditorEnabled ? true : false,
+      editorMode: appSettings.modernGlassEditorEnabled ? 'glass' : null,
       color: creatorColor,
       theme: creatorTheme,
       customTheme: creatorTheme === CUSTOM_THEME_ID ? creatorCustomTheme : null,
@@ -2768,6 +2839,10 @@ function saveCreatorNoteDraft() {
     // Update existing note
     note.title = title;
     note.text = text;
+    if (appSettings.modernGlassEditorEnabled) {
+      note.isRichText = true;
+      note.editorMode = 'glass';
+    }
     note.type = creatorIntentType || getNoteType(text);
     note.color = creatorColor;
     note.theme = creatorTheme;
@@ -3068,8 +3143,12 @@ function initAdvancedEditorHandlers() {
     e.stopPropagation();
     const mockNote = {
       id: creatorActiveNoteId || 'note-temp',
-      title: creatorTitle.value,
-      text: creatorText.value,
+      title: appSettings.modernGlassEditorEnabled
+        ? document.getElementById('creator-glass-title').innerHTML.trim()
+        : creatorTitle.value,
+      text: appSettings.modernGlassEditorEnabled
+        ? document.getElementById('creator-glass-editor').innerHTML.trim()
+        : creatorText.value,
       color: creatorColor,
       theme: creatorTheme,
       customTheme: creatorTheme === CUSTOM_THEME_ID ? creatorCustomTheme : null,
@@ -3629,7 +3708,7 @@ function formatSelectedText(syntaxStart, syntaxEnd = '') {
 
 let autosaveDebounceTimer = null;
 function triggerAutosave() {
-  if (!appSettings.advancedEditorEnabled || !creatorActiveNoteId) return;
+  if ((!appSettings.advancedEditorEnabled && !appSettings.modernGlassEditorEnabled) || !creatorActiveNoteId) return;
   creatorAutosaveStatus.textContent = 'Saving...';
   creatorAutosaveStatus.style.opacity = '1';
   clearTimeout(autosaveDebounceTimer);
@@ -3639,7 +3718,7 @@ function triggerAutosave() {
 }
 
 function saveCreatorNote() {
-  if (appSettings.advancedEditorEnabled) {
+  if (appSettings.advancedEditorEnabled || appSettings.modernGlassEditorEnabled) {
     saveCreatorNoteDraft();
     return;
   }
@@ -4278,14 +4357,28 @@ function handleGlobalClipboardPaste(event) {
 
   event.preventDefault();
   expandCreator();
-  const separator = creatorText.value.trim() ? '\n\n' : '';
-  creatorText.value = `${creatorText.value}${separator}${pastedText}`;
-  syncCreatorInputs();
-  syncCreatorFolderInput();
-  autoGrowTextarea.call(creatorText);
-  scheduleCreatorLinkPreview(80);
+  if (appSettings.modernGlassEditorEnabled) {
+    const editorEl = document.getElementById('creator-glass-editor');
+    const separator = editorEl.innerHTML.trim() ? '<br><br>' : '';
+    editorEl.innerHTML = `${editorEl.innerHTML}${separator}${pastedText.replace(/\n/g, '<br>')}`;
+    window.updateGlassEmptyState(editorEl);
+    editorEl.focus();
+    const range = document.createRange();
+    range.selectNodeContents(editorEl);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  } else {
+    const separator = creatorText.value.trim() ? '\n\n' : '';
+    creatorText.value = `${creatorText.value}${separator}${pastedText}`;
+    syncCreatorInputs();
+    syncCreatorFolderInput();
+    autoGrowTextarea.call(creatorText);
+    scheduleCreatorLinkPreview(80);
+    creatorText.focus();
+  }
   triggerAutosave();
-  creatorText.focus();
   showToast({ title: 'Clipboard pasted', text: 'Text or link added to your draft note.' });
 }
 
@@ -5874,22 +5967,57 @@ function openEditModal(note) {
   const modalFloatingToolbar = document.getElementById('modal-floating-toolbar');
   const modalMetadata = document.getElementById('modal-metadata');
 
-  if (appSettings.advancedEditorEnabled) {
-    editModalCard.classList.add('advanced-editor-active');
-    if (modalAdvancedHeader) modalAdvancedHeader.style.display = 'flex';
-    if (modalFloatingToolbar) modalFloatingToolbar.style.display = 'flex';
-    if (modalMetadata) modalMetadata.style.display = 'block';
-    
-    const modalToolbar = document.getElementById('modal-markdown-toolbar');
-    if (modalToolbar) modalToolbar.style.display = 'flex';
-  } else {
+  if (appSettings.modernGlassEditorEnabled) {
+    editModalCard.classList.add('modern-glass-editor-active');
     editModalCard.classList.remove('advanced-editor-active');
     if (modalAdvancedHeader) modalAdvancedHeader.style.display = 'flex';
     if (modalFloatingToolbar) modalFloatingToolbar.style.display = 'none';
     if (modalMetadata) modalMetadata.style.display = 'none';
     
-    const modalToolbar = document.getElementById('modal-markdown-toolbar');
-    if (modalToolbar) modalToolbar.style.display = 'none';
+    document.getElementById('modal-glass-workspace').style.display = 'block';
+    document.getElementById('modal-glass-floating-toolbar').style.display = 'flex';
+    modalTitle.style.display = 'none';
+    editModalCard.querySelector('.editor-textarea-wrap').style.display = 'none';
+    
+    const glassTitle = document.getElementById('modal-glass-title');
+    const glassEditor = document.getElementById('modal-glass-editor');
+    glassTitle.innerHTML = note.title || '';
+    glassEditor.innerHTML = note.text || '';
+    
+    const date = note.updatedAt ? new Date(note.updatedAt) : new Date();
+    const glassTimestamp = document.getElementById('modal-glass-timestamp');
+    if (glassTimestamp) {
+      glassTimestamp.textContent = date.toLocaleString(undefined, {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+      });
+    }
+    
+    window.updateGlassEmptyState(glassTitle);
+    window.updateGlassEmptyState(glassEditor);
+  } else {
+    editModalCard.classList.remove('modern-glass-editor-active');
+    document.getElementById('modal-glass-workspace').style.display = 'none';
+    document.getElementById('modal-glass-floating-toolbar').style.display = 'none';
+    modalTitle.style.display = 'block';
+    editModalCard.querySelector('.editor-textarea-wrap').style.display = 'block';
+
+    if (appSettings.advancedEditorEnabled) {
+      editModalCard.classList.add('advanced-editor-active');
+      if (modalAdvancedHeader) modalAdvancedHeader.style.display = 'flex';
+      if (modalFloatingToolbar) modalFloatingToolbar.style.display = 'flex';
+      if (modalMetadata) modalMetadata.style.display = 'block';
+      
+      const modalToolbar = document.getElementById('modal-markdown-toolbar');
+      if (modalToolbar) modalToolbar.style.display = 'flex';
+    } else {
+      editModalCard.classList.remove('advanced-editor-active');
+      if (modalAdvancedHeader) modalAdvancedHeader.style.display = 'flex';
+      if (modalFloatingToolbar) modalFloatingToolbar.style.display = 'none';
+      if (modalMetadata) modalMetadata.style.display = 'none';
+      
+      const modalToolbar = document.getElementById('modal-markdown-toolbar');
+      if (modalToolbar) modalToolbar.style.display = 'none';
+    }
   }
 
   if (!document.getElementById('modal-folder')) {
@@ -6159,14 +6287,22 @@ function closeEditModal() {
   if (currentEditingNoteId) {
     const note = notes.find(n => n.id === currentEditingNoteId);
     if (note) {
-      const title = modalTitle.value.trim();
-      const text = modalText.value.trim();
+      const title = appSettings.modernGlassEditorEnabled
+        ? document.getElementById('modal-glass-title').innerHTML.trim()
+        : modalTitle.value.trim();
+      const text = appSettings.modernGlassEditorEnabled
+        ? document.getElementById('modal-glass-editor').innerHTML.trim()
+        : modalText.value.trim();
       
       if (isNoteEffectivelyEmpty(title, text, note.image, note.audio, note.files)) {
         trashNote(currentEditingNoteId);
       } else {
         note.title = title;
         note.text = text;
+        if (appSettings.modernGlassEditorEnabled) {
+          note.isRichText = true;
+          note.editorMode = 'glass';
+        }
         setNoteFolders(note, decodeFolderSelection(modalFolderInput?.value || ''));
         registerNoteFolders(note);
         note.type = note.recipeData ? 'recipe' : getNoteType(text);
@@ -6179,9 +6315,12 @@ function closeEditModal() {
   
   currentEditingNoteId = null;
   editModalCard.classList.remove('properties-sheet-open');
+  editModalCard.classList.remove('modern-glass-editor-active');
   editModal.classList.remove('visible');
   document.body.classList.remove('editor-focus-mode');
   modalColorPicker.classList.remove('visible');
+  const glassColorPopup = document.getElementById('modal-glass-color-popup');
+  if (glassColorPopup) glassColorPopup.style.display = 'none';
 }
 
 function deleteNote(id) {
@@ -8413,4 +8552,382 @@ function getAuthFriendlyError(code) {
     return 'Please enter a valid email address.';
   }
   return code || 'An error occurred during authentication.';
+}
+
+// ==========================================================================
+// Modern Glass Editor implementation
+// ==========================================================================
+
+let savedGlassRange = null;
+
+function saveGlassSelection() {
+  const sel = window.getSelection();
+  if (sel.rangeCount > 0) {
+    const node = sel.anchorNode;
+    const creatorEditor = document.getElementById('creator-glass-editor');
+    const creatorTitle = document.getElementById('creator-glass-title');
+    const modalEditor = document.getElementById('modal-glass-editor');
+    const modalTitle = document.getElementById('modal-glass-title');
+    
+    if (
+      creatorEditor?.contains(node) || 
+      creatorTitle?.contains(node) || 
+      modalEditor?.contains(node) || 
+      modalTitle?.contains(node)
+    ) {
+      savedGlassRange = sel.getRangeAt(0).cloneRange();
+    }
+  }
+}
+
+function restoreGlassSelection() {
+  if (!savedGlassRange) return;
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(savedGlassRange);
+}
+
+// Exported to window so it can be called directly from onmousedown inside HTML
+window.execGlassCmd = function(cmd, val = null) {
+  restoreGlassSelection();
+  document.execCommand(cmd, false, val);
+  saveGlassSelection();
+};
+
+window.updateGlassEmptyState = function(el) {
+  if (el) {
+    el.classList.toggle('is-empty', el.textContent.trim() === '');
+  }
+};
+
+window.toggleGlassColorPopup = function(mode) {
+  const p = document.getElementById(`${mode}-glass-color-popup`);
+  if (p) {
+    p.style.display = p.style.display === 'flex' ? 'none' : 'flex';
+  }
+};
+
+window.applyGlassHighlight = function(color) {
+  restoreGlassSelection();
+  if (color) {
+    document.execCommand('backColor', false, color);
+  } else {
+    document.execCommand('backColor', false, 'transparent');
+  }
+  saveGlassSelection();
+  
+  // Hide both popups
+  const creatorPopup = document.getElementById('creator-glass-color-popup');
+  if (creatorPopup) creatorPopup.style.display = 'none';
+  const modalPopup = document.getElementById('modal-glass-color-popup');
+  if (modalPopup) modalPopup.style.display = 'none';
+};
+
+window.addGlassChecklist = function(mode) {
+  restoreGlassSelection();
+  const sel = window.getSelection();
+  const editor = document.getElementById(`${mode}-glass-editor`);
+  if (!editor) return;
+
+  let range = null;
+  let selectedText = '';
+
+  if (sel.rangeCount > 0 && editor.contains(sel.anchorNode) && !sel.isCollapsed) {
+    range = sel.getRangeAt(0);
+    selectedText = range.toString();
+  }
+
+  const div = document.createElement('div');
+  div.className = 'checklist-item';
+  div.draggable = true;
+  div.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)" style="flex:0 0 auto; margin-top:6px;">
+          <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
+          <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+          <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+      </svg>
+      <input type="checkbox">
+      <span contenteditable="true">${selectedText ? selectedText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : ''}</span>
+      <button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()" onclick="this.closest('.checklist-item').remove()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+      </button>
+  `;
+
+  if (range) {
+    range.deleteContents();
+    range.insertNode(div);
+    range.setStartAfter(div);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  } else if (savedGlassRange && editor.contains(savedGlassRange.startContainer)) {
+    savedGlassRange.deleteContents();
+    savedGlassRange.insertNode(div);
+  } else {
+    editor.appendChild(div);
+  }
+
+  initGlassDrag(div);
+  wireGlassChecklistCheckbox(div);
+  
+  if (!selectedText) {
+    div.querySelector('span[contenteditable]').focus();
+  }
+  saveGlassSelection();
+};
+
+function wireGlassChecklistCheckbox(item) {
+  const checkbox = item.querySelector('input[type="checkbox"]');
+  if (checkbox) {
+    checkbox.addEventListener('change', () => {
+      item.classList.toggle('checked', checkbox.checked);
+    });
+  }
+}
+
+function initGlassDrag(el) {
+  el.addEventListener('dragstart', () => el.classList.add('dragging'));
+  el.addEventListener('dragend', () => el.classList.remove('dragging'));
+}
+
+window.addGlassLink = function() {
+  restoreGlassSelection();
+  const raw = prompt("Enter URL:");
+  if (!raw) return;
+  const url = normalizeGlassUrl(raw);
+  if (!url) {
+    showToast({ title: 'Invalid URL', text: "That doesn't look like a valid URL." });
+    return;
+  }
+  document.execCommand('createLink', false, url);
+};
+
+const GLASS_URL_PATTERN = /((https?:\/\/|www\.)[^\s<]+|\b[a-zA-Z0-9-]+\.(com|net|org|io|dev|app|co)(\/[^\s<]*)?)/gi;
+
+function normalizeGlassUrl(raw) {
+  let url = (raw || '').trim();
+  if (!url) return null;
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url)) {
+    url = 'https://' + url;
+  }
+  try {
+    new URL(url);
+    return url;
+  } catch (e) {
+    return null;
+  }
+}
+
+function linkifyGlassTextNode(node) {
+  const text = node.textContent;
+  const matches = [...text.matchAll(GLASS_URL_PATTERN)];
+  if (!matches.length) return;
+
+  const frag = document.createDocumentFragment();
+  let lastIndex = 0;
+  matches.forEach(match => {
+    const start = match.index;
+    const end = start + match[0].length;
+    if (start > lastIndex) {
+      frag.appendChild(document.createTextNode(text.slice(lastIndex, start)));
+    }
+    const url = normalizeGlassUrl(match[0]);
+    if (url) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.textContent = match[0];
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      frag.appendChild(a);
+    } else {
+      frag.appendChild(document.createTextNode(match[0]));
+    }
+    lastIndex = end;
+  });
+  if (lastIndex < text.length) {
+    frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+  }
+  node.replaceWith(frag);
+}
+
+function linkifyGlassElement(el) {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+    acceptNode(n) {
+      return n.parentElement?.closest('a') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+    }
+  });
+  const nodes = [];
+  let n;
+  while ((n = walker.nextNode())) nodes.push(n);
+  nodes.forEach(linkifyGlassTextNode);
+}
+
+// Canvas Compression
+const MAX_GLASS_IMAGE_WIDTH = 800;
+const GLASS_JPEG_QUALITY = 0.82;
+const TARGET_GLASS_MAX_BYTES = 150 * 1024;
+
+function estimateGlassBase64Bytes(dataUrl) {
+  const commaIdx = dataUrl.indexOf(',');
+  return Math.round((dataUrl.length - commaIdx - 1) * 0.75);
+}
+
+function hasGlassTransparency(ctx, w, h) {
+  try {
+    const data = ctx.getImageData(0, 0, w, h).data;
+    for (let i = 3; i < data.length; i += 4 * 97) {
+      if (data[i] < 255) return true;
+    }
+  } catch (e) {
+    return false;
+  }
+  return false;
+}
+
+function compressGlassImage(img, file) {
+  let width = Math.round(Math.min(img.width, MAX_GLASS_IMAGE_WIDTH));
+  let height = Math.round(img.height * (width / img.width));
+  let quality = GLASS_JPEG_QUALITY;
+  let qualityReduced = false;
+  let dataUrl = '';
+  let keepPng = false;
+
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, width, height);
+
+    keepPng = file.type === 'image/png' && hasGlassTransparency(ctx, width, height);
+    const outputType = keepPng ? 'image/png' : 'image/jpeg';
+    dataUrl = canvas.toDataURL(outputType, quality);
+
+    if (estimateGlassBase64Bytes(dataUrl) <= TARGET_GLASS_MAX_BYTES) break;
+    if (width <= 320 && quality <= 0.4) break;
+
+    if (keepPng || quality <= 0.4) {
+      width = Math.round(width * 0.85);
+      height = Math.round(height * 0.85);
+    } else {
+      quality = Math.max(0.4, quality - 0.12);
+      qualityReduced = true;
+    }
+  }
+
+  return { dataUrl, width, qualityReduced };
+}
+
+window.handleGlassImage = function(input, mode) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const result = compressGlassImage(img, file);
+      restoreGlassSelection();
+      document.execCommand('insertImage', false, result.dataUrl);
+      saveGlassSelection();
+      const finalKb = Math.round(estimateGlassBase64Bytes(result.dataUrl) / 1024);
+      showToast({
+        title: 'Image Added',
+        text: `Image optimized to ~${finalKb}KB (${result.width}px wide)`
+      });
+    };
+    img.onerror = () => showToast({ title: 'Upload Failed', text: 'Could not read that image file.' });
+    img.src = e.target.result;
+  };
+  reader.onerror = () => showToast({ title: 'Upload Failed', text: 'Could not read that image file.' });
+  reader.readAsDataURL(file);
+  input.value = '';
+};
+
+// Bind selection events and listeners
+function initModernGlassEditorListeners() {
+  const ids = ['creator', 'modal'];
+  ids.forEach(mode => {
+    const title = document.getElementById(`${mode}-glass-title`);
+    const editor = document.getElementById(`${mode}-glass-editor`);
+    
+    if (title && editor) {
+      // Empty state checks and autosave triggers
+      title.addEventListener('input', () => {
+        window.updateGlassEmptyState(title);
+        triggerAutosave();
+      });
+      editor.addEventListener('input', () => {
+        window.updateGlassEmptyState(editor);
+        triggerAutosave();
+      });
+      
+      // Enter in title moves to editor
+      title.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          editor.focus();
+          const range = document.createRange();
+          range.selectNodeContents(editor);
+          range.collapse(true);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      });
+
+      // Save selection
+      [title, editor].forEach(field => {
+        field.addEventListener('keyup', saveGlassSelection);
+        field.addEventListener('mouseup', saveGlassSelection);
+      });
+
+      // Paste linkify
+      editor.addEventListener('paste', (e) => {
+        const clipboardHtml = e.clipboardData.getData('text/html');
+        const clipboardText = e.clipboardData.getData('text/plain');
+
+        if (!clipboardHtml && clipboardText) {
+          e.preventDefault();
+          document.execCommand('insertText', false, clipboardText);
+          setTimeout(() => linkifyGlassElement(editor), 0);
+          return;
+        }
+        setTimeout(() => linkifyGlassElement(editor), 0);
+      });
+
+      // Drag checklist items sorting
+      editor.addEventListener('dragover', e => {
+        e.preventDefault();
+        const dragging = editor.querySelector('.dragging');
+        if (!dragging) return;
+        const after = [...editor.querySelectorAll('.checklist-item:not(.dragging)')].find(c => e.clientY < c.getBoundingClientRect().top + c.offsetHeight/2);
+        if (!after) editor.appendChild(dragging);
+        else editor.insertBefore(dragging, after);
+      });
+    }
+  });
+
+  // Track bold/italic/underline selection highlight states
+  document.addEventListener('selectionchange', () => {
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    const node = sel.anchorNode;
+    
+    const creatorEditor = document.getElementById('creator-glass-editor');
+    const modalEditor = document.getElementById('modal-glass-editor');
+    
+    const isActive = creatorEditor?.contains(node) || modalEditor?.contains(node);
+    if (!isActive) return;
+
+    const toolbarId = creatorEditor?.contains(node) ? 'creator-glass-floating-toolbar' : 'modal-glass-floating-toolbar';
+    const toolbar = document.getElementById(toolbarId);
+    if (toolbar) {
+      toolbar.querySelectorAll('.toolbar-btn[data-cmd]').forEach(btn => {
+        const cmd = btn.dataset.cmd;
+        let active = false;
+        try { active = document.queryCommandState(cmd); } catch (e) {}
+        btn.classList.toggle('active', active);
+      });
+    }
+  });
 }

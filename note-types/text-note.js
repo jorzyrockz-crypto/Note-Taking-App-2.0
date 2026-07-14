@@ -10,6 +10,10 @@ export function renderTextNoteContent(note, options) {
 
   const textEl = document.createElement('div');
   textEl.className = 'note-text';
-  textEl.appendChild(renderFormattedText(cleanTextTags(textVal), { urlRegex }));
+  if (note.isRichText) {
+    textEl.innerHTML = textVal;
+  } else {
+    textEl.appendChild(renderFormattedText(cleanTextTags(textVal), { urlRegex }));
+  }
   return textEl;
 }
