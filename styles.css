@@ -7698,7 +7698,7 @@ body.dark-theme .advanced-editor-header {
 .editor-scroll-container {
   flex: 1 1 auto;
   overflow-y: auto;
-  padding: 24px 32px 24px 32px;
+  padding: 16px 32px 24px 32px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -9410,7 +9410,7 @@ body.dark-theme .edit-modal-card.modern-glass-editor-active {
 .glass-editor-workspace {
   flex: 1;
   overflow-y: auto;
-  padding: 40px 60px;
+  padding: 24px 60px 40px 60px;
   outline: none;
   text-align: left;
 }
@@ -9432,7 +9432,7 @@ body.dark-theme .glass-editor-workspace::-webkit-scrollbar-thumb {
 
 @media screen and (max-width: 768px) {
   .glass-editor-workspace {
-    padding: 24px 32px;
+    padding: 16px 32px 24px 32px;
   }
 }
 
@@ -9520,9 +9520,13 @@ body.dark-theme .note-content-field.is-empty::before {
   line-height: 1.6;
 }
 
-.glass-size-sm { font-size: 13px !important; }
-.glass-size-md { font-size: 16px !important; }
-.glass-size-lg { font-size: 20px !important; }
+.glass-size-sm, font[size="2"] { font-size: 13px !important; }
+.glass-size-md, font[size="3"] { font-size: 16px !important; }
+.glass-size-lg, font[size="4"] { font-size: 20px !important; }
+
+u, [style*="text-decoration: underline"], [style*="text-decoration-line: underline"] {
+  text-decoration: underline !important;
+}
 
 /* Restoring lists and markdown inside contenteditable editor */
 .note-content-field ul {
@@ -9661,9 +9665,24 @@ body.dark-theme .glass-floating-toolbar .toolbar-divider {
   gap: 10px;
   padding: 4px 6px;
   margin: 4px 0;
-  cursor: grab;
+  cursor: default;
   background: transparent;
   border-radius: 6px;
+}
+
+.checklist-drag-handle {
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checklist-drag-handle:active {
+  cursor: grabbing;
+}
+
+.checklist-item span[contenteditable] {
+  cursor: text;
 }
 
 .checklist-item:hover {
@@ -9922,6 +9941,11 @@ body.dark-theme .glass-link-popover input {
 
 .note-text.rich-preview {
   white-space: normal;
+}
+
+.note-text.rich-preview .checklist-drag-handle,
+.note-text.rich-preview .checklist-delete-btn {
+  display: none !important;
 }
 
 body.editor-focus-mode .feed-filter-row {

@@ -148,7 +148,28 @@ async function validateRemoteUrl(inputUrl) {
     throw new LinkPreviewError(400, 'Only http and https URLs can be previewed.', 'unsupported_protocol');
   }
 
-  const addresses = await lookup(parsed.hostname, { all: true, verbatim: true });
+  const hostname = parsed.hostname.toLowerCase();
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname === '::1') {
+    throw new LinkPreviewError(400, 'This URL is not available for preview.', 'blocked_host');
+  }
+
+  let timer;
+  const dnsTimeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error('DNS lookup timeout')), 2000);
+  });
+
+  let addresses = [];
+  try {
+    addresses = await Promise.race([
+      lookup(parsed.hostname, { all: true, verbatim: true }),
+      dnsTimeout
+    ]);
+  } catch (err) {
+    throw new LinkPreviewError(400, 'This URL is not available for preview.', 'blocked_host');
+  } finally {
+    clearTimeout(timer);
+  }
+
   if (!addresses.length || addresses.some(address => isPrivateAddress(address.address))) {
     throw new LinkPreviewError(400, 'This URL is not available for preview.', 'blocked_host');
   }

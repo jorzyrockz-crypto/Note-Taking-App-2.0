@@ -6,6 +6,7 @@ import {
 } from './shared.js';
 
 let checklistFocusIndex = null;
+let checklistFocusCursorPos = null;
 let checklistFocusIsNew = false;
 let draggedChecklistIndex = null;
 let draggedChecklistDropPosition = 'before';
@@ -305,9 +306,10 @@ export function syncChecklistEditor(container, rawText, onChange) {
     if (checklistFocusIndex === index) {
       setTimeout(() => {
         input.focus();
-        const length = input.value.length;
-        input.setSelectionRange(length, length);
+        const pos = typeof checklistFocusCursorPos === 'number' ? checklistFocusCursorPos : input.value.length;
+        input.setSelectionRange(pos, pos);
         checklistFocusIndex = null;
+        checklistFocusCursorPos = null;
       }, 0);
     }
 
@@ -320,15 +322,37 @@ export function syncChecklistEditor(container, rawText, onChange) {
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        lines.splice(index + 1, 0, '- [ ] ');
+        const start = input.selectionStart || 0;
+        const textBefore = input.value.substring(0, start);
+        const textAfter = input.value.substring(start);
+        
+        lines[index] = (isChecked ? '- [x] ' : '- [ ] ') + applyChecklistInlineReminder(textBefore, inlineReminder);
+        lines.splice(index + 1, 0, '- [ ] ' + textAfter);
+        
         checklistFocusIndex = index + 1;
+        checklistFocusCursorPos = 0;
         onChange(lines.join('\n'));
-      } else if (e.key === 'Backspace' && input.value === '') {
+      } else if (e.key === 'Backspace' && input.selectionStart === 0 && input.selectionEnd === 0) {
         e.preventDefault();
-        lines.splice(index, 1);
-        if (lines.length === 0) lines = ['- [ ] '];
-        checklistFocusIndex = Math.max(0, index - 1);
-        onChange(lines.join('\n'));
+        if (index > 0) {
+          const prevLine = lines[index - 1];
+          const prevChecked = prevLine.startsWith('- [x] ');
+          const prevClean = prevLine.substring(6);
+          const currentClean = input.value;
+          
+          lines[index - 1] = (prevChecked ? '- [x] ' : '- [ ] ') + prevClean + currentClean;
+          lines.splice(index, 1);
+          
+          checklistFocusIndex = index - 1;
+          checklistFocusCursorPos = prevClean.length;
+          onChange(lines.join('\n'));
+        } else if (input.value === '') {
+          lines.splice(index, 1);
+          if (lines.length === 0) lines = ['- [ ] '];
+          checklistFocusIndex = Math.max(0, index - 1);
+          checklistFocusCursorPos = 0;
+          onChange(lines.join('\n'));
+        }
       }
     });
 

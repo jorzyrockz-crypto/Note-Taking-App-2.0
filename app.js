@@ -2132,7 +2132,74 @@ function setupEventHandlers() {
   modalClose.addEventListener('click', closeEditModal);
   editModal.addEventListener('click', (e) => {
     if (e.target === editModal) {
-      closeEditModal();
+      // closeEditModal(); // Prevent accidentally closing the modal by clicking outside
+    }
+  });
+
+  // Undo/Redo Event Handlers for Creator and Modal
+  document.getElementById('creator-undo-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (appSettings.modernGlassEditorEnabled) {
+      restoreGlassSelection();
+      document.execCommand('undo');
+      const active = document.getElementById('creator-glass-editor');
+      if (active) window.updateGlassEmptyState(active);
+      triggerAutosave();
+    } else {
+      const activeEditor = document.getElementById('creator-text');
+      if (activeEditor) {
+        if (document.activeElement !== activeEditor) activeEditor.focus();
+        document.execCommand('undo');
+      }
+    }
+  });
+  document.getElementById('creator-redo-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (appSettings.modernGlassEditorEnabled) {
+      restoreGlassSelection();
+      document.execCommand('redo');
+      const active = document.getElementById('creator-glass-editor');
+      if (active) window.updateGlassEmptyState(active);
+      triggerAutosave();
+    } else {
+      const activeEditor = document.getElementById('creator-text');
+      if (activeEditor) {
+        if (document.activeElement !== activeEditor) activeEditor.focus();
+        document.execCommand('redo');
+      }
+    }
+  });
+
+  document.getElementById('modal-undo-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (appSettings.modernGlassEditorEnabled) {
+      restoreGlassSelection();
+      document.execCommand('undo');
+      const active = document.getElementById('modal-glass-editor');
+      if (active) window.updateGlassEmptyState(active);
+      saveModalNoteDraft();
+    } else {
+      const activeEditor = document.getElementById('modal-text');
+      if (activeEditor) {
+        if (document.activeElement !== activeEditor) activeEditor.focus();
+        document.execCommand('undo');
+      }
+    }
+  });
+  document.getElementById('modal-redo-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (appSettings.modernGlassEditorEnabled) {
+      restoreGlassSelection();
+      document.execCommand('redo');
+      const active = document.getElementById('modal-glass-editor');
+      if (active) window.updateGlassEmptyState(active);
+      saveModalNoteDraft();
+    } else {
+      const activeEditor = document.getElementById('modal-text');
+      if (activeEditor) {
+        if (document.activeElement !== activeEditor) activeEditor.focus();
+        document.execCommand('redo');
+      }
     }
   });
 
@@ -2783,7 +2850,7 @@ function saveCreatorNoteDraft() {
   if ((!appSettings.advancedEditorEnabled && !appSettings.modernGlassEditorEnabled) || !creatorActiveNoteId) return;
 
   const title = appSettings.modernGlassEditorEnabled
-    ? document.getElementById('creator-glass-title').innerHTML.trim()
+    ? document.getElementById('creator-glass-title').innerText.trim()
     : creatorTitle.value.trim();
   const text = appSettings.modernGlassEditorEnabled
     ? document.getElementById('creator-glass-editor').innerHTML.trim()
@@ -2865,6 +2932,29 @@ function saveCreatorNoteDraft() {
   renderNotes();
 
   creatorAutosaveStatus.textContent = '✓ Saved';
+}
+
+function saveModalNoteDraft() {
+  if (!currentEditingNoteId) return;
+  const note = notes.find(n => n.id === currentEditingNoteId);
+  if (note) {
+    const title = appSettings.modernGlassEditorEnabled
+      ? document.getElementById('modal-glass-title').innerText.trim()
+      : modalTitle.value.trim();
+    const text = appSettings.modernGlassEditorEnabled
+      ? document.getElementById('modal-glass-editor').innerHTML.trim()
+      : modalText.value.trim();
+
+    note.title = title;
+    note.text = text;
+    if (appSettings.modernGlassEditorEnabled) {
+      note.isRichText = true;
+      note.editorMode = 'glass';
+    }
+    note.updatedAt = Date.now();
+    debouncedSave();
+    renderNotes();
+  }
 }
 
 function renderPopoverCategories() {
@@ -3144,7 +3234,7 @@ function initAdvancedEditorHandlers() {
     const mockNote = {
       id: creatorActiveNoteId || 'note-temp',
       title: appSettings.modernGlassEditorEnabled
-        ? document.getElementById('creator-glass-title').innerHTML.trim()
+        ? document.getElementById('creator-glass-title').innerText.trim()
         : creatorTitle.value,
       text: appSettings.modernGlassEditorEnabled
         ? document.getElementById('creator-glass-editor').innerHTML.trim()
@@ -6308,7 +6398,7 @@ function closeEditModal() {
     const note = notes.find(n => n.id === currentEditingNoteId);
     if (note) {
       const title = appSettings.modernGlassEditorEnabled
-        ? document.getElementById('modal-glass-title').innerHTML.trim()
+        ? document.getElementById('modal-glass-title').innerText.trim()
         : modalTitle.value.trim();
       const text = appSettings.modernGlassEditorEnabled
         ? document.getElementById('modal-glass-editor').innerHTML.trim()
@@ -7728,6 +7818,7 @@ function renderModalAudioPreview(note) {
    Upgraded Interactive Checklist Editor logic
    ========================================================================== */
 let checklistFocusIndex = null;
+let checklistFocusCursorPos = null;
 let checklistFocusIsNew = false;
 
 function legacyRenderInteractiveChecklistEditor(container, rawText, onChange) {
@@ -7789,9 +7880,10 @@ function legacyRenderInteractiveChecklistEditor(container, rawText, onChange) {
     if (checklistFocusIndex === index) {
       setTimeout(() => {
         input.focus();
-        const len = input.value.length;
-        input.setSelectionRange(len, len);
+        const pos = typeof checklistFocusCursorPos === 'number' ? checklistFocusCursorPos : input.value.length;
+        input.setSelectionRange(pos, pos);
         checklistFocusIndex = null;
+        checklistFocusCursorPos = null;
       }, 0);
     }
 
@@ -7804,15 +7896,38 @@ function legacyRenderInteractiveChecklistEditor(container, rawText, onChange) {
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        lines.splice(index + 1, 0, '- [ ] ');
+        const start = input.selectionStart || 0;
+        const textBefore = input.value.substring(0, start);
+        const textAfter = input.value.substring(start);
+        
+        lines[index] = (isChecked ? '- [x] ' : '- [ ] ') + textBefore;
+        lines.splice(index + 1, 0, '- [ ] ' + textAfter);
+        
         checklistFocusIndex = index + 1;
+        checklistFocusCursorPos = 0;
         onChange(lines.join('\n'));
-      } else if (e.key === 'Backspace' && input.value === '') {
+      } else if (e.key === 'Backspace' && input.selectionStart === 0 && input.selectionEnd === 0) {
         e.preventDefault();
-        lines.splice(index, 1);
-        if (lines.length === 0) lines = ['- [ ] '];
-        checklistFocusIndex = Math.max(0, index - 1);
-        onChange(lines.join('\n'));
+        if (index > 0) {
+          const prevLine = lines[index - 1];
+          const prevChecked = prevLine.startsWith('- [x] ');
+          const prevClean = prevLine.substring(6);
+          const currentClean = input.value;
+          
+          lines[index - 1] = (prevChecked ? '- [x] ' : '- [ ] ') + prevClean + currentClean;
+          lines.splice(index, 1);
+          
+          checklistFocusIndex = index - 1;
+          checklistFocusCursorPos = prevClean.length;
+          onChange(lines.join('\n'));
+        } else if (input.value === '') {
+          // If first row is empty and deleted, handle default clean slate
+          lines.splice(index, 1);
+          if (lines.length === 0) lines = ['- [ ] '];
+          checklistFocusIndex = Math.max(0, index - 1);
+          checklistFocusCursorPos = 0;
+          onChange(lines.join('\n'));
+        }
       }
     });
 
@@ -8622,12 +8737,77 @@ function restoreGlassSelection() {
   sel.addRange(savedGlassRange);
 }
 
+function saveGlassEditorChanges(mode = null) {
+  if (mode === 'modal') {
+    saveModalNoteDraft();
+  } else if (mode === 'creator') {
+    triggerAutosave();
+  } else {
+    if (savedGlassElement && (savedGlassElement.closest('#modal-glass-editor') !== null || savedGlassElement.id === 'modal-glass-editor')) {
+      saveModalNoteDraft();
+    } else {
+      triggerAutosave();
+    }
+  }
+}
+
+function stripFontSizesInSelection() {
+  const sel = window.getSelection();
+  if (sel.rangeCount === 0) return;
+  const range = sel.getRangeAt(0);
+  if (range.collapsed) return;
+
+  const root = range.commonAncestorContainer;
+  const rootElement = root.nodeType === Node.ELEMENT_NODE ? root : root.parentNode;
+  
+  if (rootElement) {
+    const fonts = rootElement.querySelectorAll('font');
+    fonts.forEach(font => {
+      if (range.intersectsNode(font)) {
+        const isAncestor = font.contains(range.startContainer) || font.contains(range.endContainer);
+        if (!isAncestor) {
+          font.removeAttribute('size');
+        }
+      }
+    });
+  }
+}
+
+function stripUnderlineStylesInSelection() {
+  const sel = window.getSelection();
+  if (sel.rangeCount === 0) return;
+  const range = sel.getRangeAt(0);
+  if (range.collapsed) return;
+
+  const root = range.commonAncestorContainer;
+  const rootElement = root.nodeType === Node.ELEMENT_NODE ? root : root.parentNode;
+  
+  if (rootElement) {
+    const styledElements = rootElement.querySelectorAll('[style*="text-decoration"], [style*="underline"]');
+    styledElements.forEach(el => {
+      if (range.intersectsNode(el)) {
+        const isAncestor = el.contains(range.startContainer) || el.contains(range.endContainer);
+        if (!isAncestor) {
+          el.style.textDecoration = '';
+          el.style.textDecorationLine = '';
+          if (el.getAttribute('style') === '') {
+            el.removeAttribute('style');
+          }
+        }
+      }
+    });
+  }
+}
+
 // Exported to window so it can be called directly from onmousedown inside HTML
 window.execGlassCmd = function(cmd, val = null) {
   restoreGlassSelection();
+  if (cmd === 'underline') {
+    stripUnderlineStylesInSelection();
+  }
   document.execCommand(cmd, false, val);
   saveGlassSelection();
-  triggerAutosave();
+  saveGlassEditorChanges();
 };
 
 window.updateGlassEmptyState = function(el) {
@@ -8649,12 +8829,12 @@ window.toggleGlassColorPopup = function(mode) {
 window.applyGlassHighlight = function(color) {
   restoreGlassSelection();
   if (color) {
-    document.execCommand('backColor', false, color);
+    document.execCommand('hiliteColor', false, color);
   } else {
-    document.execCommand('backColor', false, 'transparent');
+    document.execCommand('hiliteColor', false, 'transparent');
   }
   saveGlassSelection();
-  triggerAutosave();
+  saveGlassEditorChanges();
   
   // Hide both popups
   const creatorPopup = document.getElementById('creator-glass-color-popup');
@@ -8671,7 +8851,7 @@ window.applyGlassTextColor = function(color) {
     document.execCommand('foreColor', false, 'inherit');
   }
   saveGlassSelection();
-  triggerAutosave();
+  saveGlassEditorChanges();
   
   // Hide both popups
   const creatorPopup = document.getElementById('creator-glass-color-popup');
@@ -8683,33 +8863,199 @@ window.applyGlassTextColor = function(color) {
 window.wireGlassChecklistEvents = function(container) {
   if (!container) return;
   container.querySelectorAll('.checklist-item').forEach(item => {
+    item.setAttribute('contenteditable', 'false');
+    
+    const dragHandle = item.querySelector('.checklist-drag-handle');
+    if (dragHandle) {
+      dragHandle.setAttribute('contenteditable', 'false');
+    }
+    
     const checkbox = item.querySelector('input[type="checkbox"]');
     if (checkbox) {
+      checkbox.setAttribute('contenteditable', 'false');
       const isChecked = checkbox.checked || checkbox.hasAttribute('checked');
       checkbox.checked = isChecked;
       item.classList.toggle('checked', isChecked);
       
       if (!checkbox.dataset.bound) {
-        checkbox.addEventListener('change', () => {
+        checkbox.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          checkbox.checked = !checkbox.checked;
           if (checkbox.checked) {
             checkbox.setAttribute('checked', 'checked');
           } else {
             checkbox.removeAttribute('checked');
           }
           item.classList.toggle('checked', checkbox.checked);
-          triggerAutosave();
+          
+          const isModal = item.closest('#modal-glass-editor') !== null;
+          if (isModal) {
+            saveModalNoteDraft();
+          } else {
+            triggerAutosave();
+          }
         });
         checkbox.dataset.bound = 'true';
       }
     }
     
     const delBtn = item.querySelector('.checklist-delete-btn');
-    if (delBtn && !delBtn.dataset.bound) {
-      delBtn.addEventListener('click', () => {
-        item.remove();
-        triggerAutosave();
+    if (delBtn) {
+      delBtn.setAttribute('contenteditable', 'false');
+      if (!delBtn.dataset.bound) {
+        delBtn.addEventListener('click', () => {
+          item.remove();
+          const isModal = item.closest('#modal-glass-editor') !== null;
+          if (isModal) {
+            saveModalNoteDraft();
+          } else {
+            triggerAutosave();
+          }
+        });
+        delBtn.dataset.bound = 'true';
+      }
+    }
+
+    const span = item.querySelector('span[contenteditable]');
+    if (span) {
+      span.setAttribute('contenteditable', 'true');
+      if (!span.dataset.keybound) {
+      span.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          const text = span.innerText;
+          const selection = window.getSelection();
+          let offset = 0;
+          try {
+            if (selection.rangeCount > 0) {
+              const range = selection.getRangeAt(0);
+              if (span.contains(range.startContainer)) {
+                const preRange = range.cloneRange();
+                preRange.selectNodeContents(span);
+                preRange.setEnd(range.startContainer, range.startOffset);
+                offset = preRange.toString().length;
+              }
+            }
+          } catch (err) {}
+          
+          const textBefore = text.substring(0, offset);
+          const textAfter = text.substring(offset);
+          
+          span.innerText = textBefore;
+          
+          // Create new checklist item below using same tag name
+          const newItem = document.createElement(item.tagName.toLowerCase());
+          newItem.className = 'checklist-item';
+          newItem.innerHTML = `
+              <div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)">
+                      <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
+                      <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                      <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+                  </svg>
+              </div>
+              <input type="checkbox">
+              <span contenteditable="true">${textAfter.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
+              <button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+              </button>
+          `;
+          
+          item.parentNode.insertBefore(newItem, item.nextSibling);
+          window.wireGlassChecklistEvents(container);
+          
+          const newSpan = newItem.querySelector('span[contenteditable]');
+          newSpan.focus();
+          const range = document.createRange();
+          range.selectNodeContents(newSpan);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          
+          const isModal = item.closest('#modal-glass-editor') !== null;
+          if (isModal) {
+            saveModalNoteDraft();
+          } else {
+            triggerAutosave();
+          }
+        } else if (e.key === 'Backspace') {
+          const selection = window.getSelection();
+          if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            let isAtStart = false;
+            try {
+              if (span.contains(range.startContainer)) {
+                const preRange = range.cloneRange();
+                preRange.selectNodeContents(span);
+                preRange.setEnd(range.startContainer, range.startOffset);
+                isAtStart = preRange.toString().length === 0;
+              }
+            } catch (err) {}
+            
+            if (isAtStart && range.collapsed) {
+              e.preventDefault();
+              const prev = item.previousSibling;
+              const isModal = item.closest('#modal-glass-editor') !== null;
+              
+              if (prev && prev.classList && prev.classList.contains('checklist-item')) {
+                // Merge into previous checklist item
+                const prevSpan = prev.querySelector('span[contenteditable]');
+                if (prevSpan) {
+                  const prevText = prevSpan.innerText;
+                  const currentText = span.innerText;
+                  prevSpan.innerText = prevText + currentText;
+                  
+                  item.remove();
+                  prevSpan.focus();
+                  
+                  const newRange = document.createRange();
+                  if (prevSpan.childNodes.length > 0) {
+                    let textNode = prevSpan.childNodes[0];
+                    newRange.setStart(textNode, prevText.length);
+                    newRange.setEnd(textNode, prevText.length);
+                  } else {
+                    newRange.selectNodeContents(prevSpan);
+                    newRange.collapse(false);
+                  }
+                  selection.removeAllRanges();
+                  selection.addRange(newRange);
+                  
+                  if (isModal) {
+                    saveModalNoteDraft();
+                  } else {
+                    triggerAutosave();
+                  }
+                }
+              } else {
+                // Convert checklist item back to normal tag
+                const text = span.innerText;
+                const p = document.createElement(item.tagName.toLowerCase() === 'li' ? 'li' : 'div');
+                if (p.tagName.toLowerCase() === 'li') {
+                  p.className = 'plain-list-item';
+                }
+                p.innerText = text || '\n';
+                item.parentNode.replaceChild(p, item);
+                p.focus();
+                
+                const newRange = document.createRange();
+                newRange.selectNodeContents(p);
+                newRange.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+                
+                if (isModal) {
+                  saveModalNoteDraft();
+                } else {
+                  triggerAutosave();
+                }
+              }
+            }
+          }
+        }
       });
-      delBtn.dataset.bound = 'true';
+        span.dataset.keybound = 'true';
+      }
     }
     
     initGlassDrag(item);
@@ -8725,37 +9071,62 @@ window.addGlassChecklist = function(mode) {
   let range = null;
   let selectedText = '';
 
-  if (sel.rangeCount > 0 && editor.contains(sel.anchorNode) && !sel.isCollapsed) {
-    range = sel.getRangeAt(0);
-    selectedText = range.toString();
+  if (sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
+    if (!sel.isCollapsed) {
+      range = sel.getRangeAt(0);
+      selectedText = range.toString();
+    }
+  }
+
+  // Find the block element (direct child of the editor) containing the cursor
+  let block = null;
+  if (sel.rangeCount > 0) {
+    let node = sel.anchorNode;
+    while (node && node !== editor) {
+      if (node.parentNode === editor) {
+        block = node;
+        break;
+      }
+      node = node.parentNode;
+    }
+  }
+
+  // Get current line text
+  let textContent = selectedText;
+  if (!selectedText && block) {
+    textContent = block.innerText || block.textContent || '';
   }
 
   const div = document.createElement('div');
   div.className = 'checklist-item';
-  div.draggable = true;
   div.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)" style="flex:0 0 auto; margin-top:6px;">
-          <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
-          <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
-          <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
-      </svg>
+      <div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)">
+              <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
+              <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+              <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+          </svg>
+      </div>
       <input type="checkbox">
-      <span contenteditable="true">${selectedText ? selectedText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : ''}</span>
+      <span contenteditable="true">${textContent.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
       <button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
       </button>
   `;
 
-  if (range) {
-    range.deleteContents();
-    range.insertNode(div);
-    range.setStartAfter(div);
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
+  if (block && editor.contains(block)) {
+    editor.replaceChild(div, block);
   } else if (savedGlassRange && editor.contains(savedGlassRange.startContainer)) {
-    savedGlassRange.deleteContents();
-    savedGlassRange.insertNode(div);
+    // Fallback: replace target containing selection
+    let fallbackBlock = savedGlassRange.startContainer;
+    while (fallbackBlock && fallbackBlock.parentNode !== editor) {
+      fallbackBlock = fallbackBlock.parentNode;
+    }
+    if (fallbackBlock && editor.contains(fallbackBlock)) {
+      editor.replaceChild(div, fallbackBlock);
+    } else {
+      editor.appendChild(div);
+    }
   } else {
     editor.appendChild(div);
   }
@@ -8763,20 +9134,38 @@ window.addGlassChecklist = function(mode) {
   window.wireGlassChecklistEvents(editor);
   triggerAutosave();
   
-  if (!selectedText) {
-    div.querySelector('span[contenteditable]').focus();
+  const span = div.querySelector('span[contenteditable]');
+  if (span) {
+    span.focus();
+    // Position cursor at end of text
+    const range = document.createRange();
+    range.selectNodeContents(span);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
   }
   saveGlassSelection();
 };
 
 function initGlassDrag(el) {
-  if (!el.dataset.dragBound) {
-    el.addEventListener('dragstart', () => el.classList.add('dragging'));
-    el.addEventListener('dragend', () => {
-      el.classList.remove('dragging');
-      triggerAutosave();
+  const handle = el.querySelector('.checklist-drag-handle') || el;
+  if (!handle.dataset.dragBound) {
+    handle.addEventListener('dragstart', (e) => {
+      el.classList.add('dragging');
+      if (e.dataTransfer) {
+        e.dataTransfer.setDragImage(el, 10, 10);
+      }
     });
-    el.dataset.dragBound = 'true';
+    handle.addEventListener('dragend', () => {
+      el.classList.remove('dragging');
+      const isModal = el.closest('#modal-glass-editor') !== null;
+      if (isModal) {
+        saveModalNoteDraft();
+      } else {
+        triggerAutosave();
+      }
+    });
+    handle.dataset.dragBound = 'true';
   }
 }
 
@@ -8833,7 +9222,7 @@ window.submitGlassLink = function(mode) {
     }
   }
   saveGlassSelection();
-  triggerAutosave();
+  saveGlassEditorChanges(mode);
 };
 
 const GLASS_URL_PATTERN = /((https?:\/\/|www\.)[^\s<]+|[a-zA-Z0-9-]+\.(com|net|org|io|dev|app|co)(\/[^\s<]*)?)/gi;
@@ -9011,13 +9400,13 @@ window.execGlassHeading = function(mode) {
   }
   
   saveGlassSelection();
-  triggerAutosave();
+  saveGlassEditorChanges(mode);
 };
 
 window.execGlassFontSize = function(mode) {
   restoreGlassSelection();
   const sel = window.getSelection();
-  if (sel.rangeCount === 0 || sel.isCollapsed) return;
+  if (sel.rangeCount === 0) return;
   
   const editor = document.getElementById(`${mode}-glass-editor`);
   if (!editor || !editor.contains(sel.anchorNode)) return;
@@ -9026,21 +9415,20 @@ window.execGlassFontSize = function(mode) {
   if (node.nodeType === Node.TEXT_NODE) node = node.parentNode;
   
   let size = 'normal';
-  const span = node.closest('span.glass-size-sm, span.glass-size-lg');
-  if (span) {
-    if (span.classList.contains('glass-size-sm')) size = 'large';
-    else size = 'normal';
+  const fontTag = node.closest('font[size]');
+  if (fontTag) {
+    const currentSize = fontTag.getAttribute('size');
+    if (currentSize === '2') size = 'large';
+    else if (currentSize === '4') size = 'normal';
+    else size = 'small';
   } else {
     size = 'small';
   }
   
-  if (size === 'small') {
-    document.execCommand('insertHTML', false, `<span class="glass-size-sm">${sel.toString()}</span>`);
-  } else if (size === 'large') {
-    document.execCommand('insertHTML', false, `<span class="glass-size-lg">${sel.toString()}</span>`);
-  } else {
-    document.execCommand('insertHTML', false, sel.toString());
-  }
+  stripFontSizesInSelection();
+  
+  const browserSize = size === 'small' ? '2' : (size === 'large' ? '4' : '3');
+  document.execCommand('fontSize', false, browserSize);
   
   const label = document.getElementById(`${mode}-glass-size-label`);
   if (label) {
@@ -9048,7 +9436,7 @@ window.execGlassFontSize = function(mode) {
   }
   
   saveGlassSelection();
-  triggerAutosave();
+  saveGlassEditorChanges(mode);
 };
 
 let autoHideTimers = {};
@@ -9064,11 +9452,19 @@ function initModernGlassEditorListeners() {
       // Empty state checks and autosave triggers
       title.addEventListener('input', () => {
         window.updateGlassEmptyState(title);
-        triggerAutosave();
+        if (mode === 'creator') {
+          triggerAutosave();
+        } else {
+          saveModalNoteDraft();
+        }
       });
       editor.addEventListener('input', () => {
         window.updateGlassEmptyState(editor);
-        triggerAutosave();
+        if (mode === 'creator') {
+          triggerAutosave();
+        } else {
+          saveModalNoteDraft();
+        }
       });
       
       // Enter in title moves to editor
@@ -9091,18 +9487,15 @@ function initModernGlassEditorListeners() {
         field.addEventListener('mouseup', saveGlassSelection);
       });
 
-      // Paste linkify
+      // Paste clean plain text & linkify
       editor.addEventListener('paste', (e) => {
-        const clipboardHtml = e.clipboardData.getData('text/html');
-        const clipboardText = e.clipboardData.getData('text/plain');
-
-        if (!clipboardHtml && clipboardText) {
-          e.preventDefault();
-          document.execCommand('insertText', false, clipboardText);
-          setTimeout(() => linkifyGlassElement(editor), 0);
-          return;
-        }
-        setTimeout(() => linkifyGlassElement(editor), 0);
+        e.preventDefault();
+        const clipboardText = e.clipboardData.getData('text/plain') || '';
+        document.execCommand('insertText', false, clipboardText);
+        setTimeout(() => {
+          linkifyGlassElement(editor);
+          saveGlassEditorChanges(mode);
+        }, 0);
       });
 
       // Drag checklist items sorting
@@ -9189,10 +9582,11 @@ function initModernGlassEditorListeners() {
       }
       
       let sizeLabel = 'A';
-      const spanTag = parentNode.closest('span.glass-size-sm, span.glass-size-lg');
-      if (spanTag) {
-        if (spanTag.classList.contains('glass-size-sm')) sizeLabel = 'A↓';
-        else sizeLabel = 'A↑';
+      const fontTag = parentNode.closest('font[size]');
+      if (fontTag) {
+        const currentSize = fontTag.getAttribute('size');
+        if (currentSize === '2') sizeLabel = 'A↓';
+        else if (currentSize === '4') sizeLabel = 'A↑';
       }
       const sizeLabelEl = document.getElementById(`${activeMode}-glass-size-label`);
       if (sizeLabelEl) {
