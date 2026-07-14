@@ -515,19 +515,30 @@
             <button class="toolbar-btn" data-cmd="underline" onmousedown="event.preventDefault(); execGlassCmd('underline')" title="Underline">
               <svg viewBox="0 0 24 24"><path d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z"/></svg>
             </button>
+            <button class="toolbar-btn" data-cmd="strikeThrough" onmousedown="event.preventDefault(); execGlassCmd('strikeThrough')" title="Strikethrough">
+              <span class="btn-text" style="text-decoration: line-through;">S</span>
+            </button>
+            <div class="toolbar-divider"></div>
+            <button class="toolbar-btn" id="creator-glass-heading-btn" onmousedown="event.preventDefault(); execGlassHeading('creator')" title="Heading style">
+              <span class="btn-text" id="creator-glass-heading-label">H</span>
+            </button>
+            <button class="toolbar-btn" id="creator-glass-size-btn" onmousedown="event.preventDefault(); execGlassFontSize('creator')" title="Font size">
+              <span class="btn-text" id="creator-glass-size-label">A↑</span>
+            </button>
+            <div class="toolbar-divider"></div>
             <button class="toolbar-btn" data-cmd="insertUnorderedList" onmousedown="event.preventDefault(); execGlassCmd('insertUnorderedList')" title="Bulleted list">
               <svg viewBox="0 0 24 24"><path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"/></svg>
             </button>
             <button class="toolbar-btn" data-cmd="insertOrderedList" onmousedown="event.preventDefault(); execGlassCmd('insertOrderedList')" title="Numbered list">
               <svg viewBox="0 0 24 24"><path d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z"/></svg>
             </button>
-            <button class="toolbar-btn" onmousedown="event.preventDefault(); toggleGlassColorPopup('creator')" title="Highlight color">
+            <button class="toolbar-btn" onmousedown="event.preventDefault(); toggleGlassColorPopup('creator')" title="Highlight & Text color">
               <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
             </button>
             <button class="toolbar-btn" onmousedown="event.preventDefault(); addGlassChecklist('creator')" title="Add checklist item">
               <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
             </button>
-            <button class="toolbar-btn" onmousedown="event.preventDefault(); addGlassLink()" title="Insert link">
+            <button class="toolbar-btn" onmousedown="event.preventDefault(); toggleGlassLinkPopover('creator')" title="Insert link">
               <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
             </button>
             <button class="toolbar-btn" onmousedown="event.preventDefault(); document.getElementById('creator-glass-img-upload').click()" title="Insert image">
@@ -536,11 +547,31 @@
             <input type="file" id="creator-glass-img-upload" accept="image/*" style="display:none" onchange="handleGlassImage(this, 'creator')">
           </div>
 
-          <div id="creator-glass-color-popup" class="color-popup" style="display: none;">
-            <div class="color-swatch" style="background:yellow" onmousedown="event.preventDefault(); applyGlassHighlight('yellow')"></div>
-            <div class="color-swatch" style="background:lightgreen" onmousedown="event.preventDefault(); applyGlassHighlight('lightgreen')"></div>
-            <div class="color-swatch" style="background:lightblue" onmousedown="event.preventDefault(); applyGlassHighlight('lightblue')"></div>
-            <div class="color-swatch" style="background:transparent; border:1px solid #999;" title="Remove highlight" onmousedown="event.preventDefault(); applyGlassHighlight(null)"></div>
+          <div id="creator-glass-link-popover" class="glass-link-popover" onmousedown="event.preventDefault()">
+            <input type="text" id="creator-glass-link-input" placeholder="Paste or type link...">
+            <button type="button" onclick="submitGlassLink('creator')">Apply</button>
+          </div>
+
+          <div id="creator-glass-color-popup" class="color-popup" onmousedown="event.preventDefault()">
+            <div class="color-popup-section-title">Highlight</div>
+            <div class="color-swatches-row">
+              <div class="color-swatch" style="background:#FEF08A;" title="Yellow highlight" onmousedown="event.preventDefault(); applyGlassHighlight('#FEF08A')"></div>
+              <div class="color-swatch" style="background:#BBF7D0;" title="Green highlight" onmousedown="event.preventDefault(); applyGlassHighlight('#BBF7D0')"></div>
+              <div class="color-swatch" style="background:#BAE6FD;" title="Blue highlight" onmousedown="event.preventDefault(); applyGlassHighlight('#BAE6FD')"></div>
+              <div class="color-swatch" style="background:#FECDD3;" title="Rose highlight" onmousedown="event.preventDefault(); applyGlassHighlight('#FECDD3')"></div>
+              <div class="color-swatch" style="background:#DDD6FE;" title="Lavender highlight" onmousedown="event.preventDefault(); applyGlassHighlight('#DDD6FE')"></div>
+              <div class="color-swatch" style="background:transparent; border:1px solid rgba(0,0,0,0.15);" title="Clear highlight" onmousedown="event.preventDefault(); applyGlassHighlight(null)"></div>
+            </div>
+            <div style="height:1px; background:rgba(0,0,0,0.06); margin:4px 0;"></div>
+            <div class="color-popup-section-title">Text Color</div>
+            <div class="color-swatches-row">
+              <div class="color-swatch text-swatch" style="color:#ef4444;" title="Red text" onmousedown="event.preventDefault(); applyGlassTextColor('#ef4444')">A</div>
+              <div class="color-swatch text-swatch" style="color:#3b82f6;" title="Blue text" onmousedown="event.preventDefault(); applyGlassTextColor('#3b82f6')">A</div>
+              <div class="color-swatch text-swatch" style="color:#10b981;" title="Green text" onmousedown="event.preventDefault(); applyGlassTextColor('#10b981')">A</div>
+              <div class="color-swatch text-swatch" style="color:#f59e0b;" title="Orange text" onmousedown="event.preventDefault(); applyGlassTextColor('#f59e0b')">A</div>
+              <div class="color-swatch text-swatch" style="color:#8b5cf6;" title="Purple text" onmousedown="event.preventDefault(); applyGlassTextColor('#8b5cf6')">A</div>
+              <div class="color-swatch text-swatch" style="color:var(--text-primary);" title="Default text" onmousedown="event.preventDefault(); applyGlassTextColor(null)">A</div>
+            </div>
           </div>
           
           <div class="emoji-popover" id="creator-emoji-popover" style="display: none;">
@@ -1066,19 +1097,30 @@
         <button class="toolbar-btn" data-cmd="underline" onmousedown="event.preventDefault(); execGlassCmd('underline')" title="Underline">
           <svg viewBox="0 0 24 24"><path d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z"/></svg>
         </button>
+        <button class="toolbar-btn" data-cmd="strikeThrough" onmousedown="event.preventDefault(); execGlassCmd('strikeThrough')" title="Strikethrough">
+          <span class="btn-text" style="text-decoration: line-through;">S</span>
+        </button>
+        <div class="toolbar-divider"></div>
+        <button class="toolbar-btn" id="modal-glass-heading-btn" onmousedown="event.preventDefault(); execGlassHeading('modal')" title="Heading style">
+          <span class="btn-text" id="modal-glass-heading-label">H</span>
+        </button>
+        <button class="toolbar-btn" id="modal-glass-size-btn" onmousedown="event.preventDefault(); execGlassFontSize('modal')" title="Font size">
+          <span class="btn-text" id="modal-glass-size-label">A↑</span>
+        </button>
+        <div class="toolbar-divider"></div>
         <button class="toolbar-btn" data-cmd="insertUnorderedList" onmousedown="event.preventDefault(); execGlassCmd('insertUnorderedList')" title="Bulleted list">
           <svg viewBox="0 0 24 24"><path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"/></svg>
         </button>
         <button class="toolbar-btn" data-cmd="insertOrderedList" onmousedown="event.preventDefault(); execGlassCmd('insertOrderedList')" title="Numbered list">
           <svg viewBox="0 0 24 24"><path d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z"/></svg>
         </button>
-        <button class="toolbar-btn" onmousedown="event.preventDefault(); toggleGlassColorPopup('modal')" title="Highlight color">
+        <button class="toolbar-btn" onmousedown="event.preventDefault(); toggleGlassColorPopup('modal')" title="Highlight & Text color">
           <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
         </button>
         <button class="toolbar-btn" onmousedown="event.preventDefault(); addGlassChecklist('modal')" title="Add checklist item">
           <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
         </button>
-        <button class="toolbar-btn" onmousedown="event.preventDefault(); addGlassLink()" title="Insert link">
+        <button class="toolbar-btn" onmousedown="event.preventDefault(); toggleGlassLinkPopover('modal')" title="Insert link">
           <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
         </button>
         <button class="toolbar-btn" onmousedown="event.preventDefault(); document.getElementById('modal-glass-img-upload').click()" title="Insert image">
@@ -1087,11 +1129,31 @@
         <input type="file" id="modal-glass-img-upload" accept="image/*" style="display:none" onchange="handleGlassImage(this, 'modal')">
       </div>
 
-      <div id="modal-glass-color-popup" class="color-popup" style="display: none;">
-        <div class="color-swatch" style="background:yellow" onmousedown="event.preventDefault(); applyGlassHighlight('yellow')"></div>
-        <div class="color-swatch" style="background:lightgreen" onmousedown="event.preventDefault(); applyGlassHighlight('lightgreen')"></div>
-        <div class="color-swatch" style="background:lightblue" onmousedown="event.preventDefault(); applyGlassHighlight('lightblue')"></div>
-        <div class="color-swatch" style="background:transparent; border:1px solid #999;" title="Remove highlight" onmousedown="event.preventDefault(); applyGlassHighlight(null)"></div>
+      <div id="modal-glass-link-popover" class="glass-link-popover" onmousedown="event.preventDefault()">
+        <input type="text" id="modal-glass-link-input" placeholder="Paste or type link...">
+        <button type="button" onclick="submitGlassLink('modal')">Apply</button>
+      </div>
+
+      <div id="modal-glass-color-popup" class="color-popup" onmousedown="event.preventDefault()">
+        <div class="color-popup-section-title">Highlight</div>
+        <div class="color-swatches-row">
+          <div class="color-swatch" style="background:#FEF08A;" title="Yellow highlight" onmousedown="event.preventDefault(); applyGlassHighlight('#FEF08A')"></div>
+          <div class="color-swatch" style="background:#BBF7D0;" title="Green highlight" onmousedown="event.preventDefault(); applyGlassHighlight('#BBF7D0')"></div>
+          <div class="color-swatch" style="background:#BAE6FD;" title="Blue highlight" onmousedown="event.preventDefault(); applyGlassHighlight('#BAE6FD')"></div>
+          <div class="color-swatch" style="background:#FECDD3;" title="Rose highlight" onmousedown="event.preventDefault(); applyGlassHighlight('#FECDD3')"></div>
+          <div class="color-swatch" style="background:#DDD6FE;" title="Lavender highlight" onmousedown="event.preventDefault(); applyGlassHighlight('#DDD6FE')"></div>
+          <div class="color-swatch" style="background:transparent; border:1px solid rgba(0,0,0,0.15);" title="Clear highlight" onmousedown="event.preventDefault(); applyGlassHighlight(null)"></div>
+        </div>
+        <div style="height:1px; background:rgba(0,0,0,0.06); margin:4px 0;"></div>
+        <div class="color-popup-section-title">Text Color</div>
+        <div class="color-swatches-row">
+          <div class="color-swatch text-swatch" style="color:#ef4444;" title="Red text" onmousedown="event.preventDefault(); applyGlassTextColor('#ef4444')">A</div>
+          <div class="color-swatch text-swatch" style="color:#3b82f6;" title="Blue text" onmousedown="event.preventDefault(); applyGlassTextColor('#3b82f6')">A</div>
+          <div class="color-swatch text-swatch" style="color:#10b981;" title="Green text" onmousedown="event.preventDefault(); applyGlassTextColor('#10b981')">A</div>
+          <div class="color-swatch text-swatch" style="color:#f59e0b;" title="Orange text" onmousedown="event.preventDefault(); applyGlassTextColor('#f59e0b')">A</div>
+          <div class="color-swatch text-swatch" style="color:#8b5cf6;" title="Purple text" onmousedown="event.preventDefault(); applyGlassTextColor('#8b5cf6')">A</div>
+          <div class="color-swatch text-swatch" style="color:var(--text-primary);" title="Default text" onmousedown="event.preventDefault(); applyGlassTextColor(null)">A</div>
+        </div>
       </div>
 
       <div class="emoji-popover" id="modal-emoji-popover" style="display: none;">

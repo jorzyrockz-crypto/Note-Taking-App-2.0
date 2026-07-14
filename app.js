@@ -8607,6 +8607,9 @@ window.toggleGlassColorPopup = function(mode) {
   if (p) {
     p.style.display = p.style.display === 'flex' ? 'none' : 'flex';
   }
+  // Dismiss link popover if open
+  const linkPopover = document.getElementById(`${mode}-glass-link-popover`);
+  if (linkPopover) linkPopover.style.display = 'none';
 };
 
 window.applyGlassHighlight = function(color) {
@@ -8615,6 +8618,23 @@ window.applyGlassHighlight = function(color) {
     document.execCommand('backColor', false, color);
   } else {
     document.execCommand('backColor', false, 'transparent');
+  }
+  saveGlassSelection();
+  triggerAutosave();
+  
+  // Hide both popups
+  const creatorPopup = document.getElementById('creator-glass-color-popup');
+  if (creatorPopup) creatorPopup.style.display = 'none';
+  const modalPopup = document.getElementById('modal-glass-color-popup');
+  if (modalPopup) modalPopup.style.display = 'none';
+};
+
+window.applyGlassTextColor = function(color) {
+  restoreGlassSelection();
+  if (color) {
+    document.execCommand('foreColor', false, color);
+  } else {
+    document.execCommand('foreColor', false, 'inherit');
   }
   saveGlassSelection();
   triggerAutosave();
@@ -8726,20 +8746,63 @@ function initGlassDrag(el) {
   }
 }
 
-window.addGlassLink = function() {
-  restoreGlassSelection();
-  const raw = prompt("Enter URL:");
-  if (!raw) return;
-  const url = normalizeGlassUrl(raw);
-  if (!url) {
-    showToast({ title: 'Invalid URL', text: "That doesn't look like a valid URL." });
-    return;
+window.toggleGlassLinkPopover = function(mode) {
+  const popover = document.getElementById(`${mode}-glass-link-popover`);
+  if (!popover) return;
+  const input = document.getElementById(`${mode}-glass-link-input`);
+  
+  if (popover.style.display === 'flex') {
+    popover.style.display = 'none';
+  } else {
+    // Dismiss color popup if open
+    const colorPopup = document.getElementById(`${mode}-glass-color-popup`);
+    if (colorPopup) colorPopup.style.display = 'none';
+    
+    popover.style.display = 'flex';
+    
+    restoreGlassSelection();
+    const sel = window.getSelection();
+    if (sel.rangeCount > 0) {
+      let node = sel.anchorNode;
+      if (node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+      const anchor = node.closest('a');
+      if (anchor && input) {
+        input.value = anchor.getAttribute('href') || '';
+      } else if (input) {
+        input.value = '';
+      }
+    }
+    if (input) {
+      input.focus();
+      input.select();
+    }
   }
-  document.execCommand('createLink', false, url);
+};
+
+window.submitGlassLink = function(mode) {
+  const popover = document.getElementById(`${mode}-glass-link-popover`);
+  const input = document.getElementById(`${mode}-glass-link-input`);
+  if (!popover || !input) return;
+  
+  const rawUrl = input.value.trim();
+  popover.style.display = 'none';
+  
+  restoreGlassSelection();
+  if (!rawUrl) {
+    document.execCommand('unlink', false, null);
+  } else {
+    const url = normalizeGlassUrl(rawUrl);
+    if (url) {
+      document.execCommand('createLink', false, url);
+    } else {
+      showToast({ title: 'Invalid URL', text: "That doesn't look like a valid URL." });
+    }
+  }
+  saveGlassSelection();
   triggerAutosave();
 };
 
-const GLASS_URL_PATTERN = /((https?:\/\/|www\.)[^\s<]+|\b[a-zA-Z0-9-]+\.(com|net|org|io|dev|app|co)(\/[^\s<]*)?)/gi;
+const GLASS_URL_PATTERN = /((https?:\/\/|www\.)[^\s<]+|[a-zA-Z0-9-]+\.(com|net|org|io|dev|app|co)(\/[^\s<]*)?)/gi;
 
 function normalizeGlassUrl(raw) {
   let url = (raw || '').trim();
@@ -8881,6 +8944,81 @@ window.handleGlassImage = function(input, mode) {
   input.value = '';
 };
 
+window.execGlassHeading = function(mode) {
+  restoreGlassSelection();
+  const sel = window.getSelection();
+  if (sel.rangeCount === 0) return;
+  
+  let node = sel.anchorNode;
+  if (node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+  
+  const editor = document.getElementById(`${mode}-glass-editor`);
+  if (!editor || !editor.contains(node)) return;
+  
+  let currentBlock = node;
+  while (currentBlock && currentBlock !== editor && !['DIV', 'P', 'H1', 'H2', 'H3'].includes(currentBlock.tagName)) {
+    currentBlock = currentBlock.parentNode;
+  }
+  
+  let targetTag = 'h1';
+  if (currentBlock && currentBlock !== editor) {
+    const tag = currentBlock.tagName.toLowerCase();
+    if (tag === 'h1') targetTag = 'h2';
+    else if (tag === 'h2') targetTag = 'h3';
+    else if (tag === 'h3') targetTag = 'p';
+    else targetTag = 'h1';
+  }
+  
+  document.execCommand('formatBlock', false, `<${targetTag}>`);
+  
+  const label = document.getElementById(`${mode}-glass-heading-label`);
+  if (label) {
+    label.textContent = targetTag === 'p' ? 'H' : targetTag.toUpperCase();
+  }
+  
+  saveGlassSelection();
+  triggerAutosave();
+};
+
+window.execGlassFontSize = function(mode) {
+  restoreGlassSelection();
+  const sel = window.getSelection();
+  if (sel.rangeCount === 0 || sel.isCollapsed) return;
+  
+  const editor = document.getElementById(`${mode}-glass-editor`);
+  if (!editor || !editor.contains(sel.anchorNode)) return;
+  
+  let node = sel.anchorNode;
+  if (node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+  
+  let size = 'normal';
+  const span = node.closest('span.glass-size-sm, span.glass-size-lg');
+  if (span) {
+    if (span.classList.contains('glass-size-sm')) size = 'large';
+    else size = 'normal';
+  } else {
+    size = 'small';
+  }
+  
+  if (size === 'small') {
+    document.execCommand('insertHTML', false, `<span class="glass-size-sm">${sel.toString()}</span>`);
+  } else if (size === 'large') {
+    document.execCommand('insertHTML', false, `<span class="glass-size-lg">${sel.toString()}</span>`);
+  } else {
+    document.execCommand('insertHTML', false, sel.toString());
+  }
+  
+  const label = document.getElementById(`${mode}-glass-size-label`);
+  if (label) {
+    label.textContent = size === 'small' ? 'A↓' : (size === 'large' ? 'A↑' : 'A');
+  }
+  
+  saveGlassSelection();
+  triggerAutosave();
+};
+
+let autoHideTimers = {};
+
 // Bind selection events and listeners
 function initModernGlassEditorListeners() {
   const ids = ['creator', 'modal'];
@@ -8943,11 +9081,35 @@ function initModernGlassEditorListeners() {
         else editor.insertBefore(dragging, after);
       });
       
+      // Toolbar auto-hide while typing
+      editor.addEventListener('keydown', (e) => {
+        if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete' || e.key === 'Enter') {
+          const toolbar = document.getElementById(`${mode}-glass-floating-toolbar`);
+          if (toolbar && !toolbar.classList.contains('toolbar-hidden')) {
+            toolbar.classList.add('toolbar-hidden');
+          }
+          const linkPopover = document.getElementById(`${mode}-glass-link-popover`);
+          if (linkPopover) linkPopover.style.display = 'none';
+          const colorPopup = document.getElementById(`${mode}-glass-color-popup`);
+          if (colorPopup) colorPopup.style.display = 'none';
+        }
+      });
+      
+      editor.addEventListener('keyup', () => {
+        const toolbar = document.getElementById(`${mode}-glass-floating-toolbar`);
+        if (toolbar) {
+          clearTimeout(autoHideTimers[mode]);
+          autoHideTimers[mode] = setTimeout(() => {
+            toolbar.classList.remove('toolbar-hidden');
+          }, 800);
+        }
+      });
+      
       window.wireGlassChecklistEvents(editor);
     }
   });
 
-  // Track bold/italic/underline selection highlight states
+  // Track selection and toolbar states
   document.addEventListener('selectionchange', () => {
     const sel = window.getSelection();
     if (!sel.rangeCount) return;
@@ -8956,10 +9118,21 @@ function initModernGlassEditorListeners() {
     const creatorEditor = document.getElementById('creator-glass-editor');
     const modalEditor = document.getElementById('modal-glass-editor');
     
-    const isActive = creatorEditor?.contains(node) || modalEditor?.contains(node);
-    if (!isActive) return;
+    const isCreatorActive = creatorEditor?.contains(node);
+    const isModalActive = modalEditor?.contains(node);
+    if (!isCreatorActive && !isModalActive) return;
 
-    const toolbarId = creatorEditor?.contains(node) ? 'creator-glass-floating-toolbar' : 'modal-glass-floating-toolbar';
+    const activeMode = isCreatorActive ? 'creator' : 'modal';
+    
+    if (!sel.isCollapsed) {
+      const toolbar = document.getElementById(`${activeMode}-glass-floating-toolbar`);
+      if (toolbar) {
+        clearTimeout(autoHideTimers[activeMode]);
+        toolbar.classList.remove('toolbar-hidden');
+      }
+    }
+
+    const toolbarId = `${activeMode}-glass-floating-toolbar`;
     const toolbar = document.getElementById(toolbarId);
     if (toolbar) {
       toolbar.querySelectorAll('.toolbar-btn[data-cmd]').forEach(btn => {
@@ -8968,6 +9141,47 @@ function initModernGlassEditorListeners() {
         try { active = document.queryCommandState(cmd); } catch (e) {}
         btn.classList.toggle('active', active);
       });
+      
+      let headingLabel = 'H';
+      let parentNode = node;
+      if (parentNode.nodeType === Node.TEXT_NODE) parentNode = parentNode.parentNode;
+      const hTag = parentNode.closest('h1, h2, h3');
+      if (hTag) {
+        headingLabel = hTag.tagName;
+      }
+      const headingLabelEl = document.getElementById(`${activeMode}-glass-heading-label`);
+      if (headingLabelEl) {
+        headingLabelEl.textContent = headingLabel;
+      }
+      
+      let sizeLabel = 'A';
+      const spanTag = parentNode.closest('span.glass-size-sm, span.glass-size-lg');
+      if (spanTag) {
+        if (spanTag.classList.contains('glass-size-sm')) sizeLabel = 'A↓';
+        else sizeLabel = 'A↑';
+      }
+      const sizeLabelEl = document.getElementById(`${activeMode}-glass-size-label`);
+      if (sizeLabelEl) {
+        sizeLabelEl.textContent = sizeLabel;
+      }
     }
+  });
+
+  // Global dismissals for popups on click outside
+  document.addEventListener('mousedown', (e) => {
+    const ids = ['creator', 'modal'];
+    ids.forEach(mode => {
+      const linkPopover = document.getElementById(`${mode}-glass-link-popover`);
+      const linkBtn = document.querySelector(`#${mode}-glass-floating-toolbar button[title="Insert link"]`);
+      if (linkPopover && linkPopover.style.display === 'flex' && !linkPopover.contains(e.target) && !linkBtn?.contains(e.target)) {
+        linkPopover.style.display = 'none';
+      }
+      
+      const colorPopup = document.getElementById(`${mode}-glass-color-popup`);
+      const colorBtn = document.querySelector(`#${mode}-glass-floating-toolbar button[title="Highlight & Text color"]`);
+      if (colorPopup && colorPopup.style.display === 'flex' && !colorPopup.contains(e.target) && !colorBtn?.contains(e.target)) {
+        colorPopup.style.display = 'none';
+      }
+    });
   });
 }
