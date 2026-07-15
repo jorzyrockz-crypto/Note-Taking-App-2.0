@@ -117,6 +117,7 @@ export let currentPage = 'notes';
 export let currentUser = null;
 let cloudNotesUnsubscribe = null;
 let settingsUnsubscribe = null;
+let offlineBannerShown = false;
 let selectedProductivityTaskFilter = 'all';
 export let selectedProductivityDayView = 'agenda';
 export let calendarCursorDate = new Date();
@@ -1696,6 +1697,17 @@ window.addEventListener('beforeinstallprompt', (e) => {
   }
 
   showInstallNotification();
+});
+
+window.addEventListener('online', () => {
+  if (!currentUser) return;
+  console.log('Back online — retrying cloud sync for any pending notes and files...');
+  notes.forEach(note => {
+    saveNoteToCloud(currentUser.uid, note).catch(err => {
+      console.warn('Failed to sync note after reconnecting:', err);
+    });
+    syncLocalFilesToCloud(note);
+  });
 });
 
 window.addEventListener('appinstalled', () => {
@@ -8617,6 +8629,14 @@ function initAuth() {
     const name = authNameInput?.value.trim();
     
     if (!email || !password) return;
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      if (authErrorMsg) {
+        authErrorMsg.textContent = "You're offline — signing in needs an internet connection. Your notes are saved locally and you can keep working; sign in again once you're back online.";
+        authErrorMsg.style.display = 'block';
+      }
+      return;
+    }
     
     if (authSubmitBtn) {
       authSubmitBtn.disabled = true;
@@ -8699,6 +8719,30 @@ function initAuth() {
 
   // Firebase Auth State Listener
   onAuthChange(async (user) => {
+    const priorAuthChoice = localStorage.getItem('paperuss_auth_choice');
+
+    // If Firebase reports no user while we're offline and we were previously
+    // signed in, this is almost certainly a network hiccup rather than a real
+    // sign-out — trust the cached session and keep working locally instead of
+    // dropping into guest mode and tearing down the real-time subscription.
+    if (!user && priorAuthChoice === 'user' && typeof navigator !== 'undefined' && navigator.onLine === false) {
+      let cachedProfile = null;
+      try {
+        cachedProfile = JSON.parse(localStorage.getItem('paperuss_cached_profile') || 'null');
+      } catch (e) {
+        cachedProfile = null;
+      }
+      if (cachedProfile) {
+        currentUser = cachedProfile;
+        if (!offlineBannerShown) {
+          offlineBannerShown = true;
+          showToast({ title: 'Working Offline', text: "You're still signed in — changes will sync once you're back online." });
+        }
+        return;
+      }
+    }
+    offlineBannerShown = false;
+
     // Clean up any existing real-time subscription
     if (cloudNotesUnsubscribe) {
       cloudNotesUnsubscribe();
@@ -8711,6 +8755,19 @@ function initAuth() {
 
     if (user) {
       currentUser = user;
+      offlineBannerShown = false;
+
+      try {
+        localStorage.setItem('paperuss_cached_profile', JSON.stringify({
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          isReal: user.isReal
+        }));
+      } catch (e) {
+        console.warn('Failed to cache profile for offline use:', e);
+      }
       
       const initial = (user.displayName || user.email || 'U').charAt(0).toUpperCase();
       
