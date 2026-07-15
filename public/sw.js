@@ -1,8 +1,19 @@
-const CACHE_NAME = 'paperuss-v37';
+const CACHE_NAME = 'paperuss-v38';
 // Static assets that never get hashed — safe to precache by path
 const APP_ASSETS = [
   './',
   './index.html',
+  './styles.css',
+  './app.js',
+  './firebase.js',
+  './glass-editor.js',
+  './settings.js',
+  './productivity.js',
+  './recipe.js',
+  './note-types/index.js',
+  './note-types/checklist-note.js',
+  './note-types/text-note.js',
+  './note-types/shared.js',
   './site.webmanifest',
   './icons/icon.svg',
   './icons/icon-192.png',
@@ -95,7 +106,12 @@ self.addEventListener('fetch', (event) => {
 
           return networkResponse;
         })
-        .catch(() => caches.match('./index.html'));
+        .catch(() => {
+          if (event.request.mode === 'navigate') {
+            return caches.match('./index.html');
+          }
+          return caches.match(event.request).then(response => response || Response.error());
+        });
     })
   );
 });
