@@ -118,6 +118,7 @@ let selectedTypeFilter = 'all';
 export let currentPage = 'notes';
 export let currentUser = null;
 let isBulkOperationsActive = false;
+const recentlyDeletedNoteIds = new Set();
 let cloudNotesUnsubscribe = null;
 let settingsUnsubscribe = null;
 let offlineBannerShown = false;
@@ -1541,6 +1542,8 @@ function deleteNotePermanently(id) {
     });
   }
 
+  recentlyDeletedNoteIds.add(id);
+
   notes = notes.filter(n => n.id !== id);
   if (id === 'user-welcome-changelog') {
     appSettings.welcomeNoteDismissed = true;
@@ -1563,6 +1566,7 @@ function deleteAllDeletedNotes() {
   isBulkOperationsActive = true;
   
   deletedNotes.forEach(note => {
+    recentlyDeletedNoteIds.add(note.id);
     if (note.files) {
       normalizeNoteFiles(note.files).forEach(file => {
         if (file.storedInDB || file.dataUrl === 'db') {
@@ -6823,6 +6827,9 @@ function mergeCloudNotesWithLocal(cloudNotes = []) {
   const normalizedCloudNotes = cloudNotes.map(normalizeNoteType);
 
   normalizedCloudNotes.forEach((cloudNote, index) => {
+    if (recentlyDeletedNoteIds.has(cloudNote.id)) {
+      return;
+    }
     const normalized = normalizeNoteAppearance(cloudNote);
     setNoteFolders(normalized, getNoteFolders(normalized, inferDefaultFolder(normalized, index)));
     mergedById.set(normalized.id, normalized);
@@ -6878,6 +6885,13 @@ function mergeCloudNotesWithLocal(cloudNotes = []) {
     notes = Array.from(mergedById.values()).sort((a, b) => getNoteSyncTimestamp(b) - getNoteSyncTimestamp(a));
   notes.forEach(registerNoteFolders);
   saveNotesLocalOnly();
+
+  const cloudIds = new Set(cloudNotes.map(n => n.id));
+  for (const deletedId of recentlyDeletedNoteIds) {
+    if (!cloudIds.has(deletedId)) {
+      recentlyDeletedNoteIds.delete(deletedId);
+    }
+  }
 
   return dirtyLocalNotes;
 }
