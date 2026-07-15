@@ -896,7 +896,8 @@ export const STORAGE_KEYS = {
   view: 'paperuss_view',
   starterSeeded: 'paperuss_starter_seeded_v3',
   settingsUpdatedAt: 'paperuss_settings_updated_at',
-  pendingSyncQueue: 'paperuss_pending_sync_queue'
+  pendingSyncQueue: 'paperuss_pending_sync_queue',
+  permanentlyDeletedNotes: 'paperuss_permanently_deleted_notes'
 };
 
 function migrateLocalStorageKeys() {
@@ -1543,7 +1544,7 @@ function deleteNotePermanently(id) {
     });
   }
 
-  recentlyDeletedNoteIds.add(id);
+  rememberPermanentlyDeletedNoteIds([id]);
 
   notes = notes.filter(n => n.id !== id);
   if (id === 'user-welcome-changelog') {
@@ -1581,6 +1582,8 @@ function deleteAllDeletedNotes() {
       });
     }
   });
+
+  rememberPermanentlyDeletedNoteIds(deletedNotes.map(note => note.id));
 
   const deletedWelcome = deletedNotes.some(n => n.id === 'user-welcome-changelog');
   if (deletedWelcome) {
@@ -1874,6 +1877,15 @@ export function applyAppBgColor() {
       case 'sage':
         bgValue = '#0b1812';
         break;
+      case 'peach':
+        bgValue = '#1f1208';
+        break;
+      case 'offwhite':
+        bgValue = '#171511';
+        break;
+      case 'white':
+        bgValue = '#111827';
+        break;
       case 'base':
       default:
         bgValue = '#0f172a';
@@ -1889,6 +1901,15 @@ export function applyAppBgColor() {
         break;
       case 'sage':
         bgValue = 'linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%)';
+        break;
+      case 'peach':
+        bgValue = 'linear-gradient(180deg, #fff7ed 0%, #ffffff 100%)';
+        break;
+      case 'offwhite':
+        bgValue = 'linear-gradient(180deg, #fdfcf8 0%, #ffffff 100%)';
+        break;
+      case 'white':
+        bgValue = '#ffffff';
         break;
       case 'base':
       default:
@@ -6846,6 +6867,48 @@ function saveNotesLocalOnly() {
 }
 
 
+function getPermanentlyDeletedNoteIds() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.permanentlyDeletedNotes);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(parsed) ? parsed.filter(Boolean) : []);
+  } catch (error) {
+    console.warn('Unable to read permanently deleted note IDs:', error);
+    return new Set();
+  }
+}
+
+function savePermanentlyDeletedNoteIds(ids) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.permanentlyDeletedNotes, JSON.stringify(Array.from(ids)));
+  } catch (error) {
+    console.warn('Unable to save permanently deleted note IDs:', error);
+  }
+}
+
+function rememberPermanentlyDeletedNoteIds(noteIds = []) {
+  const ids = getPermanentlyDeletedNoteIds();
+  noteIds.filter(Boolean).forEach(id => {
+    recentlyDeletedNoteIds.add(id);
+    ids.add(id);
+  });
+  savePermanentlyDeletedNoteIds(ids);
+}
+
+function prunePermanentlyDeletedNoteIds(cloudIds = new Set()) {
+  const ids = getPermanentlyDeletedNoteIds();
+  let changed = false;
+  for (const deletedId of ids) {
+    if (!cloudIds.has(deletedId)) {
+      ids.delete(deletedId);
+      changed = true;
+    }
+  }
+  if (changed) {
+    savePermanentlyDeletedNoteIds(ids);
+  }
+}
+
 function getPendingSyncQueue() {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.pendingSyncQueue);
@@ -6968,8 +7031,13 @@ function mergeCloudNotesWithLocal(cloudNotes = []) {
   const dirtyLocalNotes = [];
   const normalizedCloudNotes = cloudNotes.map(normalizeNoteType);
 
+  const permanentlyDeletedNoteIds = getPermanentlyDeletedNoteIds();
+
   normalizedCloudNotes.forEach((cloudNote, index) => {
-    if (recentlyDeletedNoteIds.has(cloudNote.id)) {
+    if (recentlyDeletedNoteIds.has(cloudNote.id) || permanentlyDeletedNoteIds.has(cloudNote.id)) {
+      if (currentUser && permanentlyDeletedNoteIds.has(cloudNote.id)) {
+        deleteNoteFromCloudWithQueue(cloudNote.id, cloudNote);
+      }
       return;
     }
     const normalized = normalizeNoteAppearance(cloudNote);
@@ -7034,6 +7102,7 @@ function mergeCloudNotesWithLocal(cloudNotes = []) {
       recentlyDeletedNoteIds.delete(deletedId);
     }
   }
+  prunePermanentlyDeletedNoteIds(cloudIds);
 
   return dirtyLocalNotes;
 }
