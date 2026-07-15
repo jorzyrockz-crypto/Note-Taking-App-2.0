@@ -9234,13 +9234,8 @@ body.dark-theme .emoji-popover {
   overflow: hidden;
   pointer-events: none;
   /* Soft, multi-directional background gradient */
-  background: linear-gradient(135deg, #e0f2fe 0%, #cbd5e1 50%, #fed7aa 100%);
+  background: var(--bg-app) !important;
   transition: background 0.5s ease;
-}
-
-/* Dark theme background gradient */
-body.dark-theme .custom-app-bg {
-  background: linear-gradient(135deg, #090d16 0%, #1e293b 50%, #2e2429 100%);
 }
 
 /* Heavily blurred, out-of-focus abstract shapes on the far left and right edges */
