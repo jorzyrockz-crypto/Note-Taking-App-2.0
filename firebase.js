@@ -212,13 +212,15 @@ export function onAuthChange(callback) {
     return onAuthStateChanged(auth, async (user) => {
       if (user) {
         let photoURL = user.photoURL;
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists() && userDoc.data().photoURL) {
-            photoURL = userDoc.data().photoURL;
+        if (typeof navigator !== 'undefined' && navigator.onLine !== false) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            if (userDoc.exists() && userDoc.data().photoURL) {
+              photoURL = userDoc.data().photoURL;
+            }
+          } catch (e) {
+            console.warn('Failed to load profile picture from Firestore:', e);
           }
-        } catch (e) {
-          console.warn('Failed to load profile picture from Firestore:', e);
         }
         callback({
           uid: user.uid,
