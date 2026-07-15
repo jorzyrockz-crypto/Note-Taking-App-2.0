@@ -19,6 +19,7 @@ import {
   clearAllCacheAndData,
   saveToLocalStorage,
   saveSettingsAndSync,
+  applyAppBgColor,
   saveCustomThemesAndSync,
   experimentalSkyTheme,
   setExperimentalSkyTheme,
@@ -170,6 +171,7 @@ export function renderSettingsPage() {
 
   updateSettingsLivePreview();
   renderSettingsCustomThemesList();
+  renderSettingsBgPicker();
 }
 
 export function updateSettingsLivePreview() {
@@ -461,4 +463,48 @@ export function saveSettingsFromForm() {
   syncEmojiThemePresentation();
 
   showToast({ title: 'Settings Saved', text: 'Your preferences have been updated successfully.' });
+}
+
+export function renderSettingsBgPicker() {
+  const container = document.getElementById('settings-bg-picker-grid');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const activeBg = appSettings.appBgColor || 'base';
+
+  const options = [
+    { id: 'base', title: 'Slate Base', subtitle: 'Clean default slate', previewBg: '#f8fafc', previewBgDark: '#0f172a' },
+    { id: 'sky', title: 'Sky Blue', subtitle: 'Premium soft gradient', previewBg: 'linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%)', previewBgDark: '#0b1329' },
+    { id: 'lilac', title: 'Lilac Lavender', subtitle: 'Relaxing light purple', previewBg: 'linear-gradient(180deg, #faf5ff 0%, #ffffff 100%)', previewBgDark: '#120d1e' },
+    { id: 'sage', title: 'Sage Mint', subtitle: 'Resting organic green', previewBg: 'linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%)', previewBgDark: '#0b1812' }
+  ];
+
+  const isDark = document.body.classList.contains('dark-theme');
+
+  options.forEach(opt => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = `theme-picker-v2-card ${activeBg === opt.id ? 'selected' : ''}`;
+    
+    const bgPreview = isDark ? opt.previewBgDark : opt.previewBg;
+    
+    card.innerHTML = `
+      <span class="theme-picker-v2-card-preview" style="background: ${bgPreview} !important; border: 1px solid var(--border-light) !important;">
+        <span class="theme-picker-v2-card-preview-inner" style="font-size: 14px; font-weight: 600;">Aa</span>
+      </span>
+      <span class="theme-picker-v2-card-meta">
+        <strong>${opt.title}</strong>
+        <span>${opt.subtitle}</span>
+      </span>
+    `;
+
+    card.addEventListener('click', () => {
+      appSettings.appBgColor = opt.id;
+      applyAppBgColor();
+      renderSettingsBgPicker();
+      saveSettingsAndSync();
+    });
+
+    container.appendChild(card);
+  });
 }

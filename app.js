@@ -73,6 +73,7 @@ export let appSettings = {
   modernGlassEditorEnabled: true,
   cardLayoutStyle: 'default',
   welcomeNoteDismissed: false,
+  appBgColor: 'base',
   reminderTimes: {
     morning: '08:00',
     afternoon: '13:00',
@@ -316,6 +317,7 @@ export function saveSettingsAndSync() {
   localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
   saveEmojiThemeControls();
   localStorage.setItem(STORAGE_KEYS.settingsUpdatedAt, timestamp.toString());
+  applyAppBgColor();
 
   if (currentUser) {
     saveSettingsToCloud(currentUser.uid, {
@@ -1862,6 +1864,48 @@ function showInstallNotification() {
   });
 }
 
+export function applyAppBgColor() {
+  const isDark = document.body.classList.contains('dark-theme');
+  const bgColor = appSettings.appBgColor || 'base';
+  
+  let bgValue = '';
+  if (isDark) {
+    switch (bgColor) {
+      case 'sky':
+        bgValue = '#0b1329';
+        break;
+      case 'lilac':
+        bgValue = '#120d1e';
+        break;
+      case 'sage':
+        bgValue = '#0b1812';
+        break;
+      case 'base':
+      default:
+        bgValue = '#0f172a';
+        break;
+    }
+  } else {
+    switch (bgColor) {
+      case 'sky':
+        bgValue = 'linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%)';
+        break;
+      case 'lilac':
+        bgValue = 'linear-gradient(180deg, #faf5ff 0%, #ffffff 100%)';
+        break;
+      case 'sage':
+        bgValue = 'linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%)';
+        break;
+      case 'base':
+      default:
+        bgValue = '#f8fafc';
+        break;
+    }
+  }
+  
+  document.body.style.setProperty('--bg-app', bgValue, 'important');
+}
+
 function initTheme() {
   const savedTheme = localStorage.getItem(STORAGE_KEYS.theme) === 'dark' ? 'dark' : 'light';
   setTheme(savedTheme);
@@ -1890,6 +1934,10 @@ function setTheme(theme) {
   }
 
   localStorage.setItem(STORAGE_KEYS.theme, normalizedTheme);
+  applyAppBgColor();
+  if (settingsMod && typeof settingsMod.renderSettingsBgPicker === 'function') {
+    settingsMod.renderSettingsBgPicker();
+  }
 }
 
 function initViewLayout() {
@@ -6209,14 +6257,6 @@ function renderGrid(gridContainer, notesArray) {
     // Open Edit Modal on Click
     card.addEventListener('click', (e) => {
       if (!e.target.closest('.icon-btn') && !e.target.closest('.note-card-menu-action') && !e.target.closest('.color-picker-bubble') && !e.target.closest('.checklist-checkbox')) {
-        if (!supportsHoverPreview()) {
-          if (!card.classList.contains('touch-expanded')) {
-            collapseExpandedTouchCards();
-            card.classList.add('touch-expanded');
-            return;
-          }
-          card.classList.remove('touch-expanded');
-        }
         openEditModal(note);
       }
     });
@@ -8417,6 +8457,7 @@ function loadSettings() {
 
   // Apply layout style
   applyCardLayoutStyle(appSettings.cardLayoutStyle);
+  applyAppBgColor();
   // Load experimental sky theme setting
   const savedSky = localStorage.getItem('paperuss_experimental_sky');
   experimentalSkyTheme = savedSky === 'true';

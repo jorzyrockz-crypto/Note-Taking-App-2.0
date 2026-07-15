@@ -13,7 +13,7 @@
 body.theme-light,
 body.light-theme {
   /* Sky Theme Canvas: soft top-to-bottom gradient */
-  --bg-app: linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%);
+  --bg-app: #f8fafc;
   --bg-header: rgba(240, 249, 255, 0.96); /* Semi-solid sky blue tinted white */
   --bg-sidebar-active: #e0f2fe;    /* Muted sky blue pill */
   --accent-dark: #0284c7;           /* Deep sky blue for contrast */
@@ -1522,11 +1522,7 @@ body.dark-theme .tag-badge:hover {
   align-self: start;
 }
 
-.note-card:hover,
-.note-card:focus-within,
-.note-card.touch-expanded {
-  height: auto;
-}
+
 
 .note-card:hover {
   box-shadow: var(--shadow-hover);
