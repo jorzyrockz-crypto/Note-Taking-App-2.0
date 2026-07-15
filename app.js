@@ -70,7 +70,7 @@ export let appSettings = {
   checkedItemsToBottom: true,
   newChecklistItemsToBottom: true,
   advancedEditorEnabled: false,
-  modernGlassEditorEnabled: false,
+  modernGlassEditorEnabled: true,
   cardLayoutStyle: 'default',
   welcomeNoteDismissed: false,
   reminderTimes: {
