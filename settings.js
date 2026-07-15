@@ -473,7 +473,7 @@ export function renderSettingsBgPicker() {
   const activeBg = appSettings.appBgColor || 'base';
 
   const options = [
-    { id: 'base', title: 'Slate Base', subtitle: 'Clean default slate', previewBg: '#f8fafc', previewBgDark: '#0f172a' },
+    { id: 'base', title: 'Default (Sky Match)', subtitle: 'Matches navigation bar', previewBg: '#f0f9ff', previewBgDark: '#0f172a' },
     { id: 'sky', title: 'Sky Blue', subtitle: 'Premium soft gradient', previewBg: 'linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%)', previewBgDark: '#0b1329' },
     { id: 'lilac', title: 'Lilac Lavender', subtitle: 'Relaxing light purple', previewBg: 'linear-gradient(180deg, #faf5ff 0%, #ffffff 100%)', previewBgDark: '#120d1e' },
     { id: 'sage', title: 'Sage Mint', subtitle: 'Resting organic green', previewBg: 'linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%)', previewBgDark: '#0b1812' }

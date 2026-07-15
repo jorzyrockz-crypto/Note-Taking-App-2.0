@@ -1898,7 +1898,7 @@ export function applyAppBgColor() {
         break;
       case 'base':
       default:
-        bgValue = '#f8fafc';
+        bgValue = '#f0f9ff';
         break;
     }
   }

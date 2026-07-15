@@ -13,7 +13,7 @@
 body.theme-light,
 body.light-theme {
   /* Sky Theme Canvas: soft top-to-bottom gradient */
-  --bg-app: #f8fafc;
+  --bg-app: #f0f9ff;
   --bg-header: rgba(240, 249, 255, 0.96); /* Semi-solid sky blue tinted white */
   --bg-sidebar-active: #e0f2fe;    /* Muted sky blue pill */
   --accent-dark: #0284c7;           /* Deep sky blue for contrast */
