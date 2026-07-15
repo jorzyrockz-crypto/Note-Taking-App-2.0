@@ -476,7 +476,10 @@ export function renderSettingsBgPicker() {
     { id: 'base', title: 'Default (Sky Match)', subtitle: 'Matches navigation bar', previewBg: '#f0f9ff', previewBgDark: '#0f172a' },
     { id: 'sky', title: 'Sky Blue', subtitle: 'Premium soft gradient', previewBg: 'linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%)', previewBgDark: '#0b1329' },
     { id: 'lilac', title: 'Lilac Lavender', subtitle: 'Relaxing light purple', previewBg: 'linear-gradient(180deg, #faf5ff 0%, #ffffff 100%)', previewBgDark: '#120d1e' },
-    { id: 'sage', title: 'Sage Mint', subtitle: 'Resting organic green', previewBg: 'linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%)', previewBgDark: '#0b1812' }
+    { id: 'sage', title: 'Sage Mint', subtitle: 'Resting organic green', previewBg: 'linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%)', previewBgDark: '#0b1812' },
+    { id: 'peach', title: 'Peach Glow', subtitle: 'Warm cozy workspace', previewBg: 'linear-gradient(180deg, #fff7ed 0%, #ffffff 100%)', previewBgDark: '#1f1208' },
+    { id: 'offwhite', title: 'Soft Off-White', subtitle: 'Clean paper-like warmth', previewBg: 'linear-gradient(180deg, #fdfcf8 0%, #ffffff 100%)', previewBgDark: '#171511' },
+    { id: 'white', title: 'Pure White', subtitle: 'Bright minimal canvas', previewBg: '#ffffff', previewBgDark: '#111827' }
   ];
 
   const isDark = document.body.classList.contains('dark-theme');
