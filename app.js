@@ -72,6 +72,7 @@ export let appSettings = {
   advancedEditorEnabled: false,
   modernGlassEditorEnabled: false,
   cardLayoutStyle: 'default',
+  welcomeNoteDismissed: false,
   reminderTimes: {
     morning: '08:00',
     afternoon: '13:00',
@@ -116,6 +117,7 @@ let selectedFolderFilter = null;
 let selectedTypeFilter = 'all';
 export let currentPage = 'notes';
 export let currentUser = null;
+let isBulkOperationsActive = false;
 let cloudNotesUnsubscribe = null;
 let settingsUnsubscribe = null;
 let offlineBannerShown = false;
@@ -914,55 +916,65 @@ const STARTER_NOTES = [
   {
     id: 'starter-welcome',
     title: '🚀 Welcome to Paperuss',
-    text: '# Welcome to Paperuss 🚀\n\nPaperuss is a visual bookmarking and note-taking studio designed for links, voice notes, drawing, and checklists.\n\n**Best of all, you don\'t even need to sign in to start!**\n• Your notes are saved locally to your device\'s browser database.\n• You can sync them to the cloud at any time by signing in.\n• Open the user profile dropdown (top right) to upload a custom profile picture.\n\nExplore the other cards to learn about Paperuss\'s features!',
+    text: '<h3>Welcome to Paperuss 🚀</h3><p>Paperuss is a visual bookmarking and note-taking workspace designed for links, voice notes, sketching, and checklists.</p><p><strong>No Sign-In Required to start!</strong> Your notes are saved locally to your device\'s browser database. Open the user profile dropdown (top right) to upload a custom profile picture.</p><p>Try completing these getting-started tasks:</p><div class="checklist-item"><div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><input type="checkbox" checked="checked"><span contenteditable="true">Explore the visual note card grid view</span><button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button></div><div class="checklist-item"><div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><input type="checkbox"><span contenteditable="true">Create a note using the Modern Glass Editor 2.0</span><button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button></div>',
     color: 'default',
     theme: 'plants',
     pinned: true,
     archived: false,
+    isRichText: true,
+    editorMode: 'glass',
     image: null,
     updatedAt: Date.now() - 10000
   },
   {
     id: 'starter-pwa',
     title: '📲 Install App & Go Offline (PWA)',
-    text: '# Go Offline with PWA 📲\n\nPaperuss is a Progressive Web App (PWA). You can install it on your home screen or desktop:\n\n1. Click the **Install App** button inside your **Settings** panel (or look for the install icon in your browser address bar).\n2. Once installed, Paperuss launches in standalone mode.\n3. Enjoy full **offline support**! All notes, drawings, and files will load instantly even without an internet connection.',
+    text: '<h3>Go Offline with PWA 📲</h3><p>Paperuss is a Progressive Web App (PWA). You can install it on your home screen or desktop:</p><ul><li>Click the <strong>Install App</strong> button inside your <strong>Settings</strong> panel (or look for the install icon in your browser address bar).</li><li>Once installed, Paperuss launches in standalone, distraction-free mode.</li><li>Enjoy full <strong>offline support</strong>! All notes, drawings, and files will load instantly even without an internet connection.</li></ul>',
     color: 'default',
     theme: 'winter',
     pinned: true,
     archived: false,
+    isRichText: true,
+    editorMode: 'glass',
     image: null,
     updatedAt: Date.now() - 20000
   },
   {
     id: 'starter-indexeddb',
     title: '🎥 Attach Large Files & Videos',
-    text: '# Upload Videos & Large Files 🎥\n\nNeed to attach media? You can upload videos, audio files, and documents directly from your device storage:\n\n• Select files up to **100MB** using the attachment menu.\n• Large files are stored in **IndexedDB** on your phone\'s storage.\n• They bypass the strict LocalStorage size limit, keeping your app fast and lightweight.\n• Tap on any video or audio attachment inside a note to play it instantly.',
+    text: '<h3>Upload Videos &amp; Large Files 🎥</h3><p>Need to attach media? You can upload videos, audio files, and documents directly from your device storage:</p><ul><li>Select files up to <strong>100MB</strong> using the attachment menu.</li><li>Large files are stored in <strong>IndexedDB</strong> on your phone\'s storage.</li><li>They bypass the strict LocalStorage size limit, keeping your app fast and lightweight.</li><li>Tap on any video or audio attachment inside a note to play it instantly.</li></ul>',
     color: 'default',
     theme: 'school',
     pinned: false,
     archived: false,
+    isRichText: true,
+    editorMode: 'glass',
     image: null,
     updatedAt: Date.now() - 30000
   },
   {
     id: 'starter-voice-sketch',
     title: '🎙️ Voice Memos & Sketching',
-    text: '# Voice Notes & Canvas Sketches 🎙️🎨\n\nPaperuss features built-in tools for audio recording and drawing:\n\n• **Voice Notes**: Click the microphone icon to record audio on-the-fly. Listen back right inside the note.\n• **Canvas Sketches**: Tap the paint icon to launch the touch-friendly whiteboard. Draw diagrams, ideas, or write handwritten notes, then save them directly to your card.',
+    text: '<h3>Voice Notes &amp; Canvas Sketches 🎙️🎨</h3><p>Paperuss features built-in tools for audio recording and drawing:</p><ul><li><strong>Voice Notes:</strong> Click the microphone icon to record audio on-the-fly. Listen back right inside the note.</li><li><strong>Canvas Sketches:</strong> Tap the paint icon to launch the touch-friendly whiteboard. Draw diagrams, ideas, or write handwritten notes, then save them directly to your card.</li></ul>',
     color: 'default',
     theme: 'celebration',
     pinned: false,
     archived: false,
+    isRichText: true,
+    editorMode: 'glass',
     image: null,
     updatedAt: Date.now() - 40000
   },
   {
     id: 'starter-links-recipes',
     title: '🍽️ Rich Link Previews & Recipes',
-    text: '# Web Previews & Recipe Imports 🔗\n\nPaperuss automatically parses links to create rich previews:\n\n• Paste any URL (like https://github.com) into a note, and Paperuss will generate a premium preview card.\n• **Recipe Builder**: Paste a cooking recipe link (like a WordPress Recipe Maker print page). Paperuss will parse it and build a structured recipe card with checkable ingredients and directions.',
+    text: '<h3>Web Previews &amp; Recipe Imports 🔗</h3><p>Paperuss automatically parses links to create rich previews:</p><ul><li>Paste any URL (like https://github.com) into a note, and Paperuss will generate a premium preview card.</li><li><strong>Recipe Builder:</strong> Paste a cooking recipe link (like a WordPress Recipe Maker print page). Paperuss will parse it and build a structured recipe card with checkable ingredients and directions.</li></ul>',
     color: 'default',
     theme: 'food',
     pinned: false,
     archived: false,
+    isRichText: true,
+    editorMode: 'glass',
     image: null,
     updatedAt: Date.now() - 50000
   }
@@ -1530,6 +1542,10 @@ function deleteNotePermanently(id) {
   }
 
   notes = notes.filter(n => n.id !== id);
+  if (id === 'user-welcome-changelog') {
+    appSettings.welcomeNoteDismissed = true;
+    saveSettingsAndSync();
+  }
   if (currentUser) {
     deleteNoteFromCloud(currentUser.uid, id).catch(err => {
       console.warn('Failed to delete note from cloud:', err);
@@ -1543,6 +1559,8 @@ function deleteNotePermanently(id) {
 function deleteAllDeletedNotes() {
   const deletedNotes = notes.filter(isDeletedNote);
   if (deletedNotes.length === 0) return;
+  
+  isBulkOperationsActive = true;
   
   deletedNotes.forEach(note => {
     if (note.files) {
@@ -1561,6 +1579,12 @@ function deleteAllDeletedNotes() {
     }
   });
 
+  const deletedWelcome = deletedNotes.some(n => n.id === 'user-welcome-changelog');
+  if (deletedWelcome) {
+    appSettings.welcomeNoteDismissed = true;
+    saveSettingsAndSync();
+  }
+
   notes = notes.filter(n => !isDeletedNote(n));
 
   if (currentUser) {
@@ -1574,11 +1598,17 @@ function deleteAllDeletedNotes() {
   saveToLocalStorage();
   closeAllNoteCardMenus();
   renderNotes();
+
+  setTimeout(() => {
+    isBulkOperationsActive = false;
+  }, 1000);
 }
 
 function trashAllArchivedNotes() {
   const archivedNotes = notes.filter(isArchivedNote);
   if (archivedNotes.length === 0) return;
+
+  isBulkOperationsActive = true;
 
   const now = Date.now();
   archivedNotes.forEach(note => {
@@ -1592,6 +1622,10 @@ function trashAllArchivedNotes() {
   saveToLocalStorage();
   closeAllNoteCardMenus();
   renderNotes();
+
+  setTimeout(() => {
+    isBulkOperationsActive = false;
+  }, 1000);
 }
 
 function updatePageActionBar() {
@@ -1900,10 +1934,14 @@ function initData() {
   }
   
   // Seed starter notes only once so user deletions stay deleted after reload.
-  const hasSeededStarterNotes = localStorage.getItem(STORAGE_KEYS.starterSeeded) === 'true';
-  if (!hasSeededStarterNotes && loadedNotes.length === 0) {
-    loadedNotes = STARTER_NOTES.map(starterNote => normalizeNoteType({ ...starterNote }));
-    localStorage.setItem(STORAGE_KEYS.starterSeeded, 'true');
+  if (!currentUser) {
+    const hasSeededStarterNotes = localStorage.getItem(STORAGE_KEYS.starterSeeded) === 'true';
+    if (!hasSeededStarterNotes && loadedNotes.length === 0) {
+      loadedNotes = STARTER_NOTES.map(starterNote => normalizeNoteType({ ...starterNote }));
+      localStorage.setItem(STORAGE_KEYS.starterSeeded, 'true');
+    }
+  } else {
+    loadedNotes = loadedNotes.filter(n => !n.id.startsWith('starter-'));
   }
 
   loadedNotes = loadedNotes.map((note, index) => ({
@@ -6777,6 +6815,9 @@ function getNoteSyncTimestamp(note) {
 }
 
 function mergeCloudNotesWithLocal(cloudNotes = []) {
+  if (currentUser) {
+    cloudNotes = cloudNotes.filter(n => !n.id.startsWith('starter-'));
+  }
   const mergedById = new Map();
   const dirtyLocalNotes = [];
   const normalizedCloudNotes = cloudNotes.map(normalizeNoteType);
@@ -6795,6 +6836,9 @@ function mergeCloudNotesWithLocal(cloudNotes = []) {
     const cloudTimestamp = getNoteSyncTimestamp(cloudNote);
 
     if (!cloudNote || localTimestamp >= cloudTimestamp) {
+      if (currentUser && normalized.id.startsWith('starter-')) {
+        return;
+      }
       const isStarter = normalized.id && normalized.id.startsWith('starter-');
       const isExistingUser = currentUser && sessionStorage.getItem('paperuss_just_registered') !== 'true';
       if (isStarter && isExistingUser && !cloudNote) {
@@ -6808,7 +6852,30 @@ function mergeCloudNotesWithLocal(cloudNotes = []) {
     }
   });
 
-  notes = Array.from(mergedById.values()).sort((a, b) => getNoteSyncTimestamp(b) - getNoteSyncTimestamp(a));
+    if (currentUser && !appSettings.welcomeNoteDismissed) {
+      const hasWelcomeNote = mergedById.has('user-welcome-changelog');
+      if (!hasWelcomeNote) {
+        const welcomeNote = {
+          id: 'user-welcome-changelog',
+          title: '🚀 Welcome to Paperuss v2.2.1',
+          text: '<h3>Welcome to Paperuss v2.2.1! 🚀</h3><p>Paperuss is updated with the latest fixes and improvements. Here\'s what\'s new in this release:</p><div class="checklist-item"><div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><input type="checkbox" checked="checked"><span contenteditable="true">Fixed checklist persistence and event binding issues on note reload</span><button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button></div><div class="checklist-item"><div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><input type="checkbox" checked="checked"><span contenteditable="true">Synchronized category choices inside the Properties drawer</span><button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button></div><div class="checklist-item"><div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><input type="checkbox" checked="checked"><span contenteditable="true">Added Tab key text indentation support for all editors</span><button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button></div><div class="checklist-item"><div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><input type="checkbox" checked="checked"><span contenteditable="true">Added dynamic saving color indicator (red: saving, green: saved)</span><button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button></div><div class="checklist-item"><div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><input type="checkbox" checked="checked"><span contenteditable="true">Fixed sidebar and header overlay transparent layout bugs on mobile/portrait viewports</span><button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button></div><div class="checklist-item"><div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><input type="checkbox" checked="checked"><span contenteditable="true">Automatically reset pinned status when trashing or archiving notes</span><button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button></div><p>Once you dismiss/delete this note from trash, it won\'t appear again on future logins.</p>',
+          color: 'default',
+          theme: 'celebration',
+          pinned: true,
+          archived: false,
+          deleted: false,
+          isRichText: true,
+          editorMode: 'glass',
+          image: null,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        };
+        mergedById.set(welcomeNote.id, welcomeNote);
+        dirtyLocalNotes.push(welcomeNote);
+      }
+    }
+
+    notes = Array.from(mergedById.values()).sort((a, b) => getNoteSyncTimestamp(b) - getNoteSyncTimestamp(a));
   notes.forEach(registerNoteFolders);
   saveNotesLocalOnly();
 
@@ -8387,8 +8454,16 @@ function applyCardLayoutStyle(style) {
 
 
 
-function clearAllCacheAndData() {
+async function clearAllCacheAndData() {
   if (!confirm('This will completely reset the app, unregister service workers, clear cache, and delete all local notes. Are you sure?')) return;
+
+  if (currentUser) {
+    try {
+      await logoutUser();
+    } catch (err) {
+      console.warn('Failed to logout during data clear:', err);
+    }
+  }
 
   // Clear LocalStorage
   localStorage.clear();
@@ -8855,6 +8930,7 @@ function initAuth() {
 
     if (user) {
       currentUser = user;
+      notes = notes.filter(n => !n.id.startsWith('starter-'));
       offlineBannerShown = false;
 
       try {
@@ -8909,6 +8985,7 @@ function initAuth() {
       // Subscribe to real-time cloud updates
       try {
         cloudNotesUnsubscribe = subscribeToCloudNotes(user.uid, (cloudNotes) => {
+          if (isBulkOperationsActive) return;
           const dirtyLocalNotes = mergeCloudNotesWithLocal(cloudNotes);
           pushDirtyLocalNotesToCloud(user.uid, dirtyLocalNotes);
           renderNotes();
