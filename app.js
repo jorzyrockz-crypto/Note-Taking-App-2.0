@@ -805,9 +805,7 @@ async function syncLocalFilesToCloud(note) {
   if (updated) {
     note.files = files;
     localStorage.setItem(STORAGE_KEYS.notes, JSON.stringify(notes));
-    saveNoteToCloud(currentUser.uid, note).catch(err => {
-      console.warn('Failed to sync note with updated cloudUrls:', err);
-    });
+    syncNoteToCloudWithQueue(note);
   }
 }
 
@@ -897,11 +895,12 @@ export const STORAGE_KEYS = {
   emojiThemeControls: 'paperuss_emoji_theme_controls',
   view: 'paperuss_view',
   starterSeeded: 'paperuss_starter_seeded_v3',
-  settingsUpdatedAt: 'paperuss_settings_updated_at'
+  settingsUpdatedAt: 'paperuss_settings_updated_at',
+  pendingSyncQueue: 'paperuss_pending_sync_queue'
 };
 
 function migrateLocalStorageKeys() {
-  const keys = ['settings', 'customThemes', 'notes', 'folders', 'theme', 'emojiThemeControls', 'view', 'starterSeeded', 'settingsUpdatedAt'];
+  const keys = ['settings', 'customThemes', 'notes', 'folders', 'theme', 'emojiThemeControls', 'view', 'starterSeeded', 'settingsUpdatedAt', 'pendingSyncQueue'];
   keys.forEach(key => {
     const oldKey = `keep_${key}`;
     const newKey = `paperuss_${key}`;
@@ -1552,9 +1551,7 @@ function deleteNotePermanently(id) {
     saveSettingsAndSync();
   }
   if (currentUser) {
-    deleteNoteFromCloud(currentUser.uid, id).catch(err => {
-      console.warn('Failed to delete note from cloud:', err);
-    });
+    deleteNoteFromCloudWithQueue(id, note);
   }
   saveToLocalStorage();
   closeAllNoteCardMenus();
@@ -1595,9 +1592,7 @@ function deleteAllDeletedNotes() {
 
   if (currentUser) {
     deletedNotes.forEach(note => {
-      deleteNoteFromCloud(currentUser.uid, note.id).catch(err => {
-        console.warn('Failed to delete note from cloud:', err);
-      });
+      deleteNoteFromCloudWithQueue(note.id, note);
     });
   }
 
@@ -1816,11 +1811,10 @@ function updateOnlineStatusUI() {
 window.addEventListener('online', () => {
   updateOnlineStatusUI();
   if (!currentUser) return;
-  console.log('Back online — retrying cloud sync for any pending notes and files...');
+  console.log('Back online — retrying pending cloud sync operations, notes, and files...');
+  processPendingSyncQueue(currentUser.uid);
   notes.forEach(note => {
-    saveNoteToCloud(currentUser.uid, note).catch(err => {
-      console.warn('Failed to sync note after reconnecting:', err);
-    });
+    syncNoteToCloudWithQueue(note);
     syncLocalFilesToCloud(note);
   });
 });
@@ -6823,9 +6817,7 @@ function saveToLocalStorage() {
 
     if (currentUser) {
       notes.forEach(note => {
-        saveNoteToCloud(currentUser.uid, note).catch(err => {
-          console.warn('Failed to sync note to cloud:', err);
-        });
+        syncNoteToCloudWithQueue(note);
         syncLocalFilesToCloud(note);
       });
     }
@@ -6851,6 +6843,112 @@ function saveNotesLocalOnly() {
   });
   localStorage.setItem(STORAGE_KEYS.notes, JSON.stringify(notes));
   localStorage.setItem(STORAGE_KEYS.folders, JSON.stringify(customFolders));
+}
+
+
+function getPendingSyncQueue() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.pendingSyncQueue);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter(item => item && item.noteId && item.operation) : [];
+  } catch (error) {
+    console.warn('Unable to read pending sync queue:', error);
+    return [];
+  }
+}
+
+function savePendingSyncQueue(queue) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.pendingSyncQueue, JSON.stringify(queue));
+  } catch (error) {
+    console.warn('Unable to save pending sync queue:', error);
+  }
+}
+
+function upsertPendingSyncOperation(operation, note) {
+  if (!currentUser || !note?.id) return;
+  const now = Date.now();
+  const queue = getPendingSyncQueue().filter(item => item.noteId !== note.id || item.uid !== currentUser.uid);
+
+  queue.push({
+    uid: currentUser.uid,
+    noteId: note.id,
+    operation,
+    queuedAt: now,
+    updatedAt: getNoteSyncTimestamp(note) || now,
+    note: operation === 'delete' ? null : normalizeNoteType({ ...note })
+  });
+
+  savePendingSyncQueue(queue);
+}
+
+function removePendingSyncOperation(uid, noteId, operation = null) {
+  const queue = getPendingSyncQueue().filter(item => {
+    if (item.uid !== uid || item.noteId !== noteId) return true;
+    return operation ? item.operation !== operation : false;
+  });
+  savePendingSyncQueue(queue);
+}
+
+async function syncNoteToCloudWithQueue(note) {
+  if (!currentUser || !note?.id) return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    upsertPendingSyncOperation('upsert', note);
+    return;
+  }
+
+  try {
+    await saveNoteToCloud(currentUser.uid, note);
+    removePendingSyncOperation(currentUser.uid, note.id, 'upsert');
+  } catch (err) {
+    upsertPendingSyncOperation('upsert', note);
+    console.warn('Failed to sync note to cloud; queued for retry:', err);
+  }
+}
+
+async function deleteNoteFromCloudWithQueue(noteId, snapshot = null) {
+  if (!currentUser || !noteId) return;
+  const noteForQueue = snapshot || { id: noteId, updatedAt: Date.now() };
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    upsertPendingSyncOperation('delete', noteForQueue);
+    return;
+  }
+
+  try {
+    await deleteNoteFromCloud(currentUser.uid, noteId);
+    removePendingSyncOperation(currentUser.uid, noteId);
+  } catch (err) {
+    upsertPendingSyncOperation('delete', noteForQueue);
+    console.warn('Failed to delete note from cloud; queued for retry:', err);
+  }
+}
+
+async function processPendingSyncQueue(uid = currentUser?.uid) {
+  if (!uid || (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
+
+  const queue = getPendingSyncQueue();
+  const remaining = [];
+
+  for (const item of queue) {
+    if (item.uid !== uid) {
+      remaining.push(item);
+      continue;
+    }
+
+    try {
+      if (item.operation === 'delete') {
+        await deleteNoteFromCloud(uid, item.noteId);
+      } else if (item.operation === 'upsert' && item.note) {
+        await saveNoteToCloud(uid, item.note);
+        await syncLocalFilesToCloud(item.note);
+      }
+    } catch (err) {
+      console.warn('Pending sync operation failed; keeping queued:', item, err);
+      remaining.push(item);
+    }
+  }
+
+  savePendingSyncQueue(remaining);
 }
 
 function getNoteSyncTimestamp(note) {
@@ -6942,9 +7040,7 @@ function mergeCloudNotesWithLocal(cloudNotes = []) {
 
 function pushDirtyLocalNotesToCloud(uid, dirtyLocalNotes = []) {
   dirtyLocalNotes.forEach(note => {
-    saveNoteToCloud(uid, note).catch(err => {
-      console.warn('Failed to preserve local offline note in cloud:', err);
-    });
+    syncNoteToCloudWithQueue(note);
     syncLocalFilesToCloud(note);
   });
 }
@@ -8739,6 +8835,60 @@ function initAuth() {
     }, 260);
   }
 
+  function getCachedSignedInProfile() {
+    try {
+      return JSON.parse(localStorage.getItem('paperuss_cached_profile') || 'null');
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function restoreCachedSignedInProfile(cachedProfile, { notify = false } = {}) {
+    if (!cachedProfile?.uid) return false;
+
+    currentUser = cachedProfile;
+    const initial = (cachedProfile.displayName || cachedProfile.email || 'U').charAt(0).toUpperCase();
+
+    if (cachedProfile.photoURL) {
+      if (avatarBtn) {
+        avatarBtn.textContent = '';
+        avatarBtn.style.backgroundImage = `url(${cachedProfile.photoURL})`;
+      }
+      if (profileAvatarInner) {
+        profileAvatarInner.textContent = '';
+        profileAvatarInner.style.backgroundImage = `url(${cachedProfile.photoURL})`;
+      }
+    } else {
+      if (avatarBtn) {
+        avatarBtn.textContent = initial;
+        avatarBtn.style.backgroundImage = '';
+      }
+      if (profileAvatarInner) {
+        profileAvatarInner.textContent = initial;
+        profileAvatarInner.style.backgroundImage = '';
+      }
+    }
+
+    if (profileName) profileName.textContent = cachedProfile.displayName || cachedProfile.email?.split('@')[0] || 'User';
+    if (profileEmail) profileEmail.textContent = cachedProfile.email || 'Offline account';
+    if (guestView) guestView.style.display = 'none';
+    if (userView) userView.style.display = 'block';
+
+    hideGuestBanner();
+    authModal?.classList.remove('visible', 'gate-mode');
+    localStorage.setItem('paperuss_auth_choice', 'user');
+    updateOnlineStatusUI();
+    initData();
+    renderNotes();
+
+    if (notify && !offlineBannerShown) {
+      offlineBannerShown = true;
+      showToast({ title: 'Working Offline', text: "You're still signed in — changes will sync once you're back online." });
+    }
+
+    return true;
+  }
+
   // Helper: enter guest mode programmatically
   function enterGuestMode() {
     localStorage.setItem('paperuss_auth_choice', 'guest');
@@ -8752,14 +8902,21 @@ function initAuth() {
   // If Firebase hasn't resolved a user yet AND no prior choice recorded,
   // show the auth modal in blocking gate-mode.
   const priorChoice = localStorage.getItem('paperuss_auth_choice');
+  const restoredCachedOfflineUser = priorChoice === 'user'
+    && typeof navigator !== 'undefined'
+    && navigator.onLine === false
+    && restoreCachedSignedInProfile(getCachedSignedInProfile(), { notify: true });
+
   if (!priorChoice) {
     // First-time visitor — show blocking gate
     authModal?.classList.add('visible', 'gate-mode');
   } else if (priorChoice === 'guest') {
     // Returning guest — skip modal, show banner after a tick
     setTimeout(() => showGuestBanner(), 300);
+  } else if (priorChoice === 'user' && !restoredCachedOfflineUser) {
+    // Online sessions are resolved by Firebase; offline sessions need a cached profile.
+    authModal?.classList.remove('visible', 'gate-mode');
   }
-  // If priorChoice === 'user', Firebase onAuthChange will handle the signed-in state.
 
   // Toggle Dropdown
   avatarBtn?.addEventListener('click', (e) => {
@@ -8960,18 +9117,7 @@ function initAuth() {
     // sign-out — trust the cached session and keep working locally instead of
     // dropping into guest mode and tearing down the real-time subscription.
     if (!user && priorAuthChoice === 'user' && typeof navigator !== 'undefined' && navigator.onLine === false) {
-      let cachedProfile = null;
-      try {
-        cachedProfile = JSON.parse(localStorage.getItem('paperuss_cached_profile') || 'null');
-      } catch (e) {
-        cachedProfile = null;
-      }
-      if (cachedProfile) {
-        currentUser = cachedProfile;
-        if (!offlineBannerShown) {
-          offlineBannerShown = true;
-          showToast({ title: 'Working Offline', text: "You're still signed in — changes will sync once you're back online." });
-        }
+      if (restoreCachedSignedInProfile(getCachedSignedInProfile(), { notify: true })) {
         return;
       }
     }
@@ -9037,6 +9183,7 @@ function initAuth() {
       localStorage.setItem('paperuss_auth_choice', 'user');
       
       updateOnlineStatusUI();
+      processPendingSyncQueue(user.uid);
 
       // Sync settings with Firestore in real-time
       initSettingsCloudSync(user.uid);
