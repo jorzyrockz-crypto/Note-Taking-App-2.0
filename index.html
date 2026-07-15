@@ -146,19 +146,18 @@
           <div class="profile-divider"></div>
           <div class="profile-version-section">
             <div class="version-header">
-              <span class="version-label">Version 2.2.0</span>
+              <span class="version-label">Version 2.2.1</span>
               <button class="update-btn" id="app-update-btn" type="button">Update</button>
             </div>
             <div class="changelog-container">
               <div class="changelog-title">What's New</div>
               <ul class="changelog-list">
-                 <li>Unified Modern Glass Editor selection-to-list conversions (checklist, bullets, numbered lists)</li>
-                 <li>Instant responsive checkbox toggling and note card feed preview crossed-out styling</li>
-                 <li>Delegated checklist keyboard handlers preventing browser default plain lines on Enter</li>
-                 <li>Note card grid theme styling and custom background/patterns instant rendering</li>
-                 <li>Auto-close options sheets and properties drawers on clicking outside</li>
-                 <li>Cohesive glassmorphism drawer navigation sidebar styling on portrait/mobile viewports</li>
-                 <li>Page action bars with Delete All Trash / Trash All Archive bulk operations</li>
+                 <li>Fixed checklist click/drag binding serialization bugs after note reload</li>
+                 <li>Synchronized properties drawer category selection with note save actions</li>
+                 <li>Added Tab key text indentation support for both Glass and Textarea editors</li>
+                 <li>Added dynamic color feedback (green for saved, red for saving) to autosave status indicators</li>
+                 <li>Resolved transparent sidebar and header overlays persisting on portrait mobile/tablet viewports</li>
+                 <li>Fixed pinned notes persisting in pinned lists after moving to trash or archive</li>
               </ul>
             </div>
           </div>
@@ -240,7 +239,7 @@
               <button class="icon-btn" id="creator-redo-btn" aria-label="Redo" title="Redo">
                 <svg viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
               </button>
-              <span class="autosave-status" id="creator-autosave-status">✓ Saved</span>
+              <span class="autosave-status saved" id="creator-autosave-status">✓ Saved</span>
               <button class="icon-btn" id="creator-share-btn" aria-label="Share note" title="Share">
                 <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>
               </button>
@@ -849,7 +848,7 @@
           <button class="icon-btn" id="modal-redo-btn" aria-label="Redo" title="Redo">
             <svg viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
           </button>
-          <span class="autosave-status" id="modal-autosave-status">✓ Saved</span>
+          <span class="autosave-status saved" id="modal-autosave-status">✓ Saved</span>
           <button class="icon-btn" id="modal-share-btn" aria-label="Share note" title="Share Note">
             <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>
           </button>

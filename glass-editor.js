@@ -224,7 +224,7 @@ window.wireGlassChecklistEvents = function(container) {
       checkbox.checked = isChecked;
       item.classList.toggle('checked', isChecked);
       
-      if (!checkbox.dataset.bound) {
+      if (!checkbox._listenerBound) {
         checkbox.addEventListener('click', (e) => {
           e.stopPropagation();
           if (checkbox.checked) {
@@ -241,14 +241,14 @@ window.wireGlassChecklistEvents = function(container) {
             triggerAutosaveFn();
           }
         });
-        checkbox.dataset.bound = 'true';
+        checkbox._listenerBound = true;
       }
     }
     
     const delBtn = item.querySelector('.checklist-delete-btn');
     if (delBtn) {
       delBtn.setAttribute('contenteditable', 'false');
-      if (!delBtn.dataset.bound) {
+      if (!delBtn._listenerBound) {
         delBtn.addEventListener('click', () => {
           item.remove();
           const isModal = item.closest('#modal-glass-editor') !== null;
@@ -258,7 +258,7 @@ window.wireGlassChecklistEvents = function(container) {
             triggerAutosaveFn();
           }
         });
-        delBtn.dataset.bound = 'true';
+        delBtn._listenerBound = true;
       }
     }
 
@@ -457,7 +457,7 @@ window.addGlassChecklist = function(mode) {
 
 function initGlassDrag(el) {
   const handle = el.querySelector('.checklist-drag-handle') || el;
-  if (!handle.dataset.dragBound) {
+  if (!handle._dragBound) {
     handle.addEventListener('dragstart', (e) => {
       el.classList.add('dragging');
       if (e.dataTransfer) {
@@ -473,7 +473,7 @@ function initGlassDrag(el) {
         triggerAutosaveFn();
       }
     });
-    handle.dataset.dragBound = 'true';
+    handle._dragBound = true;
   }
 }
 
@@ -821,6 +821,13 @@ export function initModernGlassEditorListeners(callbacks = {}) {
       
       // Toolbar auto-hide while typing
       editor.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          document.execCommand('insertHTML', false, '&#160;&#160;&#160;&#160;');
+          saveGlassEditorChanges(mode);
+          return;
+        }
+
         if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete' || e.key === 'Enter') {
           const toolbar = document.getElementById(`${mode}-glass-floating-toolbar`);
           if (toolbar && !toolbar.classList.contains('toolbar-hidden')) {

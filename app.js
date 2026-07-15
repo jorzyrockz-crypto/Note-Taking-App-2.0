@@ -986,6 +986,7 @@ const creatorAdvancedHeader = document.getElementById('creator-advanced-header')
 const creatorBackBtn = document.getElementById('creator-back-btn');
 const creatorBreadcrumb = document.getElementById('creator-breadcrumb');
 const creatorAutosaveStatus = document.getElementById('creator-autosave-status');
+const modalAutosaveStatus = document.getElementById('modal-autosave-status');
 const creatorShareBtn = document.getElementById('creator-share-btn');
 const creatorMoreBtn = document.getElementById('creator-more-btn');
 const creatorMetadata = document.getElementById('creator-metadata');
@@ -1464,6 +1465,7 @@ function archiveNote(id) {
   note.archivedAt = Date.now();
   note.deleted = false;
   note.deletedAt = null;
+  note.pinned = false;
   note.updatedAt = Date.now();
   saveToLocalStorage();
   closeAllNoteCardMenus();
@@ -1490,6 +1492,7 @@ function trashNote(id) {
   note.deletedAt = Date.now();
   note.archived = false;
   note.archivedAt = null;
+  note.pinned = false;
   note.updatedAt = Date.now();
   saveToLocalStorage();
   closeAllNoteCardMenus();
@@ -1630,6 +1633,23 @@ function updatePageActionBar() {
   bar.style.display = 'none';
 }
 
+function handleTextareaTabKey(e) {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = this.selectionStart;
+    const end = this.selectionEnd;
+    this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
+    this.selectionStart = this.selectionEnd = start + 4;
+    autoGrowTextarea.call(this);
+    updateEditorMirror(this, document.getElementById(this.id + '-mirror'));
+    if (this.id === 'creator-text') {
+      triggerAutosave();
+    } else {
+      saveModalNoteDraft();
+    }
+  }
+}
+
 // ==========================================================================
 // 3. Core Initialization & Event Listeners
 // ==========================================================================
@@ -1655,6 +1675,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   registerServiceWorker();
   updateOnlineStatusUI();
+  
+  creatorText.addEventListener('keydown', handleTextareaTabKey);
+  modalText.addEventListener('keydown', handleTextareaTabKey);
   
   // Start background checks for note reminders
   setInterval(checkReminders, 10000);
@@ -3065,7 +3088,7 @@ function saveCreatorNoteDraft() {
       saveToLocalStorage();
       renderNotes();
     }
-    creatorAutosaveStatus.textContent = '✓ Saved';
+    setAutosaveStatus('saved');
     return;
   }
 
@@ -3132,13 +3155,14 @@ function saveCreatorNoteDraft() {
   saveToLocalStorage();
   renderNotes();
 
-  creatorAutosaveStatus.textContent = '✓ Saved';
+  setAutosaveStatus('saved');
 }
 
 export function saveModalNoteDraft() {
   if (!currentEditingNoteId) return;
   const note = notes.find(n => n.id === currentEditingNoteId);
   if (note) {
+    setAutosaveStatus('saving');
     const title = appSettings.modernGlassEditorEnabled
       ? document.getElementById('modal-glass-title').innerText.trim()
       : modalTitle.value.trim();
@@ -3252,6 +3276,8 @@ function renderModalPopoverCategories(note) {
       }
       setNoteFolders(note, folders);
       registerNoteFolders(note);
+      
+      setModalFolderValue(folders, { preserveDraft: true });
       
       // Update modal breadcrumbs
       const modalBreadcrumb = document.getElementById('modal-breadcrumb');
@@ -3997,11 +4023,28 @@ function formatSelectedText(syntaxStart, syntaxEnd = '') {
   updateEditorMirror(creatorText, document.getElementById('creator-text-mirror'));
 }
 
+function setAutosaveStatus(status) {
+  const isModalOpen = editModal && editModal.classList.contains('visible');
+  const targetLabel = isModalOpen ? modalAutosaveStatus : creatorAutosaveStatus;
+  if (targetLabel) {
+    if (status === 'saving') {
+      targetLabel.textContent = 'Saving...';
+      targetLabel.style.opacity = '1';
+      targetLabel.classList.remove('saved');
+      targetLabel.classList.add('saving');
+    } else if (status === 'saved') {
+      targetLabel.textContent = '✓ Saved';
+      targetLabel.style.opacity = '1';
+      targetLabel.classList.remove('saving');
+      targetLabel.classList.add('saved');
+    }
+  }
+}
+
 let autosaveDebounceTimer = null;
 export function triggerAutosave() {
   if ((!appSettings.advancedEditorEnabled && !appSettings.modernGlassEditorEnabled) || !creatorActiveNoteId) return;
-  creatorAutosaveStatus.textContent = 'Saving...';
-  creatorAutosaveStatus.style.opacity = '1';
+  setAutosaveStatus('saving');
   clearTimeout(autosaveDebounceTimer);
   autosaveDebounceTimer = setTimeout(() => {
     saveCreatorNoteDraft();
@@ -6701,6 +6744,7 @@ function saveToLocalStorage() {
       });
     }
 
+    setAutosaveStatus('saved');
     return true;
   } catch (error) {
     console.warn('Unable to save notes to localStorage:', error);
