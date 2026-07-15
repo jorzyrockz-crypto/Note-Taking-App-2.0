@@ -7009,6 +7009,37 @@ body.card-style-glass .edit-modal-card textarea {
   animation: pulseSyncDot 2s infinite;
 }
 
+.sync-dot.offline {
+  background-color: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+  animation: pulseSyncDot 2s infinite;
+}
+
+.offline-badge {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  display: inline-block;
+  vertical-align: middle;
+}
+
+body.dark-theme .offline-badge {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.profile-user-avatar.offline,
+.user-avatar.offline {
+  border: 2.5px solid #f59e0b !important;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+}
+
+
 @keyframes pulseSyncDot {
   0% { transform: scale(0.95); opacity: 0.5; }
   50% { transform: scale(1.1); opacity: 1; }

@@ -1654,6 +1654,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   registerServiceWorker();
+  updateOnlineStatusUI();
   
   // Start background checks for note reminders
   setInterval(checkReminders, 10000);
@@ -1704,7 +1705,53 @@ window.addEventListener('beforeinstallprompt', (e) => {
   showInstallNotification();
 });
 
+function updateOnlineStatusUI() {
+  const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+  const syncDot = document.querySelector('.profile-sync-status .sync-dot');
+  const syncText = document.getElementById('profile-sync-text');
+  const offlineBadge = document.getElementById('profile-offline-badge');
+  const headerAvatar = document.getElementById('user-avatar-btn');
+  const profileAvatar = document.getElementById('profile-user-avatar-inner');
+
+  if (isOnline) {
+    if (syncDot) {
+      syncDot.classList.remove('offline');
+      syncDot.classList.add('active');
+    }
+    if (syncText) {
+      syncText.textContent = isRealFirebase ? 'Cloud Sync Active' : 'Cloud Sync (Simulated)';
+    }
+    if (offlineBadge) {
+      offlineBadge.style.display = 'none';
+    }
+    if (headerAvatar) {
+      headerAvatar.classList.remove('offline');
+    }
+    if (profileAvatar) {
+      profileAvatar.classList.remove('offline');
+    }
+  } else {
+    if (syncDot) {
+      syncDot.classList.remove('active');
+      syncDot.classList.add('offline');
+    }
+    if (syncText) {
+      syncText.textContent = 'Working Offline';
+    }
+    if (offlineBadge) {
+      offlineBadge.style.display = 'inline-block';
+    }
+    if (headerAvatar) {
+      headerAvatar.classList.add('offline');
+    }
+    if (profileAvatar) {
+      profileAvatar.classList.add('offline');
+    }
+  }
+}
+
 window.addEventListener('online', () => {
+  updateOnlineStatusUI();
   if (!currentUser) return;
   console.log('Back online — retrying cloud sync for any pending notes and files...');
   notes.forEach(note => {
@@ -1713,6 +1760,10 @@ window.addEventListener('online', () => {
     });
     syncLocalFilesToCloud(note);
   });
+});
+
+window.addEventListener('offline', () => {
+  updateOnlineStatusUI();
 });
 
 window.addEventListener('appinstalled', () => {
@@ -8806,10 +8857,7 @@ function initAuth() {
       authModal?.classList.remove('gate-mode');
       localStorage.setItem('paperuss_auth_choice', 'user');
       
-      const syncText = document.getElementById('profile-sync-text');
-      if (syncText) {
-        syncText.textContent = isRealFirebase ? 'Cloud Sync Active' : 'Cloud Sync (Simulated)';
-      }
+      updateOnlineStatusUI();
 
       // Sync settings with Firestore in real-time
       initSettingsCloudSync(user.uid);
