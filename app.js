@@ -2209,6 +2209,10 @@ function setupEventHandlers() {
   modalText.addEventListener('input', function() {
     autoGrowTextarea.call(modalText);
     updateEditorMirror(modalText, document.getElementById('modal-text-mirror'));
+    saveModalNoteDraft();
+  });
+  modalTitle.addEventListener('input', function() {
+    saveModalNoteDraft();
   });
   modalText.addEventListener('keydown', handleRichListEditing);
 
