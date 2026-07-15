@@ -1406,19 +1406,28 @@
     (function () {
       var splash = document.getElementById('pwa-splash');
       if (!splash) return;
+      var startTime = Date.now();
+      var MIN_DURATION = 1500; // Enforce minimum 1.5 seconds splash display
+
       function dismiss() {
-        splash.style.opacity = '0';
-        splash.style.transform = 'scale(1.04)';
+        var elapsed = Date.now() - startTime;
+        var remaining = Math.max(0, MIN_DURATION - elapsed);
+        
         setTimeout(function () {
-          if (splash.parentNode) splash.parentNode.removeChild(splash);
-        }, 380);
+          splash.style.opacity = '0';
+          splash.style.transform = 'scale(1.02)';
+          setTimeout(function () {
+            if (splash.parentNode) splash.parentNode.removeChild(splash);
+          }, 380);
+        }, remaining);
       }
+      
       if (document.readyState === 'complete') {
         dismiss();
       } else {
         window.addEventListener('load', dismiss, { once: true });
-        // Safety net: force dismiss after 3s even if load never fires
-        setTimeout(dismiss, 3000);
+        // Safety net: force dismiss after 4s even if load never fires
+        setTimeout(dismiss, 4000);
       }
     })();
   </script>
