@@ -42,6 +42,7 @@ body.light-theme {
   --note-brown: #e6c9a8;
   --note-grey: #e8eaed;
   --surface-paper: #ffffff;
+  --surface-paper-rgb: 255, 255, 255;
   --surface-border: rgba(0, 0, 0, 0.04);
 }
 
@@ -77,6 +78,7 @@ body.dark-theme {
   --note-brown: #442f19;
   --note-grey: #3c4043;
   --surface-paper: #202124;
+  --surface-paper-rgb: 32, 33, 36;
   --surface-border: rgba(255, 255, 255, 0.05);
 }
 
@@ -4933,8 +4935,8 @@ body.dark-theme .share-sheet-overlay {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 4px;
+  gap: 16px;
+  margin-bottom: 8px !important;
 }
 
 .note-board-meta {
@@ -4948,9 +4950,9 @@ body.dark-theme .share-sheet-overlay {
 
 .note-board-title {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600 !important;
   letter-spacing: -0.02em;
-  color: rgba(15, 23, 42, 0.9);
+  color: rgba(15, 23, 42, 0.96) !important;
 }
 
 .note-board-accent {
@@ -4993,7 +4995,7 @@ body.dark-theme .share-sheet-overlay {
 .note-surface {
   background: var(--surface-paper) !important;
   border: 1px solid var(--surface-border) !important;
-  border-radius: 16px !important;
+  border-radius: 18px !important;
   padding: 16px;
   flex: 1 1 auto;
   min-height: 0;
@@ -5001,7 +5003,8 @@ body.dark-theme .share-sheet-overlay {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: 0 2px 6px rgba(0,0,0,.04), 0 10px 28px rgba(0,0,0,.08) !important;
+  box-shadow: 0 4px 10px rgba(0,0,0,.05), 0 14px 30px rgba(0,0,0,.10) !important;
+  transition: box-shadow 240ms cubic-bezier(0.25, 0.8, 0.25, 1) !important;
 }
 
 .note-card[data-theme="custom"] .note-surface {
@@ -5063,7 +5066,7 @@ body.dark-theme .theme-picker-v2-card-preview-inner {
 }
 
 body.dark-theme .note-board-title {
-  color: rgba(248, 250, 252, 0.92);
+  color: rgba(248, 250, 252, 0.96) !important;
 }
 
 body.dark-theme .note-board-accent {
@@ -10355,18 +10358,39 @@ body.dark-theme .glass-floating-toolbar .toolbar-btn.active {
   overflow: hidden !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.55) !important;
+  transition: transform 240ms cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 240ms cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+
+/* Typography refinement */
+.note-card .note-title {
+  font-weight: 700 !important;
+}
+
+.note-card .note-stamp,
+.note-card .tag-badge {
+  opacity: 0.82;
 }
 
 /* Text Fade Scrim (Layer 3) */
 .note-card-preview-body::after {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, var(--surface-paper) 100%) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(var(--surface-paper-rgb), 0) 0%,
+    rgba(var(--surface-paper-rgb), 0.35) 40%,
+    rgba(var(--surface-paper-rgb), 0.75) 75%,
+    var(--surface-paper) 100%
+  ) !important;
 }
 
 /* Interaction states */
 .note-card:hover {
-  transform: translateY(-3px) !important;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.06), 0 16px 36px rgba(0,0,0,0.12) !important;
+  transform: translateY(-3.5px) !important;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.55) !important;
+}
+
+.note-card:hover .note-surface {
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08), 0 18px 36px rgba(0, 0, 0, 0.14) !important;
 }
 
 .note-card:active {
@@ -10395,6 +10419,7 @@ body.dark-theme .glass-floating-toolbar .toolbar-btn.active {
   width: 14px;
   height: 14px;
   fill: var(--accent) !important;
+  transition: fill 0.2s ease;
 }
 
 

@@ -34,14 +34,14 @@ export const DEFAULT_THEME_PRESETS = [
   { id: 'celebration', emoji: '🎉', title: 'Celebration', emojis: ['🎉', '🎊', '✨'] },
   
   // Premium solid-color themes
-  { id: 'sage-green', title: 'Sage Green', isSolid: true, colors: { bg: '#D8E8DA', border: '#D8E8DA', text: '#2D4732' } },
-  { id: 'soft-blue', title: 'Soft Blue', isSolid: true, colors: { bg: '#D7E5F4', border: '#D7E5F4', text: '#23405E' } },
-  { id: 'lavender', title: 'Lavender', isSolid: true, colors: { bg: '#E4DDF4', border: '#E4DDF4', text: '#4B3F67' } },
-  { id: 'warm-peach', title: 'Warm Peach', isSolid: true, colors: { bg: '#F6DDCF', border: '#F6DDCF', text: '#704436' } },
-  { id: 'mint', title: 'Mint', isSolid: true, colors: { bg: '#D1ECE2', border: '#D1ECE2', text: '#1E463C' } },
-  { id: 'sand', title: 'Sand', isSolid: true, colors: { bg: '#E9E3D7', border: '#E9E3D7', text: '#4A3E3D' } },
-  { id: 'blush', title: 'Blush', isSolid: true, colors: { bg: '#F4D7E1', border: '#F4D7E1', text: '#6A364A' } },
-  { id: 'light-yellow', title: 'Light Yellow', isSolid: true, colors: { bg: '#FBF2D5', border: '#FBF2D5', text: '#5D4F1E' } }
+  { id: 'sage-green', title: 'Sage Green', isSolid: true, colors: { bg: '#D0E8D3', border: '#D0E8D3', text: '#2D4732' } },
+  { id: 'soft-blue', title: 'Soft Blue', isSolid: true, colors: { bg: '#CAE0F5', border: '#CAE0F5', text: '#23405E' } },
+  { id: 'lavender', title: 'Lavender', isSolid: true, colors: { bg: '#DCD2F5', border: '#DCD2F5', text: '#4B3F67' } },
+  { id: 'warm-peach', title: 'Warm Peach', isSolid: true, colors: { bg: '#F7D4C1', border: '#F7D4C1', text: '#704436' } },
+  { id: 'mint', title: 'Mint', isSolid: true, colors: { bg: '#C5EBE0', border: '#C5EBE0', text: '#1E463C' } },
+  { id: 'sand', title: 'Sand', isSolid: true, colors: { bg: '#E9DEC9', border: '#E9DEC9', text: '#4A3E3D' } },
+  { id: 'blush', title: 'Blush', isSolid: true, colors: { bg: '#F6CEDC', border: '#F6CEDC', text: '#6A364A' } },
+  { id: 'light-yellow', title: 'Light Yellow', isSolid: true, colors: { bg: '#FBECBD', border: '#FBECBD', text: '#5D4F1E' } }
 ];
 
 export let THEME_PRESETS = [...DEFAULT_THEME_PRESETS];
