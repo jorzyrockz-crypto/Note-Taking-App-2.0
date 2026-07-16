@@ -737,6 +737,23 @@
 
           <div class="settings-row flex-column">
             <div class="settings-info full-width">
+              <strong>UI Color Accent Theme</strong>
+              <span>Select the color accent theme for the app workspace</span>
+            </div>
+            <select id="settings-ui-color-theme" class="settings-select">
+              <option value="lavender">Lavender</option>
+              <option value="sky">Sky Blue</option>
+              <option value="aqua">Aqua</option>
+              <option value="mint">Mint</option>
+              <option value="blush">Blush</option>
+              <option value="peach">Peach</option>
+              <option value="rose">Rose</option>
+              <option value="honey">Honey</option>
+            </select>
+          </div>
+
+          <div class="settings-row flex-column">
+            <div class="settings-info full-width">
               <strong>App Background Color</strong>
               <span>Select a custom background style for the workspace</span>
             </div>
@@ -777,8 +794,10 @@
               <!-- Live Preview Card -->
               <div class="settings-live-preview-container">
                 <div class="note-card settings-preview-card" id="settings-preview-card">
-                  <div class="note-title">Preview Card</div>
-                  <div class="note-text">Adjust sliders to see background emoji pattern customize live.</div>
+                  <div class="note-surface">
+                    <div class="note-title">Preview Card</div>
+                    <div class="note-text">Adjust sliders to see background emoji pattern customize live.</div>
+                  </div>
                 </div>
               </div>
             </div>

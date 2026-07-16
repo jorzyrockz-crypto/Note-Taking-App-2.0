@@ -41,6 +41,8 @@ body.light-theme {
   --note-pink: #fdcfe8;
   --note-brown: #e6c9a8;
   --note-grey: #e8eaed;
+  --surface-paper: #ffffff;
+  --surface-border: rgba(0, 0, 0, 0.04);
 }
 
 /* 2. DARK THEME */
@@ -74,6 +76,129 @@ body.dark-theme {
   --note-pink: #5b2245;
   --note-brown: #442f19;
   --note-grey: #3c4043;
+  --surface-paper: #202124;
+  --surface-border: rgba(255, 255, 255, 0.05);
+}
+
+/* ==========================================================================
+   UI Color Accent Themes
+   ========================================================================== */
+
+body {
+  --accent-color: var(--accent) !important;
+  --accent-dark: var(--accent) !important;
+}
+
+/* Lavender */
+body.ui-theme-lavender {
+  --accent: #8b5cf6;
+  --accent-hover: #7c3aed;
+  --accent-light: #f5f3ff;
+  --accent-border: #ddd6fe;
+  --accent-text: #6d28d9;
+}
+body.ui-theme-lavender.dark-theme {
+  --accent-light: rgba(139, 92, 246, 0.15);
+  --accent-border: rgba(139, 92, 246, 0.28);
+  --accent-text: #a78bfa;
+}
+
+/* Sky Blue */
+body.ui-theme-sky {
+  --accent: #38bdf8;
+  --accent-hover: #0284c7;
+  --accent-light: #e0f2fe;
+  --accent-border: #bae6fd;
+  --accent-text: #0369a1;
+}
+body.ui-theme-sky.dark-theme {
+  --accent-light: rgba(56, 189, 248, 0.15);
+  --accent-border: rgba(56, 189, 248, 0.28);
+  --accent-text: #7dd3fc;
+}
+
+/* Aqua */
+body.ui-theme-aqua {
+  --accent: #06b6d4;
+  --accent-hover: #0891b2;
+  --accent-light: #ecfeff;
+  --accent-border: #cffafe;
+  --accent-text: #0e7490;
+}
+body.ui-theme-aqua.dark-theme {
+  --accent-light: rgba(6, 182, 212, 0.15);
+  --accent-border: rgba(6, 182, 212, 0.28);
+  --accent-text: #22d3ee;
+}
+
+/* Mint */
+body.ui-theme-mint {
+  --accent: #10b981;
+  --accent-hover: #059669;
+  --accent-light: #ecfdf5;
+  --accent-border: #a7f3d0;
+  --accent-text: #047857;
+}
+body.ui-theme-mint.dark-theme {
+  --accent-light: rgba(16, 185, 129, 0.15);
+  --accent-border: rgba(16, 185, 129, 0.28);
+  --accent-text: #34d399;
+}
+
+/* Blush */
+body.ui-theme-blush {
+  --accent: #ec4899;
+  --accent-hover: #db2777;
+  --accent-light: #fdf2f8;
+  --accent-border: #fbcfe8;
+  --accent-text: #be185d;
+}
+body.ui-theme-blush.dark-theme {
+  --accent-light: rgba(236, 72, 153, 0.15);
+  --accent-border: rgba(236, 72, 153, 0.28);
+  --accent-text: #f472b6;
+}
+
+/* Peach */
+body.ui-theme-peach {
+  --accent: #f97316;
+  --accent-hover: #ea580c;
+  --accent-light: #fff7ed;
+  --accent-border: #ffedd5;
+  --accent-text: #c2410c;
+}
+body.ui-theme-peach.dark-theme {
+  --accent-light: rgba(249, 115, 22, 0.15);
+  --accent-border: rgba(249, 115, 22, 0.28);
+  --accent-text: #fb923c;
+}
+
+/* Rose */
+body.ui-theme-rose {
+  --accent: #f43f5e;
+  --accent-hover: #e11d48;
+  --accent-light: #fff1f2;
+  --accent-border: #ffe4e6;
+  --accent-text: #be123c;
+}
+body.ui-theme-rose.dark-theme {
+  --accent-light: rgba(244, 63, 94, 0.15);
+  --accent-border: rgba(244, 63, 94, 0.28);
+  --accent-text: #fb7185;
+}
+
+/* Honey */
+body.ui-theme-honey {
+  --accent: #eab308;
+  --accent-hover: #ca8a04;
+  --accent-light: #fef9c3;
+  --accent-border: #fef08a;
+  --accent-text: #a16207;
+}
+body.ui-theme-honey.dark-theme {
+  --accent-light: rgba(234, 179, 8, 0.15);
+  --accent-border: rgba(234, 179, 8, 0.28);
+  --accent-text: #facc15;
 }
 
 /* ==========================================================================
@@ -1401,7 +1526,7 @@ body.theme-dark .theme-picker-v2-control input[type="range"]::-moz-range-thumb {
 
 .checklist-text {
   font-size: 14px;
-  color: var(--text-primary);
+  color: var(--note-text-color, var(--text-primary));
   user-select: none;
   width: 100%;
   min-width: 0;
@@ -1410,7 +1535,7 @@ body.theme-dark .theme-picker-v2-control input[type="range"]::-moz-range-thumb {
 
 .checklist-text.checked {
   text-decoration: line-through;
-  color: var(--text-secondary);
+  color: var(--note-text-muted-color, var(--text-secondary));
 }
 
 /* ==========================================================================
@@ -1504,7 +1629,7 @@ body.dark-theme .tag-badge:hover {
    ========================================================================== */
 .note-card {
   background-color: var(--note-default);
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--note-border-color, var(--border-light));
   border-radius: 22px;
   padding: 14px;
   position: relative;
@@ -1665,7 +1790,7 @@ body.dark-theme .note-card-menu-action:hover {
 .note-title {
   font-size: 16px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--note-text-color, var(--text-primary));
   word-break: break-word;
   line-height: 1.4;
   margin-right: 44px;
@@ -1746,7 +1871,7 @@ body.dark-theme .note-card-menu-action:hover {
 
 .note-text {
   font-size: 14px;
-  color: var(--text-primary);
+  color: var(--note-text-muted-color, var(--text-primary));
   line-height: 1.5;
   word-break: break-word;
   white-space: pre-wrap;
@@ -2012,7 +2137,7 @@ body.dark-theme .note-card-menu-action:hover {
   max-width: 600px;
   max-height: calc(100vh - 32px);
   background-color: var(--note-default);
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--note-border-color, var(--border-light));
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.2);
   padding: 16px 20px;
@@ -4866,9 +4991,9 @@ body.dark-theme .share-sheet-overlay {
 }
 
 .note-surface {
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 20px;
+  background: var(--surface-paper) !important;
+  border: 1px solid var(--surface-border) !important;
+  border-radius: 16px !important;
   padding: 16px;
   flex: 1 1 auto;
   min-height: 0;
@@ -4876,21 +5001,14 @@ body.dark-theme .share-sheet-overlay {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 10px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 2px 6px rgba(0,0,0,.04), 0 10px 28px rgba(0,0,0,.08) !important;
 }
 
 .note-card[data-theme="custom"] .note-surface {
-  background: var(--note-theme-surface, rgba(255, 255, 255, 0.82));
-  border-color: rgba(255, 255, 255, 0.92);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.92), 0 14px 30px rgba(15, 23, 42, 0.18);
-  color: #0f172a;
-}
-
-.note-card[data-theme]:not([data-theme="custom"]) .note-surface,
-.note-card:not([data-color="default"]) .note-surface {
-  background: transparent !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
+  background: var(--note-theme-surface, rgba(255, 255, 255, 0.82)) !important;
+  border-color: rgba(255, 255, 255, 0.92) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.92), 0 14px 30px rgba(15, 23, 42, 0.18) !important;
+  color: #0f172a !important;
 }
 
 .note-card[data-theme="custom"] .note-title,
@@ -4909,11 +5027,6 @@ body.light-theme .note-card {
   box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
 }
 
-body.light-theme .note-surface {
-  background: rgba(255, 255, 255, 0.94);
-  border-color: rgba(255, 255, 255, 0.76);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.78), 0 10px 24px rgba(15, 23, 42, 0.06);
-}
 
 body.dark-theme .note-card {
   box-shadow: 0 18px 34px rgba(0, 0, 0, 0.28);
@@ -4957,11 +5070,6 @@ body.dark-theme .note-board-accent {
   color: rgba(226, 232, 240, 0.54);
 }
 
-body.dark-theme .note-surface {
-  background: rgba(18, 22, 30, 0.78);
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 16px 28px rgba(0, 0, 0, 0.22);
-}
 
 body.dark-theme .note-folder-pill {
   background: rgba(255,255,255,0.08);
@@ -5115,7 +5223,7 @@ body.dark-theme .note-card[data-note-kind="image"] {
   margin-top: 6px;
   font-size: 11px;
   letter-spacing: 0.03em;
-  color: var(--text-secondary);
+  color: var(--note-text-muted-color, var(--text-secondary));
 }
 
 .sidebar-chip-icon,
@@ -9346,7 +9454,8 @@ body.bg-preset-peach.dark-theme .shape-right {
 
 /* Hide ambient glow shapes completely on clean, minimal presets */
 body.bg-preset-offwhite .bg-shape,
-body.bg-preset-white .bg-shape {
+body.bg-preset-white .bg-shape,
+body.bg-preset-coolgray .bg-shape {
   display: none !important;
 }
 
@@ -10170,6 +10279,126 @@ body.editor-focus-mode .feed-filter-row {
     box-shadow: 4px 0 16px rgba(0, 0, 0, 0.3) !important;
   }
 }
+/* Premium Solid Themes overrides */
+.note-creator[data-theme="sage-green"],
+.note-creator[data-theme="soft-blue"],
+.note-creator[data-theme="lavender"],
+.note-creator[data-theme="warm-peach"],
+.note-creator[data-theme="mint"],
+.note-creator[data-theme="sand"],
+.note-creator[data-theme="blush"],
+.note-creator[data-theme="light-yellow"] {
+  background-image: none !important;
+  background-color: var(--note-frame) !important;
+  border: 1.5px solid var(--note-border-color) !important;
+  box-shadow: var(--shadow-creator) !important;
+}
+
+/* Ensure inputs, textareas and buttons inherit colors in Creator and Edit Modal for Solid/Custom Themes */
+.note-creator input,
+.note-creator textarea,
+.edit-modal-card input,
+.edit-modal-card textarea {
+  color: var(--note-text-color, var(--text-primary));
+}
+
+.note-creator .icon-btn,
+.note-creator .toolbar-btn,
+.edit-modal-card .icon-btn,
+.edit-modal-card .toolbar-btn {
+  color: var(--note-text-color, var(--icon-color));
+}
+
+.note-creator .text-btn,
+.edit-modal-card .text-btn {
+  color: var(--note-text-color, var(--text-primary));
+}
+
+/* Ensure editor toolbars have proper clickability and layering */
+.glass-floating-toolbar {
+  z-index: 2050 !important;
+  pointer-events: auto !important;
+}
+
+.floating-toolbar {
+  z-index: 2050 !important;
+  pointer-events: auto !important;
+}
+
+/* Dynamic styling for glass floating toolbar buttons using UI Accents */
+.glass-floating-toolbar .toolbar-btn:hover {
+  background: rgba(0, 0, 0, 0.05) !important;
+  color: var(--accent) !important;
+}
+
+body.dark-theme .glass-floating-toolbar .toolbar-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: var(--accent) !important;
+}
+
+.glass-floating-toolbar .toolbar-btn.active {
+  background: var(--accent-light) !important;
+  color: var(--accent-text) !important;
+}
+
+body.dark-theme .glass-floating-toolbar .toolbar-btn.active {
+  background: var(--accent-light) !important;
+  color: var(--accent-text) !important;
+}
+
+/* Unified Layered Card Style */
+.note-card {
+  background: var(--note-frame, var(--note-color, var(--note-default))) !important;
+  border: 1px solid var(--note-border-color, var(--border-light)) !important;
+  border-radius: 20px !important;
+  padding: 14px !important;
+  overflow: hidden !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+/* Text Fade Scrim (Layer 3) */
+.note-card-preview-body::after {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, var(--surface-paper) 100%) !important;
+}
+
+/* Interaction states */
+.note-card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.06), 0 16px 36px rgba(0,0,0,0.12) !important;
+}
+
+.note-card:active {
+  transform: scale(0.98) !important;
+}
+
+.note-card:focus-within {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px;
+}
+
+.note-card.selected-card {
+  outline: 3px solid var(--accent) !important;
+  outline-offset: 2px;
+}
+
+/* Pin Indicator in Header */
+.note-pin-indicator-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 6px;
+}
+
+.note-pin-indicator-wrapper svg {
+  width: 14px;
+  height: 14px;
+  fill: var(--accent) !important;
+}
+
+
+
 
 
 

@@ -468,14 +468,14 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '2.2.0',
+        version: '2.3.0',
         changelog: [
-          'Unified Modern Glass Editor selection-to-list conversions (checklist, bullets, numbered lists)',
-          'Instant responsive checkbox toggling and note card feed preview crossed-out styling',
-          'Delegated checklist keyboard handlers preventing browser default plain lines on Enter',
-          'Note card grid theme styling and custom background/patterns instant rendering',
-          'Auto-close options sheets and properties drawers on clicking outside',
-          'Cohesive glassmorphism drawer navigation sidebar styling on portrait/mobile viewports',
+          'Layered note card architecture inspired by modern paper cards with depth and softness',
+          'New Premium Solid note themes (Sage Green, Soft Blue, Lavender, Warm Peach, Mint, Sand, Blush, Light Yellow)',
+          'Clean Minimalist Cool Gray (#EEEEEE) app background theme preset in settings',
+          'Modern Pastel UI Accent color themes (lavender, sky, aqua, mint, blush, peach, rose, honey)',
+          'Dynamic note text and toolbar icon color mapping based on note theme selection',
+          'Improved responsive checklist keyboard actions and note card feed preview styles',
           'Page action bars with Delete All Trash / Trash All Archive bulk operations'
         ]
       });

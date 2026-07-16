@@ -537,6 +537,21 @@ export function clearSyncCache() {
   _lastSyncedCloudNotes.clear();
 }
 
+export function stopCloudSync() {
+  if (cloudNotesUnsubscribe) {
+    try {
+      cloudNotesUnsubscribe();
+    } catch (e) {}
+    cloudNotesUnsubscribe = null;
+  }
+  if (deletedTombstonesUnsubscribe) {
+    try {
+      deletedTombstonesUnsubscribe();
+    } catch (e) {}
+    deletedTombstonesUnsubscribe = null;
+  }
+}
+
 export function initCloudNotesSync(user) {
   if (!user) return;
 

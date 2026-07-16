@@ -47,9 +47,36 @@ import {
   clearSyncCache,
   rememberPermanentlyDeletedNoteIds,
   getPermanentlyDeletedNoteIds,
-  cloudNotesUnsubscribe,
-  deletedTombstonesUnsubscribe
+  stopCloudSync
 } from './sync.js';
+
+import {
+  clamp,
+  numericSetting,
+  rgbToHex,
+  rgbaFromRgb,
+  getRelativeLuminance,
+  escapeCssUrl,
+  escapeSvgText
+} from './utils.js';
+
+import {
+  CUSTOM_THEME_ID,
+  ENABLE_CUSTOM_THEME_UPLOAD,
+  DEFAULT_EMOJI_THEME_CONTROLS,
+  globalEmojiThemeControls,
+  setGlobalEmojiThemeControls,
+  DEFAULT_THEME_PRESETS,
+  THEME_PRESETS,
+  getThemePreset,
+  getEmojiThemeControls,
+  buildEmojiThemePattern,
+  applyGeneratedEmojiThemeStyles,
+  clearGeneratedEmojiThemeStyles,
+  clearCustomThemeStyles,
+  applyNoteAppearance,
+  customThemes
+} from './theme.js';
 
 // ==========================================================================
 // 1. Initial State & Data Definition (Upgraded)
@@ -95,9 +122,9 @@ export let appSettings = {
     morning: '08:00',
     afternoon: '13:00',
     evening: '18:00'
-  }
+  },
+  uiColorTheme: 'sky'
 };
-export let customThemes = [];
 export let experimentalSkyTheme = false;
 export let premiumSkyTheme = false;
 
@@ -137,8 +164,6 @@ export let currentPage = 'notes';
 export let currentUser = null;
 let isBulkOperationsActive = false;
 const recentlyDeletedNoteIds = new Set();
-let cloudNotesUnsubscribe = null;
-let deletedTombstonesUnsubscribe = null;
 let initCloudNotesSyncRef = null;
 let settingsUnsubscribe = null;
 let offlineBannerShown = false;
@@ -147,117 +172,6 @@ export let selectedProductivityDayView = 'agenda';
 export let calendarCursorDate = new Date();
 export let selectedCalendarDate = getLocalDateKey(new Date());
 let hasShownStorageWarning = false;
-export const CUSTOM_THEME_ID = 'custom';
-const ENABLE_CUSTOM_THEME_UPLOAD = false;
-export const DEFAULT_EMOJI_THEME_CONTROLS = Object.freeze({
-  opacity: 8,
-  size: 14,
-  spacing: 96
-});
-const emojiPatternCache = new Map();
-export let globalEmojiThemeControls = { ...DEFAULT_EMOJI_THEME_CONTROLS };
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function numericSetting(value, fallback) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function rgbToHex(r, g, b) {
-  return `#${[r, g, b].map(channel => clamp(Math.round(channel), 0, 255).toString(16).padStart(2, '0')).join('')}`;
-}
-
-function rgbaFromRgb(r, g, b, alpha) {
-  return `rgba(${clamp(Math.round(r), 0, 255)}, ${clamp(Math.round(g), 0, 255)}, ${clamp(Math.round(b), 0, 255)}, ${alpha})`;
-}
-
-function getRelativeLuminance(r, g, b) {
-  const [rs, gs, bs] = [r, g, b].map(channel => {
-    const normalized = clamp(channel, 0, 255) / 255;
-    return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
-  });
-  return (0.2126 * rs) + (0.7152 * gs) + (0.0722 * bs);
-}
-
-function escapeCssUrl(url = '') {
-  return url.replace(/["\\\n\r]/g, match => `\\${match}`);
-}
-
-function escapeSvgText(text = '') {
-  return `${text}`
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
-function getEmojiThemeControls() {
-  return {
-    opacity: clamp(numericSetting(globalEmojiThemeControls.opacity, DEFAULT_EMOJI_THEME_CONTROLS.opacity), 0, 28),
-    size: clamp(numericSetting(globalEmojiThemeControls.size, DEFAULT_EMOJI_THEME_CONTROLS.size), 10, 34),
-    spacing: clamp(numericSetting(globalEmojiThemeControls.spacing, DEFAULT_EMOJI_THEME_CONTROLS.spacing), 64, 160)
-  };
-}
-
-function clearCustomThemeStyles(element) {
-  if (!element) return;
-  element.style.removeProperty('--custom-theme-image');
-  element.style.removeProperty('--note-theme-accent');
-  element.style.removeProperty('--note-theme-soft');
-  element.style.removeProperty('--note-theme-text');
-  element.style.removeProperty('--note-theme-muted-text');
-  element.style.removeProperty('--note-theme-surface');
-  element.style.removeProperty('--note-theme-header-scrim');
-}
-
-function applyNoteAppearance(element, noteLike = {}) {
-  if (!element) return;
-
-  const color = noteLike.color || 'default';
-  const theme = color !== 'default' ? null : (noteLike.theme || null);
-  const customTheme = theme === 'custom' ? noteLike.customTheme : null;
-
-  element.setAttribute('data-color', color);
-  if (theme) {
-    element.setAttribute('data-theme', theme);
-  } else {
-    element.removeAttribute('data-theme');
-  }
-
-  if (theme && theme !== CUSTOM_THEME_ID) {
-    applyGeneratedEmojiThemeStyles(element, theme);
-    clearCustomThemeStyles(element);
-    const preset = getThemePreset(theme);
-    if (preset && preset.customBg) {
-      const isDark = document.body.classList.contains('theme-dark') || document.body.classList.contains('dark-theme');
-      const bgVal = isDark && preset.customBg.dark ? preset.customBg.dark : (preset.customBg.light || preset.customBg);
-      element.style.setProperty('--note-color', bgVal);
-      element.style.setProperty('--bg-current-creator', bgVal);
-      element.style.backgroundColor = bgVal;
-    } else {
-      element.style.removeProperty('--note-color');
-      element.style.removeProperty('--bg-current-creator');
-      element.style.backgroundColor = '';
-    }
-  } else if (customTheme?.image) {
-    clearGeneratedEmojiThemeStyles(element);
-    element.style.setProperty('--custom-theme-image', `url("${escapeCssUrl(customTheme.image)}")`);
-    element.style.setProperty('--note-theme-accent', customTheme.accent || '#64748b');
-    element.style.setProperty('--note-theme-soft', customTheme.soft || 'rgba(100, 116, 139, 0.18)');
-    element.style.setProperty('--note-theme-text', customTheme.textColor || '#0f172a');
-    element.style.setProperty('--note-theme-muted-text', customTheme.mutedText || 'rgba(15, 23, 42, 0.62)');
-    element.style.setProperty('--note-theme-surface', customTheme.surface || 'rgba(255, 255, 255, 0.88)');
-    element.style.setProperty('--note-theme-header-scrim', customTheme.headerScrim || 'rgba(255, 255, 255, 0.18)');
-  } else {
-    clearGeneratedEmojiThemeStyles(element);
-    clearCustomThemeStyles(element);
-    element.style.removeProperty('--bg-current-creator');
-    element.style.backgroundColor = '';
-  }
-}
-
 export function normalizeNoteAppearance(noteLike = {}) {
   const color = noteLike.color || 'default';
   if (color !== 'default') {
@@ -316,13 +230,13 @@ function loadEmojiThemeControls() {
     if (!raw) return;
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return;
-    globalEmojiThemeControls = {
+    setGlobalEmojiThemeControls({
       opacity: clamp(numericSetting(parsed.opacity, DEFAULT_EMOJI_THEME_CONTROLS.opacity), 0, 28),
       size: clamp(numericSetting(parsed.size, DEFAULT_EMOJI_THEME_CONTROLS.size), 10, 34),
       spacing: clamp(numericSetting(parsed.spacing, DEFAULT_EMOJI_THEME_CONTROLS.spacing), 64, 160)
-    };
+    });
   } catch (error) {
-    globalEmojiThemeControls = { ...DEFAULT_EMOJI_THEME_CONTROLS };
+    setGlobalEmojiThemeControls(DEFAULT_EMOJI_THEME_CONTROLS);
   }
 }
 
@@ -397,9 +311,11 @@ export function initSettingsCloudSync(uid) {
             THEME_PRESETS.splice(0, THEME_PRESETS.length, ...DEFAULT_THEME_PRESETS, ...customThemes);
           }
           if (cloudData.emojiThemeControls) {
-            globalEmojiThemeControls.opacity = clamp(numericSetting(cloudData.emojiThemeControls.opacity, DEFAULT_EMOJI_THEME_CONTROLS.opacity), 0, 28);
-            globalEmojiThemeControls.size = clamp(numericSetting(cloudData.emojiThemeControls.size, DEFAULT_EMOJI_THEME_CONTROLS.size), 10, 34);
-            globalEmojiThemeControls.spacing = clamp(numericSetting(cloudData.emojiThemeControls.spacing, DEFAULT_EMOJI_THEME_CONTROLS.spacing), 64, 160);
+            setGlobalEmojiThemeControls({
+              opacity: clamp(numericSetting(cloudData.emojiThemeControls.opacity, DEFAULT_EMOJI_THEME_CONTROLS.opacity), 0, 28),
+              size: clamp(numericSetting(cloudData.emojiThemeControls.size, DEFAULT_EMOJI_THEME_CONTROLS.size), 10, 34),
+              spacing: clamp(numericSetting(cloudData.emojiThemeControls.spacing, DEFAULT_EMOJI_THEME_CONTROLS.spacing), 64, 160)
+            });
             saveEmojiThemeControls();
           }
           
@@ -462,8 +378,27 @@ function applyThemePreviewCardStyles(card, themeId) {
   if (!card || !themeId) return;
   const preview = card.querySelector('.theme-picker-v2-card-preview');
   if (!preview) return;
-  preview.style.backgroundImage = buildEmojiThemePattern(themeId);
-  preview.style.backgroundSize = `${getEmojiThemeControls().spacing}px ${getEmojiThemeControls().spacing}px`;
+  const preset = getThemePreset(themeId);
+  if (preset && preset.isSolid) {
+    preview.style.backgroundImage = 'none';
+    preview.style.backgroundColor = preset.colors.bg;
+    preview.style.borderColor = preset.colors.border;
+    const inner = preview.querySelector('.theme-picker-v2-card-preview-inner');
+    if (inner) {
+      inner.style.color = preset.colors.text;
+      inner.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+    }
+  } else {
+    preview.style.backgroundImage = buildEmojiThemePattern(themeId);
+    preview.style.backgroundSize = `${getEmojiThemeControls().spacing}px ${getEmojiThemeControls().spacing}px`;
+    preview.style.backgroundColor = '';
+    preview.style.borderColor = '';
+    const inner = preview.querySelector('.theme-picker-v2-card-preview-inner');
+    if (inner) {
+      inner.style.color = '';
+      inner.style.backgroundColor = '';
+    }
+  }
 }
 
 function syncEmojiThemePresentation() {
@@ -515,10 +450,10 @@ function renderThemePickerV2Controls() {
   themePickerV2Controls.querySelectorAll('[data-control-key]').forEach(input => {
     input.addEventListener('input', () => {
       const key = input.getAttribute('data-control-key');
-      globalEmojiThemeControls = {
+      setGlobalEmojiThemeControls({
         ...getEmojiThemeControls(),
         [key]: Number(input.value)
-      };
+      });
       syncEmojiThemePresentation();
       saveEmojiThemeControls();
     });
@@ -582,13 +517,16 @@ function renderThemePickerV2() {
     option.type = 'button';
     option.className = `theme-picker-v2-card ${activeTheme === theme.id ? 'selected' : ''}`;
     option.setAttribute('data-theme', theme.id);
+    const isSolid = theme.isSolid;
+    const previewChar = isSolid ? 'Aa' : (theme.emoji || '🌿');
+    const subtitle = isSolid ? 'Premium solid theme' : 'Emoji theme';
     option.innerHTML = `
       <span class="theme-picker-v2-card-preview">
-        <span class="theme-picker-v2-card-preview-inner">${theme.emoji}</span>
+        <span class="theme-picker-v2-card-preview-inner">${previewChar}</span>
       </span>
       <span class="theme-picker-v2-card-meta">
         <strong>${theme.title}</strong>
-        <span>Emoji theme</span>
+        <span>${subtitle}</span>
       </span>
     `;
     applyThemePreviewCardStyles(option, theme.id);
@@ -1915,7 +1853,7 @@ export function applyAppBgColor() {
   const bgColor = appSettings.appBgColor || 'base';
   
   // Toggle active preset classes on the body for styling isolation
-  const presets = ['base', 'sky', 'lilac', 'sage', 'peach', 'offwhite', 'white'];
+  const presets = ['base', 'sky', 'lilac', 'sage', 'peach', 'offwhite', 'white', 'coolgray'];
   presets.forEach(preset => {
     document.body.classList.toggle(`bg-preset-${preset}`, bgColor === preset);
   });
@@ -1941,6 +1879,9 @@ export function applyAppBgColor() {
       case 'white':
         bgValue = '#111827';
         break;
+      case 'coolgray':
+        bgValue = '#1F2937';
+        break;
       case 'base':
       default:
         bgValue = 'linear-gradient(180deg, #131e35 0%, #0d1424 100%)';
@@ -1965,6 +1906,9 @@ export function applyAppBgColor() {
         break;
       case 'white':
         bgValue = '#ffffff';
+        break;
+      case 'coolgray':
+        bgValue = '#EEEEEE';
         break;
       case 'base':
       default:
@@ -2786,14 +2730,14 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.2.0';
+  const CURRENT_VERSION = '2.3.0';
   const DEFAULT_CHANGELOG = [
-    'Unified Modern Glass Editor selection-to-list conversions (checklist, bullets, numbered lists)',
-    'Instant responsive checkbox toggling and note card feed preview crossed-out styling',
-    'Delegated checklist keyboard handlers preventing browser default plain lines on Enter',
-    'Note card grid theme styling and custom background/patterns instant rendering',
-    'Auto-close options sheets and properties drawers on clicking outside',
-    'Cohesive glassmorphism drawer navigation sidebar styling on portrait/mobile viewports',
+    'Layered note card architecture inspired by modern paper cards with depth and softness',
+    'New Premium Solid note themes (Sage Green, Soft Blue, Lavender, Warm Peach, Mint, Sand, Blush, Light Yellow)',
+    'Clean Minimalist Cool Gray (#EEEEEE) app background theme preset in settings',
+    'Modern Pastel UI Accent color themes (lavender, sky, aqua, mint, blush, peach, rose, honey)',
+    'Dynamic note text and toolbar icon color mapping based on note theme selection',
+    'Improved responsive checklist keyboard actions and note card feed preview styles',
     'Page action bars with Delete All Trash / Trash All Archive bulk operations'
   ];
 
@@ -2893,84 +2837,6 @@ function setupEventHandlers() {
   const shortcut = navigator.platform?.toLowerCase().includes('mac') ? '⌘V' : 'Ctrl+V';
   const badge = document.querySelector('.paste-hint-badge');
   if (badge) badge.textContent = shortcut;
-}
-
-// ==========================================================================
-// 4. Color Palette Builders
-// ==========================================================================
-
-export const DEFAULT_THEME_PRESETS = [
-  { id: 'plants', emoji: '🌿', title: 'Plants', emojis: ['🌿', '🍃', '🪴'] },
-  { id: 'animals', emoji: '🦊', title: 'Animals', emojis: ['🦊', '🐾', '🦉'] },
-  { id: 'spring', emoji: '🌸', title: 'Spring', emojis: ['🌸', '🦋', '🌼'] },
-  { id: 'summer', emoji: '☀️', title: 'Summer', emojis: ['☀️', '🌴', '🍹'] },
-  { id: 'autumn', emoji: '🍂', title: 'Autumn', emojis: ['🍂', '🍁', '☕'] },
-  { id: 'winter', emoji: '❄️', title: 'Winter', emojis: ['❄️', '☃️', '🧤'] },
-  { id: 'school', emoji: '🎓', title: 'School', emojis: ['🎓', '📚', '✏️'] },
-  { id: 'office', emoji: '💼', title: 'Office', emojis: ['💼', '📎', '🗂️'] },
-  { id: 'food', emoji: '🍜', title: 'Food', emojis: ['🍜', '🍽️', '🥢'] },
-  { id: 'holiday', emoji: '🏖️', title: 'Holiday', emojis: ['🏖️', '✈️', '🧳'] },
-  { id: 'celebration', emoji: '🎉', title: 'Celebration', emojis: ['🎉', '🎊', '✨'] }
-];
-export let THEME_PRESETS = [...DEFAULT_THEME_PRESETS];
-
-function getThemePreset(themeId) {
-  return THEME_PRESETS.find(theme => theme.id === themeId) || null;
-}
-
-export function buildEmojiThemePattern(themeId, controls = getEmojiThemeControls()) {
-  const preset = getThemePreset(themeId);
-  if (!preset) return 'none';
-
-  const safeControls = {
-    opacity: clamp(numericSetting(controls.opacity, DEFAULT_EMOJI_THEME_CONTROLS.opacity), 0, 28),
-    size: clamp(numericSetting(controls.size, DEFAULT_EMOJI_THEME_CONTROLS.size), 10, 34),
-    spacing: clamp(numericSetting(controls.spacing, DEFAULT_EMOJI_THEME_CONTROLS.spacing), 64, 160)
-  };
-  const cacheKey = `${themeId}:${safeControls.opacity}:${safeControls.size}:${safeControls.spacing}`;
-  if (emojiPatternCache.has(cacheKey)) {
-    return emojiPatternCache.get(cacheKey);
-  }
-
-  const tile = safeControls.spacing;
-  const baseSize = safeControls.size;
-  const alpha = clamp(safeControls.opacity / 100, 0, 0.28).toFixed(3);
-  const emojis = preset.emojis?.length ? preset.emojis : [preset.emoji];
-  const placements = [
-    { x: 0.14, y: 0.24, scale: 1.32, rotate: -16, emoji: emojis[0] || preset.emoji },
-    { x: 0.74, y: 0.19, scale: 0.72, rotate: 14, emoji: emojis[1] || emojis[0] || preset.emoji },
-    { x: 0.48, y: 0.58, scale: 1.04, rotate: -7, emoji: emojis[2] || emojis[0] || preset.emoji },
-    { x: 0.2, y: 0.84, scale: 0.58, rotate: 20, emoji: emojis[1] || emojis[0] || preset.emoji },
-    { x: 0.84, y: 0.78, scale: 0.9, rotate: -22, emoji: emojis[2] || emojis[0] || preset.emoji }
-  ];
-
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${tile}" height="${tile}" viewBox="0 0 ${tile} ${tile}">
-      ${placements.map(entry => {
-        const fontSize = (baseSize * entry.scale).toFixed(2);
-        const x = (tile * entry.x).toFixed(2);
-        const y = (tile * entry.y).toFixed(2);
-        return `<text x="${x}" y="${y}" font-size="${fontSize}" opacity="${alpha}" transform="rotate(${entry.rotate} ${x} ${y})">${escapeSvgText(entry.emoji)}</text>`;
-      }).join('')}
-    </svg>
-  `.trim();
-  const url = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-  emojiPatternCache.set(cacheKey, url);
-  return url;
-}
-
-function applyGeneratedEmojiThemeStyles(element, themeId) {
-  if (!element || !themeId || themeId === CUSTOM_THEME_ID) return;
-  const controls = getEmojiThemeControls();
-  element.style.setProperty('--theme-pattern', buildEmojiThemePattern(themeId, controls));
-  element.style.setProperty('--note-theme-pattern-size', `${controls.spacing}px ${controls.spacing}px`);
-}
-
-function clearGeneratedEmojiThemeStyles(element) {
-  if (!element) return;
-  element.style.removeProperty('--theme-pattern');
-  element.style.removeProperty('--note-theme-pattern-size');
-  element.style.removeProperty('--note-color');
 }
 
 function buildColorPickers() {
@@ -4452,7 +4318,7 @@ function getFolderIconSvg(iconName) {
   return icons[iconName] || icons.folder;
 }
 
-export function getVisualNoteType(note) {
+function getVisualNoteType(note) {
   const rawType = note.type || getNoteType(note.text || '');
   if (note.recipeData || rawType === 'recipe') return 'recipe';
   if (note.audio) return 'voice';
@@ -5953,6 +5819,12 @@ function renderGrid(gridContainer, notesArray) {
     boardTitle.textContent = getFolderSummaryLabel(note, getVisualTypeLabel(noteKind));
     const boardHeaderMeta = document.createElement('div');
     boardHeaderMeta.className = 'note-board-meta';
+    if (note.pinned) {
+      const pinIndicator = document.createElement('span');
+      pinIndicator.className = 'note-pin-indicator-wrapper';
+      pinIndicator.innerHTML = `<svg viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zM9.8 4h4.4v8H9.8V4z" /></svg>`;
+      boardHeaderMeta.appendChild(pinIndicator);
+    }
     const boardAccent = document.createElement('span');
     boardAccent.className = 'note-board-accent';
     boardAccent.textContent = getVisualTypeLabel(noteKind);
@@ -8455,6 +8327,9 @@ function loadSettings() {
   const savedPremiumSky = localStorage.getItem('paperuss_theme_premium_ambient');
   premiumSkyTheme = savedPremiumSky === 'true';
   applyPremiumSkyThemeClass(premiumSkyTheme);
+
+  // Apply UI Accent color theme
+  applyUiColorThemeClass(appSettings.uiColorTheme || 'sky');
 }
 
 export function applySkyThemeClass(enabled) {
@@ -8482,6 +8357,15 @@ export function applyPremiumSkyThemeClass(enabled) {
       notesFeed.classList.remove('theme-sky-premium');
     }
   }
+}
+
+export function applyUiColorThemeClass(themeId) {
+  const normalizedTheme = themeId || 'sky';
+  const uiThemes = ['lavender', 'sky', 'aqua', 'mint', 'blush', 'peach', 'rose', 'honey'];
+  uiThemes.forEach(theme => {
+    document.body.classList.remove(`ui-theme-${theme}`);
+  });
+  document.body.classList.add(`ui-theme-${normalizedTheme}`);
 }
 
 export function setPremiumSkyTheme(enabled) {
@@ -9019,14 +8903,7 @@ function initAuth() {
     offlineBannerShown = false;
 
     // Clean up any existing real-time subscription
-    if (cloudNotesUnsubscribe) {
-      cloudNotesUnsubscribe();
-      cloudNotesUnsubscribe = null;
-    }
-    if (deletedTombstonesUnsubscribe) {
-      deletedTombstonesUnsubscribe();
-      deletedTombstonesUnsubscribe = null;
-    }
+    stopCloudSync();
     if (settingsUnsubscribe) {
       settingsUnsubscribe();
       settingsUnsubscribe = null;

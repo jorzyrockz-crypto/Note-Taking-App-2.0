@@ -1,15 +1,9 @@
 import {
   notes,
   appSettings,
-  customThemes,
-  THEME_PRESETS,
-  DEFAULT_THEME_PRESETS,
   STORAGE_KEYS,
-  globalEmojiThemeControls,
-  getEmojiThemeControls,
   saveEmojiThemeControls,
   updateSliderTrackFill,
-  buildEmojiThemePattern,
   applyCardLayoutStyle,
   syncEmojiThemePresentation,
   renderNotes,
@@ -24,8 +18,18 @@ import {
   experimentalSkyTheme,
   setExperimentalSkyTheme,
   premiumSkyTheme,
-  setPremiumSkyTheme
+  setPremiumSkyTheme,
+  applyUiColorThemeClass
 } from './app.js';
+
+import {
+  customThemes,
+  THEME_PRESETS,
+  DEFAULT_THEME_PRESETS,
+  globalEmojiThemeControls,
+  getEmojiThemeControls,
+  buildEmojiThemePattern
+} from './theme.js';
 
 let settingsPage;
 let settingsExperimentalSkyTheme;
@@ -50,6 +54,7 @@ let settingsCustomThemesList;
 let settingsReminderMorning;
 let settingsReminderAfternoon;
 let settingsReminderEvening;
+let settingsUiColorTheme;
 
 export function initSettings() {
   settingsPage = document.getElementById('settings-page');
@@ -79,6 +84,7 @@ export function initSettings() {
   settingsReminderMorning = document.getElementById('settings-reminder-morning');
   settingsReminderAfternoon = document.getElementById('settings-reminder-afternoon');
   settingsReminderEvening = document.getElementById('settings-reminder-evening');
+  settingsUiColorTheme = document.getElementById('settings-ui-color-theme');
 
   // Bind Event Handlers
   settingsBackBtn?.addEventListener('click', () => {
@@ -148,6 +154,7 @@ export function renderSettingsPage() {
   if (settingsCardStyle) settingsCardStyle.value = appSettings.cardLayoutStyle;
   if (settingsExperimentalSkyTheme) settingsExperimentalSkyTheme.checked = experimentalSkyTheme;
   if (settingsPremiumSkyTheme) settingsPremiumSkyTheme.checked = premiumSkyTheme;
+  if (settingsUiColorTheme) settingsUiColorTheme.value = appSettings.uiColorTheme || 'sky';
 
   // Sliders
   const controls = getEmojiThemeControls();
@@ -199,6 +206,7 @@ export function updateSettingsLivePreview() {
   settingsPreviewCard.style.setProperty('--note-theme-pattern-size', `${spacingVal}px ${spacingVal}px`);
   
   // Style standard preview
+  settingsPreviewCard.style.setProperty('--note-frame', 'var(--theme-spring-bg)');
   settingsPreviewCard.style.backgroundColor = 'var(--theme-spring-bg)';
   settingsPreviewCard.setAttribute('data-theme', 'spring');
 }
@@ -433,7 +441,8 @@ export function saveSettingsFromForm() {
       morning: settingsReminderMorning.value,
       afternoon: settingsReminderAfternoon.value,
       evening: settingsReminderEvening.value
-    }
+    },
+    uiColorTheme: settingsUiColorTheme ? settingsUiColorTheme.value : 'sky'
   });
 
   if (settingsExperimentalSkyTheme) {
@@ -459,6 +468,11 @@ export function saveSettingsFromForm() {
   // Apply layout style
   applyCardLayoutStyle(appSettings.cardLayoutStyle);
 
+  // Apply UI Accent color theme
+  if (typeof applyUiColorThemeClass === 'function') {
+    applyUiColorThemeClass(appSettings.uiColorTheme || 'sky');
+  }
+
   // Sync presentation and notes grid
   syncEmojiThemePresentation();
 
@@ -479,7 +493,8 @@ export function renderSettingsBgPicker() {
     { id: 'sage', title: 'Sage Mint', subtitle: 'Resting organic green', previewBg: 'linear-gradient(180deg, #dcfce7 0%, #f9fbf9 100%)', previewBgDark: 'linear-gradient(180deg, #0e2219 0%, #08120d 100%)' },
     { id: 'peach', title: 'Peach Glow', subtitle: 'Warm cozy workspace', previewBg: 'linear-gradient(180deg, #ffedd5 0%, #fdfbf8 100%)', previewBgDark: 'linear-gradient(180deg, #28170a 0%, #170d05 100%)' },
     { id: 'offwhite', title: 'Soft Off-White', subtitle: 'Clean paper-like warmth', previewBg: 'linear-gradient(180deg, #fdfcf8 0%, #faf9f6 100%)', previewBgDark: '#171511' },
-    { id: 'white', title: 'Pure White', subtitle: 'Bright minimal canvas', previewBg: '#ffffff', previewBgDark: '#111827' }
+    { id: 'white', title: 'Pure White', subtitle: 'Bright minimal canvas', previewBg: '#ffffff', previewBgDark: '#111827' },
+    { id: 'coolgray', title: 'Cool Gray', subtitle: 'Clean neutral grey canvas', previewBg: '#EEEEEE', previewBgDark: '#1F2937' }
   ];
 
   const isDark = document.body.classList.contains('dark-theme');
