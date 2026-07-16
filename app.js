@@ -7019,12 +7019,12 @@ async function syncNoteToCloudWithQueue(note) {
     diff = {};
     let hasChanged = false;
     const fieldsToDiff = [
-      'title', 'text', 'color', 'theme', 'pinned', 'archived', 'deleted',
+      'title', 'text', 'color', 'theme', 'customTheme', 'pinned', 'archived', 'deleted',
       'folders', 'isRichText', 'editorMode', 'audio', 'audioDuration', 'files',
-      'reminder', 'recipeData', 'drawingData'
+      'reminder', 'recipeData', 'drawingData', 'favorite', 'locked', 'image'
     ];
     fieldsToDiff.forEach(field => {
-      if (!isFieldEqual(note[field], lastCloudNote[field])) {
+      if (!isFieldEqual(note[field], lastCloudNote[field], field)) {
         diff[field] = note[field];
         hasChanged = true;
       }
@@ -7177,9 +7177,9 @@ function isFieldEqual(val1, val2, fieldName) {
 function areNotesEqual(n1, n2) {
   if (!n1 || !n2) return false;
   const fields = [
-    'title', 'text', 'color', 'theme', 'pinned', 'archived', 'deleted',
+    'title', 'text', 'color', 'theme', 'customTheme', 'pinned', 'archived', 'deleted',
     'folders', 'isRichText', 'editorMode', 'audio', 'audioDuration', 'files',
-    'reminder', 'recipeData', 'drawingData'
+    'reminder', 'recipeData', 'drawingData', 'favorite', 'locked', 'image'
   ];
   return fields.every(field => isFieldEqual(n1[field], n2[field], field));
 }
@@ -7193,9 +7193,9 @@ function mergeNoteThreeWay(localNote, cloudNote, lastSyncedNote) {
 
   const mergedNote = { ...localNote };
   const fields = [
-    'title', 'text', 'color', 'theme', 'pinned', 'archived', 'deleted',
+    'title', 'text', 'color', 'theme', 'customTheme', 'pinned', 'archived', 'deleted',
     'folders', 'isRichText', 'editorMode', 'audio', 'audioDuration', 'files',
-    'reminder', 'recipeData', 'drawingData'
+    'reminder', 'recipeData', 'drawingData', 'favorite', 'locked', 'image'
   ];
 
   fields.forEach(field => {
