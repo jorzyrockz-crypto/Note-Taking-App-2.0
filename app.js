@@ -7024,7 +7024,7 @@ async function syncNoteToCloudWithQueue(note) {
       'reminder', 'recipeData', 'drawingData'
     ];
     fieldsToDiff.forEach(field => {
-      if (JSON.stringify(note[field]) !== JSON.stringify(lastCloudNote[field])) {
+      if (!isFieldEqual(note[field], lastCloudNote[field])) {
         diff[field] = note[field];
         hasChanged = true;
       }
@@ -7127,14 +7127,34 @@ function getNoteSyncTimestamp(note) {
   );
 }
 
+function isFieldEqual(val1, val2) {
+  const normalize = (v) => {
+    if (v === undefined || v === null || v === "") return null;
+    if (Array.isArray(v) && v.length === 0) return null;
+    if (typeof v === 'object' && v !== null && Object.keys(v).length === 0) return null;
+    return v;
+  };
+  
+  const n1 = normalize(val1);
+  const n2 = normalize(val2);
+  
+  if (n1 === n2) return true;
+  
+  if (typeof n1 === 'object' && typeof n2 === 'object' && n1 !== null && n2 !== null) {
+    return JSON.stringify(n1) === JSON.stringify(n2);
+  }
+  
+  return false;
+}
+
 function areNotesEqual(n1, n2) {
   if (!n1 || !n2) return false;
   const fields = [
-    'id', 'title', 'text', 'color', 'theme', 'pinned', 'archived', 'deleted',
+    'title', 'text', 'color', 'theme', 'pinned', 'archived', 'deleted',
     'folders', 'isRichText', 'editorMode', 'audio', 'audioDuration', 'files',
     'reminder', 'recipeData', 'drawingData'
   ];
-  return fields.every(field => JSON.stringify(n1[field]) === JSON.stringify(n2[field]));
+  return fields.every(field => isFieldEqual(n1[field], n2[field]));
 }
 
 function mergeNoteThreeWay(localNote, cloudNote, lastSyncedNote) {
@@ -7156,8 +7176,8 @@ function mergeNoteThreeWay(localNote, cloudNote, lastSyncedNote) {
     const cloudVal = cloudNote[field];
     const lastVal = lastSyncedNote[field];
 
-    const localChanged = JSON.stringify(localVal) !== JSON.stringify(lastVal);
-    const cloudChanged = JSON.stringify(cloudVal) !== JSON.stringify(lastVal);
+    const localChanged = !isFieldEqual(localVal, lastVal);
+    const cloudChanged = !isFieldEqual(cloudVal, lastVal);
 
     if (localChanged && cloudChanged) {
       const localTimestamp = getNoteSyncTimestamp(localNote);
