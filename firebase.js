@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'firebase/auth';
-import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, deleteDoc, collection, getDocs, onSnapshot } from 'firebase/firestore';
+import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, deleteDoc, collection, getDocs, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 let app, auth, db, storage;
@@ -277,14 +277,16 @@ export async function saveNoteToCloud(uid, note) {
   if (!note || !note.id) return;
   if (isRealFirebase) {
     const noteRef = doc(db, 'users', uid, 'notes', note.id);
-    await setDoc(noteRef, note, { merge: true });
+    const payload = { ...note, serverUpdatedAt: serverTimestamp() };
+    await setDoc(noteRef, payload, { merge: true });
   } else {
     const mockNotes = getMockCloudNotes(uid);
     const index = mockNotes.findIndex(n => n.id === note.id);
+    const mockNote = { ...note, serverUpdatedAt: Date.now() };
     if (index >= 0) {
-      mockNotes[index] = { ...note };
+      mockNotes[index] = { ...mockNotes[index], ...mockNote };
     } else {
-      mockNotes.push({ ...note });
+      mockNotes.push(mockNote);
     }
     saveMockCloudNotes(uid, mockNotes);
   }

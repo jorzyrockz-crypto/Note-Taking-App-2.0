@@ -152,6 +152,8 @@
             <div class="changelog-container">
               <div class="changelog-title">What's New</div>
               <ul class="changelog-list">
+                 <li>Implemented Firestore server timestamps to eliminate client clock-skew syncing issues</li>
+                 <li>Implemented 3-Way Field-Level Merging to prevent concurrent edits from overwriting each other</li>
                  <li>Implemented Delta Syncing to prevent devices from overwriting each other's checklist states</li>
                  <li>Fixed real-time checkbox updates not reflecting in the active Edit Note modal</li>
                  <li>Fixed checklist click/drag binding serialization bugs after note reload</li>

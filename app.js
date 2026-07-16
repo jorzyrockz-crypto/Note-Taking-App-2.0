@@ -2067,8 +2067,8 @@ function initData() {
     setNoteFolders(note, getNoteFolders(note, inferDefaultFolder(note, index)));
   });
   
-  // Sort notes by updatedAt descending to keep new notes at the top
-  loadedNotes.sort((a, b) => b.updatedAt - a.updatedAt);
+  // Sort notes by sync timestamp descending to keep new notes at the top
+  loadedNotes.sort((a, b) => getNoteSyncTimestamp(b) - getNoteSyncTimestamp(a));
   
   notes = loadedNotes;
   customFolders = sanitizeFolderList(loadedFolders);
@@ -6867,6 +6867,7 @@ function toggleViewLayout() {
 // ==========================================================================
 
 const _lastSyncedCloudTimestamps = new Map();
+const _lastSyncedCloudNotes = new Map();
 
 // Debounced save — coalesces rapid sequential calls into one write (400ms window)
 let _saveTimer;
@@ -6877,6 +6878,7 @@ function debouncedSave() {
 
 function saveToLocalStorage() {
   try {
+    notes.sort((a, b) => getNoteSyncTimestamp(b) - getNoteSyncTimestamp(a));
     notes.forEach((note, index) => {
       setNoteFolders(note, getNoteFolders(note, inferDefaultFolder(note, index)));
     });
@@ -7008,13 +7010,50 @@ function removePendingSyncOperation(uid, noteId, operation = null) {
 
 async function syncNoteToCloudWithQueue(note) {
   if (!currentUser || !note?.id) return;
+
+  const lastCloudNote = _lastSyncedCloudNotes.get(note.id);
+  let diff;
+  if (!lastCloudNote) {
+    diff = { ...note };
+  } else {
+    diff = {};
+    let hasChanged = false;
+    const fieldsToDiff = [
+      'title', 'text', 'color', 'theme', 'pinned', 'archived', 'deleted',
+      'folders', 'isRichText', 'editorMode', 'audio', 'audioDuration', 'files',
+      'reminder', 'recipeData', 'drawingData'
+    ];
+    fieldsToDiff.forEach(field => {
+      if (JSON.stringify(note[field]) !== JSON.stringify(lastCloudNote[field])) {
+        diff[field] = note[field];
+        hasChanged = true;
+      }
+    });
+    if (hasChanged) {
+      diff.id = note.id;
+      diff.updatedAt = note.updatedAt;
+      if (note.serverUpdatedAt !== undefined) {
+        diff.serverUpdatedAt = note.serverUpdatedAt;
+      }
+    } else {
+      diff = null;
+    }
+  }
+
+  if (!diff) return;
+
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     upsertPendingSyncOperation('upsert', note);
     return;
   }
 
   try {
-    await saveNoteToCloud(currentUser.uid, note);
+    await saveNoteToCloud(currentUser.uid, diff);
+    if (lastCloudNote) {
+      Object.assign(lastCloudNote, JSON.parse(JSON.stringify(diff)));
+    } else {
+      _lastSyncedCloudNotes.set(note.id, JSON.parse(JSON.stringify(note)));
+    }
     removePendingSyncOperation(currentUser.uid, note.id, 'upsert');
   } catch (err) {
     upsertPendingSyncOperation('upsert', note);
@@ -7068,12 +7107,75 @@ async function processPendingSyncQueue(uid = currentUser?.uid) {
 }
 
 function getNoteSyncTimestamp(note) {
+  let serverMs = 0;
+  if (note?.serverUpdatedAt) {
+    if (typeof note.serverUpdatedAt.toMillis === 'function') {
+      serverMs = note.serverUpdatedAt.toMillis();
+    } else if (typeof note.serverUpdatedAt === 'number') {
+      serverMs = note.serverUpdatedAt;
+    } else if (note.serverUpdatedAt.seconds !== undefined) {
+      serverMs = note.serverUpdatedAt.seconds * 1000 + Math.floor((note.serverUpdatedAt.nanoseconds || 0) / 1000000);
+    }
+  }
+
   return Math.max(
+    serverMs,
     Number(note?.updatedAt) || 0,
     Number(note?.deletedAt) || 0,
     Number(note?.archivedAt) || 0,
     Number(note?.createdAt) || 0
   );
+}
+
+function areNotesEqual(n1, n2) {
+  if (!n1 || !n2) return false;
+  const fields = [
+    'id', 'title', 'text', 'color', 'theme', 'pinned', 'archived', 'deleted',
+    'folders', 'isRichText', 'editorMode', 'audio', 'audioDuration', 'files',
+    'reminder', 'recipeData', 'drawingData'
+  ];
+  return fields.every(field => JSON.stringify(n1[field]) === JSON.stringify(n2[field]));
+}
+
+function mergeNoteThreeWay(localNote, cloudNote, lastSyncedNote) {
+  if (!lastSyncedNote) {
+    const localTimestamp = getNoteSyncTimestamp(localNote);
+    const cloudTimestamp = getNoteSyncTimestamp(cloudNote);
+    return localTimestamp >= cloudTimestamp ? localNote : cloudNote;
+  }
+
+  const mergedNote = { ...localNote };
+  const fields = [
+    'title', 'text', 'color', 'theme', 'pinned', 'archived', 'deleted',
+    'folders', 'isRichText', 'editorMode', 'audio', 'audioDuration', 'files',
+    'reminder', 'recipeData', 'drawingData'
+  ];
+
+  fields.forEach(field => {
+    const localVal = localNote[field];
+    const cloudVal = cloudNote[field];
+    const lastVal = lastSyncedNote[field];
+
+    const localChanged = JSON.stringify(localVal) !== JSON.stringify(lastVal);
+    const cloudChanged = JSON.stringify(cloudVal) !== JSON.stringify(lastVal);
+
+    if (localChanged && cloudChanged) {
+      const localTimestamp = getNoteSyncTimestamp(localNote);
+      const cloudTimestamp = getNoteSyncTimestamp(cloudNote);
+      if (cloudTimestamp > localTimestamp) {
+        mergedNote[field] = cloudVal;
+      }
+    } else if (cloudChanged) {
+      mergedNote[field] = cloudVal;
+    }
+  });
+
+  mergedNote.updatedAt = Math.max(Number(localNote.updatedAt) || 0, Number(cloudNote.updatedAt) || 0);
+  if (cloudNote.serverUpdatedAt) {
+    mergedNote.serverUpdatedAt = cloudNote.serverUpdatedAt;
+  }
+
+  return mergedNote;
 }
 
 function mergeCloudNotesWithLocal(cloudNotes = []) {
@@ -7095,6 +7197,7 @@ function mergeCloudNotesWithLocal(cloudNotes = []) {
     }
     const normalized = normalizeNoteAppearance(cloudNote);
     _lastSyncedCloudTimestamps.set(normalized.id, getNoteSyncTimestamp(normalized));
+    _lastSyncedCloudNotes.set(normalized.id, JSON.parse(JSON.stringify(normalized)));
     setNoteFolders(normalized, getNoteFolders(normalized, inferDefaultFolder(normalized, index)));
     mergedById.set(normalized.id, normalized);
   });
@@ -7103,10 +7206,16 @@ function mergeCloudNotesWithLocal(cloudNotes = []) {
     const normalized = normalizeNoteAppearance(localNote);
     setNoteFolders(normalized, getNoteFolders(normalized, inferDefaultFolder(normalized, index)));
     const cloudNote = mergedById.get(normalized.id);
-    const localTimestamp = getNoteSyncTimestamp(normalized);
-    const cloudTimestamp = getNoteSyncTimestamp(cloudNote);
 
-    if (!cloudNote || localTimestamp >= cloudTimestamp) {
+    if (cloudNote) {
+      const lastSynced = _lastSyncedCloudNotes.get(normalized.id);
+      const merged = mergeNoteThreeWay(normalized, cloudNote, lastSynced);
+      mergedById.set(normalized.id, merged);
+      
+      if (!areNotesEqual(merged, cloudNote)) {
+        dirtyLocalNotes.push(merged);
+      }
+    } else {
       if (currentUser && normalized.id.startsWith('starter-')) {
         return;
       }
@@ -7117,9 +7226,7 @@ function mergeCloudNotesWithLocal(cloudNotes = []) {
       }
 
       mergedById.set(normalized.id, normalized);
-      if (!cloudNote || localTimestamp > cloudTimestamp) {
-        dirtyLocalNotes.push(normalized);
-      }
+      dirtyLocalNotes.push(normalized);
     }
   });
 
@@ -9419,6 +9526,8 @@ function initAuth() {
       initCloudNotesSync(user);
     } else {
       currentUser = null;
+      _lastSyncedCloudTimestamps.clear();
+      _lastSyncedCloudNotes.clear();
       if (avatarBtn) {
         avatarBtn.textContent = 'G';
         avatarBtn.style.backgroundImage = '';
