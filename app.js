@@ -274,6 +274,9 @@ function applyAppearanceSelection(noteLike = {}, type, value) {
     noteLike.customTheme = value;
   }
 
+  // Update modification timestamp for cloud synchronization
+  noteLike.updatedAt = Date.now();
+
   return Object.assign(noteLike, normalizeNoteAppearance(noteLike));
 }
 
@@ -3412,6 +3415,7 @@ function renderModalPopoverCategories(note) {
       }
       setNoteFolders(note, folders);
       registerNoteFolders(note);
+      note.updatedAt = Date.now();
       
       setModalFolderValue(folders, { preserveDraft: true });
       
@@ -3894,6 +3898,7 @@ function initModalAdvancedEditorHandlers() {
       }
       setNoteFolders(note, folders);
       registerNoteFolders(note);
+      note.updatedAt = Date.now();
       
       const modalBreadcrumb = document.getElementById('modal-breadcrumb');
       if (modalBreadcrumb) {
@@ -3921,6 +3926,7 @@ function initModalAdvancedEditorHandlers() {
     if (note) {
       note.reminder = timeMs;
       note.reminderTriggered = false;
+      note.updatedAt = Date.now();
       renderModalReminderChip(note);
       debouncedSave();
       renderNotes();
@@ -3934,6 +3940,7 @@ function initModalAdvancedEditorHandlers() {
     if (note) {
       note.reminder = null;
       note.reminderTriggered = false;
+      note.updatedAt = Date.now();
       reminderInput.value = '';
       renderModalReminderChip(note);
       debouncedSave();
@@ -3946,8 +3953,9 @@ function initModalAdvancedEditorHandlers() {
   document.getElementById('modal-favorite')?.addEventListener('click', (e) => {
     e.stopPropagation();
     const note = notes.find(n => n.id === currentEditingNoteId);
-    if (note) {
+        if (note) {
       note.favorite = !note.favorite;
+      note.updatedAt = Date.now();
       const favLabel = document.getElementById('modal-favorite-label');
       const favBtn = document.getElementById('modal-favorite');
       if (favLabel) favLabel.textContent = note.favorite ? 'Unfavorite' : 'Favorite';
@@ -3962,8 +3970,9 @@ function initModalAdvancedEditorHandlers() {
   document.getElementById('modal-lock')?.addEventListener('click', (e) => {
     e.stopPropagation();
     const note = notes.find(n => n.id === currentEditingNoteId);
-    if (note) {
+        if (note) {
       note.locked = !note.locked;
+      note.updatedAt = Date.now();
       const lockLabel = document.getElementById('modal-lock-label');
       const lockBtn = document.getElementById('modal-lock');
       if (lockLabel) lockLabel.textContent = note.locked ? 'Unlock Note' : 'Lock Note';
@@ -8612,6 +8621,7 @@ function syncModalInputs(note) {
     onChange: (newText, skipRedraw) => {
       note.text = newText;
       note.type = note.recipeData ? 'recipe' : getNoteType(newText);
+      note.updatedAt = Date.now();
       modalText.value = newText;
       saveToLocalStorage();
       renderNotes();

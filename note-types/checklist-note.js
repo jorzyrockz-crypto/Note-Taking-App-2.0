@@ -98,6 +98,7 @@ export function renderChecklistNoteContent(note, options) {
         const newPrefix = checked ? '- [ ] ' : '- [x] ';
         lines[index] = newPrefix + applyChecklistInlineReminder(cleanText, inlineReminder);
         note.text = lines.join('\n');
+        note.updatedAt = Date.now();
 
         saveToLocalStorage();
         renderNotes();
