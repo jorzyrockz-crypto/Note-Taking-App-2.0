@@ -7127,7 +7127,7 @@ function getNoteSyncTimestamp(note) {
   );
 }
 
-function isFieldEqual(val1, val2) {
+function isFieldEqual(val1, val2, fieldName) {
   const normalize = (v) => {
     if (v === undefined || v === null || v === "") return null;
     if (Array.isArray(v) && v.length === 0) return null;
@@ -7139,8 +7139,35 @@ function isFieldEqual(val1, val2) {
   const n2 = normalize(val2);
   
   if (n1 === n2) return true;
+  if (n1 === null || n2 === null) return false;
+
+  // Custom reminder comparison
+  if (fieldName === 'reminder') {
+    const d1 = new Date(n1).getTime();
+    const d2 = new Date(n2).getTime();
+    if (Number.isNaN(d1) || Number.isNaN(d2)) return n1 === n2;
+    return d1 === d2;
+  }
+
+  // Custom folders comparison (order-insensitive)
+  if (fieldName === 'folders') {
+    const arr1 = Array.isArray(n1) ? n1 : [n1];
+    const arr2 = Array.isArray(n2) ? n2 : [n2];
+    if (arr1.length !== arr2.length) return false;
+    const set1 = new Set(arr1);
+    return arr2.every(item => set1.has(item));
+  }
+
+  // Custom files comparison (ignore local-only storage flags)
+  if (fieldName === 'files') {
+    const arr1 = Array.isArray(n1) ? n1 : [];
+    const arr2 = Array.isArray(n2) ? n2 : [];
+    if (arr1.length !== arr2.length) return false;
+    const map1 = new Map(arr1.map(f => [f.id, f.cloudUrl || null]));
+    return arr2.every(f => map1.has(f.id) && map1.get(f.id) === (f.cloudUrl || null));
+  }
   
-  if (typeof n1 === 'object' && typeof n2 === 'object' && n1 !== null && n2 !== null) {
+  if (typeof n1 === 'object' && typeof n2 === 'object') {
     return JSON.stringify(n1) === JSON.stringify(n2);
   }
   
@@ -7154,7 +7181,7 @@ function areNotesEqual(n1, n2) {
     'folders', 'isRichText', 'editorMode', 'audio', 'audioDuration', 'files',
     'reminder', 'recipeData', 'drawingData'
   ];
-  return fields.every(field => isFieldEqual(n1[field], n2[field]));
+  return fields.every(field => isFieldEqual(n1[field], n2[field], field));
 }
 
 function mergeNoteThreeWay(localNote, cloudNote, lastSyncedNote) {
@@ -7176,8 +7203,8 @@ function mergeNoteThreeWay(localNote, cloudNote, lastSyncedNote) {
     const cloudVal = cloudNote[field];
     const lastVal = lastSyncedNote[field];
 
-    const localChanged = !isFieldEqual(localVal, lastVal);
-    const cloudChanged = !isFieldEqual(cloudVal, lastVal);
+    const localChanged = !isFieldEqual(localVal, lastVal, field);
+    const cloudChanged = !isFieldEqual(cloudVal, lastVal, field);
 
     if (localChanged && cloudChanged) {
       const localTimestamp = getNoteSyncTimestamp(localNote);
