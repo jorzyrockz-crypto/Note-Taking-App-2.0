@@ -4198,7 +4198,10 @@ export function inferDefaultFolder(note, index = 0) {
 }
 
 function sanitizeFolderName(folderName) {
-  return (folderName || '').trim();
+  if (typeof folderName === 'string') return folderName.trim();
+  if (folderName && typeof folderName === 'object' && typeof folderName.name === 'string') return folderName.name.trim();
+  if (folderName != null) return String(folderName).trim();
+  return '';
 }
 
 function sanitizeFolderList(folderNames = []) {
