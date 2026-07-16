@@ -1820,10 +1820,31 @@ window.addEventListener('online', () => {
     syncNoteToCloudWithQueue(note);
     syncLocalFilesToCloud(note);
   });
+  // Re-establish cloud sync subscription to force updates
+  initCloudNotesSync(currentUser);
 });
 
 window.addEventListener('offline', () => {
   updateOnlineStatusUI();
+});
+
+// Sync and resume updates when PWA/app comes to foreground or tab gets focused
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && currentUser) {
+    console.log('App active (visible) — checking sync status and processing queue...');
+    updateOnlineStatusUI();
+    processPendingSyncQueue(currentUser.uid);
+    initCloudNotesSync(currentUser);
+  }
+});
+
+window.addEventListener('focus', () => {
+  if (currentUser) {
+    console.log('App active (focused) — checking sync status and processing queue...');
+    updateOnlineStatusUI();
+    processPendingSyncQueue(currentUser.uid);
+    initCloudNotesSync(currentUser);
+  }
 });
 
 window.addEventListener('appinstalled', () => {
@@ -9183,6 +9204,58 @@ function initAuth() {
     e.target.value = ''; // Reset input
   });
 
+  // Helper to initialize or re-establish Firestore real-time updates subscription
+  function initCloudNotesSync(user) {
+    if (!user) return;
+
+    // Clean up any existing real-time subscription
+    if (cloudNotesUnsubscribe) {
+      try {
+        cloudNotesUnsubscribe();
+      } catch (e) {}
+      cloudNotesUnsubscribe = null;
+    }
+
+    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    if (!isOnline) {
+      console.log('Offline — skipping cloud notes subscription.');
+      return;
+    }
+
+    // Subscribe to real-time cloud updates
+    try {
+      cloudNotesUnsubscribe = subscribeToCloudNotes(user.uid, (cloudNotes) => {
+        if (isBulkOperationsActive) return;
+        const dirtyLocalNotes = mergeCloudNotesWithLocal(cloudNotes);
+        pushDirtyLocalNotesToCloud(user.uid, dirtyLocalNotes);
+        renderNotes();
+
+        // If the user has a note open in the edit modal, update the fields in real-time
+        // but only if they are not actively typing in the inputs right now
+        const activeEl = document.activeElement;
+        const isEditingText = activeEl && (activeEl.id === 'modal-text' || activeEl.id === 'modal-title');
+        if (currentEditingNoteId && !isEditingText) {
+          const editingNote = notes.find(n => n.id === currentEditingNoteId);
+          if (editingNote) {
+            const modalTitle = document.getElementById('modal-title');
+            const modalText = document.getElementById('modal-text');
+            if (modalTitle && modalTitle.value !== (editingNote.title || '')) {
+              modalTitle.value = editingNote.title || '';
+            }
+            if (modalText && modalText.value !== (editingNote.text || '')) {
+              modalText.value = editingNote.text || '';
+              autoGrowTextarea.call(modalText);
+              updateEditorMirror(modalText, document.getElementById('modal-text-mirror'));
+            }
+          }
+        }
+      });
+    } catch (err) {
+      console.warn('Failed to initialize real-time sync:', err);
+      showToast({ title: 'Sync Error', text: 'Could not connect to real-time sync. Using offline copy.' });
+    }
+  }
+
   // Firebase Auth State Listener
   onAuthChange(async (user) => {
     const priorAuthChoice = localStorage.getItem('paperuss_auth_choice');
@@ -9264,37 +9337,7 @@ function initAuth() {
       initSettingsCloudSync(user.uid);
 
       // Subscribe to real-time cloud updates
-      try {
-        cloudNotesUnsubscribe = subscribeToCloudNotes(user.uid, (cloudNotes) => {
-          if (isBulkOperationsActive) return;
-          const dirtyLocalNotes = mergeCloudNotesWithLocal(cloudNotes);
-          pushDirtyLocalNotesToCloud(user.uid, dirtyLocalNotes);
-          renderNotes();
-
-          // If the user has a note open in the edit modal, update the fields in real-time
-          // but only if they are not actively typing in the inputs right now
-          const activeEl = document.activeElement;
-          const isEditingText = activeEl && (activeEl.id === 'modal-text' || activeEl.id === 'modal-title');
-          if (currentEditingNoteId && !isEditingText) {
-            const editingNote = notes.find(n => n.id === currentEditingNoteId);
-            if (editingNote) {
-              const modalTitle = document.getElementById('modal-title');
-              const modalText = document.getElementById('modal-text');
-              if (modalTitle && modalTitle.value !== (editingNote.title || '')) {
-                modalTitle.value = editingNote.title || '';
-              }
-              if (modalText && modalText.value !== (editingNote.text || '')) {
-                modalText.value = editingNote.text || '';
-                autoGrowTextarea.call(modalText);
-                updateEditorMirror(modalText, document.getElementById('modal-text-mirror'));
-              }
-            }
-          }
-        });
-      } catch (err) {
-        console.warn('Failed to initialize real-time sync:', err);
-        showToast({ title: 'Sync Error', text: 'Could not connect to real-time sync. Using offline copy.' });
-      }
+      initCloudNotesSync(user);
     } else {
       currentUser = null;
       if (avatarBtn) {

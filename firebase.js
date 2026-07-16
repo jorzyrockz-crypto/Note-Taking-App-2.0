@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, deleteDoc, collection, getDocs, onSnapshot } from 'firebase/firestore';
+import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, deleteDoc, collection, getDocs, onSnapshot } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 let app, auth, db, storage;
@@ -45,11 +45,34 @@ if (savedConfig && savedConfig.apiKey && savedConfig.projectId) {
   try {
     app = initializeApp(savedConfig);
     auth = getAuth(app);
-    db = initializeFirestore(app, {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-      })
-    });
+    
+    // Check if IndexedDB is supported in the current environment (e.g. mobile PWAs / sandbox WebView)
+    const isIndexedDBSupported = typeof window !== 'undefined' && 'indexedDB' in window && window.indexedDB !== null;
+    let firestoreConfig = {};
+    if (isIndexedDBSupported) {
+      try {
+        firestoreConfig = {
+          localCache: persistentLocalCache({
+            tabManager: persistentMultipleTabManager()
+          })
+        };
+      } catch (cacheErr) {
+        console.warn('Failed to configure Firestore local cache:', cacheErr);
+      }
+    }
+    
+    try {
+      db = initializeFirestore(app, firestoreConfig);
+    } catch (dbErr) {
+      console.warn('initializeFirestore failed with config, trying default:', dbErr);
+      try {
+        db = initializeFirestore(app, {});
+      } catch (alreadyInitErr) {
+        // If already initialized, get the existing instance
+        db = getFirestore(app);
+      }
+    }
+    
     storage = getStorage(app);
     isRealFirebase = true;
     console.log('Firebase initialized successfully in Real Mode.');
