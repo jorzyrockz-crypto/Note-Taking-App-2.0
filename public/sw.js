@@ -1,4 +1,4 @@
-const CACHE_NAME = 'paperuss-v46';
+const CACHE_NAME = 'paperuss-v47';
 // Static assets that never get hashed — safe to precache by path
 const APP_ASSETS = [
   './',
@@ -7,6 +7,7 @@ const APP_ASSETS = [
   './app.js',
   './firebase.js',
   './glass-editor.js',
+  './sync.js',
   './settings.js',
   './productivity.js',
   './recipe.js',

@@ -36,6 +36,21 @@ import {
   subscribeToSettings
 } from './firebase.js';
 
+import {
+  initSync,
+  debouncedSave,
+  saveToLocalStorage,
+  saveNotesLocalOnly,
+  initCloudNotesSync,
+  processPendingSyncQueue,
+  getNoteSyncTimestamp,
+  clearSyncCache,
+  rememberPermanentlyDeletedNoteIds,
+  getPermanentlyDeletedNoteIds,
+  cloudNotesUnsubscribe,
+  deletedTombstonesUnsubscribe
+} from './sync.js';
+
 // ==========================================================================
 // 1. Initial State & Data Definition (Upgraded)
 // ==========================================================================
@@ -243,7 +258,7 @@ function applyNoteAppearance(element, noteLike = {}) {
   }
 }
 
-function normalizeNoteAppearance(noteLike = {}) {
+export function normalizeNoteAppearance(noteLike = {}) {
   const color = noteLike.color || 'default';
   if (color !== 'default') {
     return {
@@ -2011,6 +2026,48 @@ function initViewLayout() {
 }
 
 function initData() {
+  initSync({
+    getCurrentUser: () => currentUser,
+    getNotes: () => notes,
+    setNotes: (newNotes) => { notes = newNotes; },
+    getCustomFolders: () => customFolders,
+    getAppSettings: () => appSettings,
+    getRecentlyDeletedNoteIds: () => recentlyDeletedNoteIds,
+    getPermanentlyDeletedNoteIds: () => getPermanentlyDeletedNoteIds(),
+    getIsBulkActive: () => isBulkOperationsActive,
+    onSyncComplete: () => {
+      renderNotes();
+      
+      const activeEl = document.activeElement;
+      const isEditingText = activeEl && (
+        activeEl.id === 'modal-text' || 
+        activeEl.id === 'modal-title' || 
+        activeEl.classList.contains('checklist-editor-input') ||
+        activeEl.classList.contains('mirror-content') ||
+        activeEl.isContentEditable
+      );
+      if (currentEditingNoteId && !isEditingText) {
+        const editingNote = notes.find(n => n.id === currentEditingNoteId);
+        if (editingNote) {
+          const modalTitle = document.getElementById('modal-title');
+          const modalText = document.getElementById('modal-text');
+          if (modalTitle && modalTitle.value !== (editingNote.title || '')) {
+            modalTitle.value = editingNote.title || '';
+          }
+          if (modalText && modalText.value !== (editingNote.text || '')) {
+            modalText.value = editingNote.text || '';
+            autoGrowTextarea.call(modalText);
+            updateEditorMirror(modalText, document.getElementById('modal-text-mirror'));
+            if (typeof syncModalInputs === 'function') {
+              syncModalInputs(editingNote);
+            }
+          }
+        }
+      }
+    },
+    showToast: showToast
+  });
+
   const localData = localStorage.getItem(STORAGE_KEYS.notes);
   const localFolders = localStorage.getItem(STORAGE_KEYS.folders);
   let loadedNotes = [];
@@ -4254,7 +4311,7 @@ function saveCreatorNote() {
 // 6. Dynamic Hashtag Extractor
 // ==========================================================================
 
-function inferDefaultFolder(note, index = 0) {
+export function inferDefaultFolder(note, index = 0) {
   const kind = getVisualNoteType(note);
   const defaults = {
     voice: 'Voice Memos',
@@ -4395,7 +4452,7 @@ function getFolderIconSvg(iconName) {
   return icons[iconName] || icons.folder;
 }
 
-function getVisualNoteType(note) {
+export function getVisualNoteType(note) {
   const rawType = note.type || getNoteType(note.text || '');
   if (note.recipeData || rawType === 'recipe') return 'recipe';
   if (note.audio) return 'voice';
@@ -6866,462 +6923,18 @@ function toggleViewLayout() {
 // 13. Helpers
 // ==========================================================================
 
-const _lastSyncedCloudTimestamps = new Map();
-const _lastSyncedCloudNotes = new Map();
-
-// Debounced save — coalesces rapid sequential calls into one write (400ms window)
-let _saveTimer;
-function debouncedSave() {
-  clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(saveToLocalStorage, 400);
-}
-
-function saveToLocalStorage() {
-  try {
-    notes.sort((a, b) => getNoteSyncTimestamp(b) - getNoteSyncTimestamp(a));
-    notes.forEach((note, index) => {
-      setNoteFolders(note, getNoteFolders(note, inferDefaultFolder(note, index)));
-    });
-    localStorage.setItem(STORAGE_KEYS.notes, JSON.stringify(notes));
-    localStorage.setItem(STORAGE_KEYS.folders, JSON.stringify(customFolders));
-    hasShownStorageWarning = false;
-
-    if (currentUser) {
-      notes.forEach(note => {
-        const currentTs = getNoteSyncTimestamp(note);
-        const lastTs = _lastSyncedCloudTimestamps.get(note.id) || 0;
-        if (currentTs > lastTs) {
-          syncNoteToCloudWithQueue(note);
-          syncLocalFilesToCloud(note);
-          _lastSyncedCloudTimestamps.set(note.id, currentTs);
-        }
-      });
-    }
-
-    setAutosaveStatus('saved');
-    return true;
-  } catch (error) {
-    console.warn('Unable to save notes to localStorage:', error);
-    if (!hasShownStorageWarning && document.getElementById('toast-container')) {
-      hasShownStorageWarning = true;
-      showToast({
-        title: 'Storage full',
-        text: 'Notes could not be saved locally. Remove large images or voice clips and try again.'
-      });
-    }
-    return false;
-  }
-}
-
-function saveNotesLocalOnly() {
-  notes.forEach((note, index) => {
-    setNoteFolders(note, getNoteFolders(note, inferDefaultFolder(note, index)));
-  });
-  localStorage.setItem(STORAGE_KEYS.notes, JSON.stringify(notes));
-  localStorage.setItem(STORAGE_KEYS.folders, JSON.stringify(customFolders));
-}
 
 
-function getPermanentlyDeletedNoteIds() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.permanentlyDeletedNotes);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return new Set(Array.isArray(parsed) ? parsed.filter(Boolean) : []);
-  } catch (error) {
-    console.warn('Unable to read permanently deleted note IDs:', error);
-    return new Set();
-  }
-}
 
-function savePermanentlyDeletedNoteIds(ids) {
-  try {
-    localStorage.setItem(STORAGE_KEYS.permanentlyDeletedNotes, JSON.stringify(Array.from(ids)));
-  } catch (error) {
-    console.warn('Unable to save permanently deleted note IDs:', error);
-  }
-}
 
-function rememberPermanentlyDeletedNoteIds(noteIds = []) {
-  const ids = getPermanentlyDeletedNoteIds();
-  noteIds.filter(Boolean).forEach(id => {
-    recentlyDeletedNoteIds.add(id);
-    ids.add(id);
-  });
-  savePermanentlyDeletedNoteIds(ids);
-}
 
-function prunePermanentlyDeletedNoteIds(cloudIds = new Set()) {
-  const ids = getPermanentlyDeletedNoteIds();
-  let changed = false;
-  for (const deletedId of ids) {
-    if (!cloudIds.has(deletedId)) {
-      ids.delete(deletedId);
-      changed = true;
-    }
-  }
-  if (changed) {
-    savePermanentlyDeletedNoteIds(ids);
-  }
-}
 
-function getPendingSyncQueue() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.pendingSyncQueue);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.filter(item => item && item.noteId && item.operation) : [];
-  } catch (error) {
-    console.warn('Unable to read pending sync queue:', error);
-    return [];
-  }
-}
 
-function savePendingSyncQueue(queue) {
-  try {
-    localStorage.setItem(STORAGE_KEYS.pendingSyncQueue, JSON.stringify(queue));
-  } catch (error) {
-    console.warn('Unable to save pending sync queue:', error);
-  }
-}
 
-function upsertPendingSyncOperation(operation, note) {
-  if (!currentUser || !note?.id) return;
-  const now = Date.now();
-  const queue = getPendingSyncQueue().filter(item => item.noteId !== note.id || item.uid !== currentUser.uid);
 
-  queue.push({
-    uid: currentUser.uid,
-    noteId: note.id,
-    operation,
-    queuedAt: now,
-    updatedAt: getNoteSyncTimestamp(note) || now,
-    note: operation === 'delete' ? null : normalizeNoteType({ ...note })
-  });
 
-  savePendingSyncQueue(queue);
-}
 
-function removePendingSyncOperation(uid, noteId, operation = null) {
-  const queue = getPendingSyncQueue().filter(item => {
-    if (item.uid !== uid || item.noteId !== noteId) return true;
-    return operation ? item.operation !== operation : false;
-  });
-  savePendingSyncQueue(queue);
-}
 
-async function syncNoteToCloudWithQueue(note) {
-  if (!currentUser || !note?.id) return;
-
-  const lastCloudNote = _lastSyncedCloudNotes.get(note.id);
-  let diff;
-  if (!lastCloudNote) {
-    diff = { ...note };
-  } else {
-    diff = {};
-    let hasChanged = false;
-    const fieldsToDiff = [
-      'title', 'text', 'color', 'theme', 'customTheme', 'pinned', 'archived', 'deleted',
-      'folders', 'isRichText', 'editorMode', 'audio', 'audioDuration', 'files',
-      'reminder', 'recipeData', 'drawingData', 'favorite', 'locked', 'image'
-    ];
-    fieldsToDiff.forEach(field => {
-      if (!isFieldEqual(note[field], lastCloudNote[field], field)) {
-        diff[field] = note[field];
-        hasChanged = true;
-      }
-    });
-    if (hasChanged) {
-      diff.id = note.id;
-      diff.updatedAt = note.updatedAt;
-      if (note.serverUpdatedAt !== undefined) {
-        diff.serverUpdatedAt = note.serverUpdatedAt;
-      }
-    } else {
-      diff = null;
-    }
-  }
-
-  if (!diff) return;
-
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    upsertPendingSyncOperation('upsert', note);
-    return;
-  }
-
-  try {
-    await saveNoteToCloud(currentUser.uid, diff);
-    if (lastCloudNote) {
-      Object.assign(lastCloudNote, JSON.parse(JSON.stringify(diff)));
-    } else {
-      _lastSyncedCloudNotes.set(note.id, JSON.parse(JSON.stringify(note)));
-    }
-    removePendingSyncOperation(currentUser.uid, note.id, 'upsert');
-  } catch (err) {
-    upsertPendingSyncOperation('upsert', note);
-    console.warn('Failed to sync note to cloud; queued for retry:', err);
-  }
-}
-
-async function deleteNoteFromCloudWithQueue(noteId, snapshot = null) {
-  if (!currentUser || !noteId) return;
-  const noteForQueue = snapshot || { id: noteId, updatedAt: Date.now() };
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    upsertPendingSyncOperation('delete', noteForQueue);
-    return;
-  }
-
-  try {
-    await deleteNoteFromCloud(currentUser.uid, noteId);
-    removePendingSyncOperation(currentUser.uid, noteId);
-  } catch (err) {
-    upsertPendingSyncOperation('delete', noteForQueue);
-    console.warn('Failed to delete note from cloud; queued for retry:', err);
-  }
-}
-
-async function processPendingSyncQueue(uid = currentUser?.uid) {
-  if (!uid || (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
-
-  const queue = getPendingSyncQueue();
-  const remaining = [];
-
-  for (const item of queue) {
-    if (item.uid !== uid) {
-      remaining.push(item);
-      continue;
-    }
-
-    try {
-      if (item.operation === 'delete') {
-        await deleteNoteFromCloud(uid, item.noteId);
-      } else if (item.operation === 'upsert' && item.note) {
-        await saveNoteToCloud(uid, item.note);
-        await syncLocalFilesToCloud(item.note);
-      }
-    } catch (err) {
-      console.warn('Pending sync operation failed; keeping queued:', item, err);
-      remaining.push(item);
-    }
-  }
-
-  savePendingSyncQueue(remaining);
-}
-
-function getNoteSyncTimestamp(note) {
-  let serverMs = 0;
-  if (note?.serverUpdatedAt) {
-    if (typeof note.serverUpdatedAt.toMillis === 'function') {
-      serverMs = note.serverUpdatedAt.toMillis();
-    } else if (typeof note.serverUpdatedAt === 'number') {
-      serverMs = note.serverUpdatedAt;
-    } else if (note.serverUpdatedAt.seconds !== undefined) {
-      serverMs = note.serverUpdatedAt.seconds * 1000 + Math.floor((note.serverUpdatedAt.nanoseconds || 0) / 1000000);
-    }
-  }
-
-  return Math.max(
-    serverMs,
-    Number(note?.updatedAt) || 0,
-    Number(note?.deletedAt) || 0,
-    Number(note?.archivedAt) || 0,
-    Number(note?.createdAt) || 0
-  );
-}
-
-function isFieldEqual(val1, val2, fieldName) {
-  const normalize = (v) => {
-    if (v === undefined || v === null || v === "") return null;
-    if (Array.isArray(v) && v.length === 0) return null;
-    if (typeof v === 'object' && v !== null && Object.keys(v).length === 0) return null;
-    return v;
-  };
-  
-  const n1 = normalize(val1);
-  const n2 = normalize(val2);
-  
-  if (n1 === n2) return true;
-  if (n1 === null || n2 === null) return false;
-
-  // Custom reminder comparison
-  if (fieldName === 'reminder') {
-    const d1 = new Date(n1).getTime();
-    const d2 = new Date(n2).getTime();
-    if (Number.isNaN(d1) || Number.isNaN(d2)) return n1 === n2;
-    return d1 === d2;
-  }
-
-  // Custom folders comparison (order-insensitive)
-  if (fieldName === 'folders') {
-    const arr1 = Array.isArray(n1) ? n1 : [n1];
-    const arr2 = Array.isArray(n2) ? n2 : [n2];
-    if (arr1.length !== arr2.length) return false;
-    const set1 = new Set(arr1);
-    return arr2.every(item => set1.has(item));
-  }
-
-  // Custom files comparison (ignore local-only storage flags)
-  if (fieldName === 'files') {
-    const arr1 = Array.isArray(n1) ? n1 : [];
-    const arr2 = Array.isArray(n2) ? n2 : [];
-    if (arr1.length !== arr2.length) return false;
-    const map1 = new Map(arr1.map(f => [f.id, f.cloudUrl || null]));
-    return arr2.every(f => map1.has(f.id) && map1.get(f.id) === (f.cloudUrl || null));
-  }
-  
-  if (typeof n1 === 'object' && typeof n2 === 'object') {
-    return JSON.stringify(n1) === JSON.stringify(n2);
-  }
-  
-  return false;
-}
-
-function areNotesEqual(n1, n2) {
-  if (!n1 || !n2) return false;
-  const fields = [
-    'title', 'text', 'color', 'theme', 'customTheme', 'pinned', 'archived', 'deleted',
-    'folders', 'isRichText', 'editorMode', 'audio', 'audioDuration', 'files',
-    'reminder', 'recipeData', 'drawingData', 'favorite', 'locked', 'image'
-  ];
-  return fields.every(field => isFieldEqual(n1[field], n2[field], field));
-}
-
-function mergeNoteThreeWay(localNote, cloudNote, lastSyncedNote) {
-  if (!lastSyncedNote) {
-    const localTimestamp = getNoteSyncTimestamp(localNote);
-    const cloudTimestamp = getNoteSyncTimestamp(cloudNote);
-    return localTimestamp >= cloudTimestamp ? localNote : cloudNote;
-  }
-
-  const mergedNote = { ...localNote };
-  const fields = [
-    'title', 'text', 'color', 'theme', 'customTheme', 'pinned', 'archived', 'deleted',
-    'folders', 'isRichText', 'editorMode', 'audio', 'audioDuration', 'files',
-    'reminder', 'recipeData', 'drawingData', 'favorite', 'locked', 'image'
-  ];
-
-  fields.forEach(field => {
-    const localVal = localNote[field];
-    const cloudVal = cloudNote[field];
-    const lastVal = lastSyncedNote[field];
-
-    const localChanged = !isFieldEqual(localVal, lastVal, field);
-    const cloudChanged = !isFieldEqual(cloudVal, lastVal, field);
-
-    if (localChanged && cloudChanged) {
-      const localTimestamp = getNoteSyncTimestamp(localNote);
-      const cloudTimestamp = getNoteSyncTimestamp(cloudNote);
-      if (cloudTimestamp > localTimestamp) {
-        mergedNote[field] = cloudVal;
-      }
-    } else if (cloudChanged) {
-      mergedNote[field] = cloudVal;
-    }
-  });
-
-  mergedNote.updatedAt = Math.max(Number(localNote.updatedAt) || 0, Number(cloudNote.updatedAt) || 0);
-  if (cloudNote.serverUpdatedAt) {
-    mergedNote.serverUpdatedAt = cloudNote.serverUpdatedAt;
-  }
-
-  return mergedNote;
-}
-
-function mergeCloudNotesWithLocal(cloudNotes = []) {
-  if (currentUser) {
-    cloudNotes = cloudNotes.filter(n => !n.id.startsWith('starter-'));
-  }
-  const mergedById = new Map();
-  const dirtyLocalNotes = [];
-  const normalizedCloudNotes = cloudNotes.map(normalizeNoteType);
-
-  const permanentlyDeletedNoteIds = getPermanentlyDeletedNoteIds();
-
-  normalizedCloudNotes.forEach((cloudNote, index) => {
-    if (recentlyDeletedNoteIds.has(cloudNote.id) || permanentlyDeletedNoteIds.has(cloudNote.id)) {
-      if (currentUser && permanentlyDeletedNoteIds.has(cloudNote.id)) {
-        deleteNoteFromCloudWithQueue(cloudNote.id, cloudNote);
-      }
-      return;
-    }
-    const normalized = normalizeNoteAppearance(cloudNote);
-    _lastSyncedCloudTimestamps.set(normalized.id, getNoteSyncTimestamp(normalized));
-    _lastSyncedCloudNotes.set(normalized.id, JSON.parse(JSON.stringify(normalized)));
-    setNoteFolders(normalized, getNoteFolders(normalized, inferDefaultFolder(normalized, index)));
-    mergedById.set(normalized.id, normalized);
-  });
-
-  notes.map(normalizeNoteType).forEach((localNote, index) => {
-    const normalized = normalizeNoteAppearance(localNote);
-    setNoteFolders(normalized, getNoteFolders(normalized, inferDefaultFolder(normalized, index)));
-    const cloudNote = mergedById.get(normalized.id);
-
-    if (cloudNote) {
-      const lastSynced = _lastSyncedCloudNotes.get(normalized.id);
-      const merged = mergeNoteThreeWay(normalized, cloudNote, lastSynced);
-      mergedById.set(normalized.id, merged);
-      
-      if (!areNotesEqual(merged, cloudNote)) {
-        dirtyLocalNotes.push(merged);
-      }
-    } else {
-      if (currentUser && normalized.id.startsWith('starter-')) {
-        return;
-      }
-      const isStarter = normalized.id && normalized.id.startsWith('starter-');
-      const isExistingUser = currentUser && sessionStorage.getItem('paperuss_just_registered') !== 'true';
-      if (isStarter && isExistingUser && !cloudNote) {
-        return;
-      }
-
-      mergedById.set(normalized.id, normalized);
-      dirtyLocalNotes.push(normalized);
-    }
-  });
-
-    if (currentUser && !appSettings.welcomeNoteDismissed) {
-      const hasWelcomeNote = mergedById.has('user-welcome-changelog');
-      if (!hasWelcomeNote) {
-        const welcomeNote = {
-          id: 'user-welcome-changelog',
-          title: '🚀 Welcome to Paperuss v2.2.1',
-          text: '<h3>Welcome to Paperuss v2.2.1! 🚀</h3><p>Paperuss is updated with the latest fixes and improvements. Here\'s what\'s new in this release:</p><div class="checklist-item"><div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><input type="checkbox" checked="checked"><span contenteditable="true">Implemented Delta Syncing to prevent devices from overwriting each other\'s checklist states</span><button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button></div><div class="checklist-item"><div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><input type="checkbox" checked="checked"><span contenteditable="true">Fixed checklist persistence and event binding issues on note reload</span><button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button></div><div class="checklist-item"><div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><input type="checkbox" checked="checked"><span contenteditable="true">Synchronized category choices inside the Properties drawer</span><button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button></div><div class="checklist-item"><div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><input type="checkbox" checked="checked"><span contenteditable="true">Added Tab key text indentation support for all editors</span><button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button></div><div class="checklist-item"><div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><input type="checkbox" checked="checked"><span contenteditable="true">Added dynamic saving color indicator (red: saving, green: saved)</span><button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button></div><div class="checklist-item"><div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><input type="checkbox" checked="checked"><span contenteditable="true">Fixed sidebar and header overlay transparent layout bugs on mobile/portrait viewports</span><button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button></div><div class="checklist-item"><div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><input type="checkbox" checked="checked"><span contenteditable="true">Automatically reset pinned status when trashing or archiving notes</span><button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button></div><p>Once you dismiss/delete this note from trash, it won\'t appear again on future logins.</p>',
-          color: 'default',
-          theme: 'celebration',
-          pinned: true,
-          archived: false,
-          deleted: false,
-          isRichText: true,
-          editorMode: 'glass',
-          image: null,
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        };
-        mergedById.set(welcomeNote.id, welcomeNote);
-        dirtyLocalNotes.push(welcomeNote);
-      }
-    }
-
-    notes = Array.from(mergedById.values()).sort((a, b) => getNoteSyncTimestamp(b) - getNoteSyncTimestamp(a));
-  notes.forEach(registerNoteFolders);
-  saveNotesLocalOnly();
-
-  const cloudIds = new Set(cloudNotes.map(n => n.id));
-  for (const deletedId of recentlyDeletedNoteIds) {
-    if (!cloudIds.has(deletedId)) {
-      recentlyDeletedNoteIds.delete(deletedId);
-    }
-  }
-  prunePermanentlyDeletedNoteIds(cloudIds);
-
-  return dirtyLocalNotes;
-}
-
-function pushDirtyLocalNotesToCloud(uid, dirtyLocalNotes = []) {
-  dirtyLocalNotes.forEach(note => {
-    syncNoteToCloudWithQueue(note);
-    syncLocalFilesToCloud(note);
-    _lastSyncedCloudTimestamps.set(note.id, getNoteSyncTimestamp(note));
-  });
-}
 
 function autoGrowTextarea() {
   this.style.height = 'auto';
@@ -9387,102 +9000,7 @@ function initAuth() {
     e.target.value = ''; // Reset input
   });
 
-  // Helper to initialize or re-establish Firestore real-time updates subscription
-  function initCloudNotesSync(user) {
-    if (!user) return;
 
-    // Clean up any existing real-time subscription
-    if (cloudNotesUnsubscribe) {
-      try {
-        cloudNotesUnsubscribe();
-      } catch (e) {}
-      cloudNotesUnsubscribe = null;
-    }
-    if (deletedTombstonesUnsubscribe) {
-      try {
-        deletedTombstonesUnsubscribe();
-      } catch (e) {}
-      deletedTombstonesUnsubscribe = null;
-    }
-
-    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
-    if (!isOnline) {
-      console.log('Offline — skipping cloud notes subscription.');
-      return;
-    }
-
-    // Subscribe to real-time cloud updates
-    try {
-      cloudNotesUnsubscribe = subscribeToCloudNotes(user.uid, (cloudNotes) => {
-        if (isBulkOperationsActive) return;
-        const dirtyLocalNotes = mergeCloudNotesWithLocal(cloudNotes);
-        pushDirtyLocalNotesToCloud(user.uid, dirtyLocalNotes);
-        renderNotes();
-
-        // If the user has a note open in the edit modal, update the fields in real-time
-        // but only if they are not actively typing in the inputs right now
-        const activeEl = document.activeElement;
-        const isEditingText = activeEl && (
-          activeEl.id === 'modal-text' || 
-          activeEl.id === 'modal-title' || 
-          activeEl.classList.contains('checklist-editor-input') ||
-          activeEl.classList.contains('mirror-content') ||
-          activeEl.isContentEditable
-        );
-        if (currentEditingNoteId && !isEditingText) {
-          const editingNote = notes.find(n => n.id === currentEditingNoteId);
-          if (editingNote) {
-            const modalTitle = document.getElementById('modal-title');
-            const modalText = document.getElementById('modal-text');
-            if (modalTitle && modalTitle.value !== (editingNote.title || '')) {
-              modalTitle.value = editingNote.title || '';
-            }
-            if (modalText && modalText.value !== (editingNote.text || '')) {
-              modalText.value = editingNote.text || '';
-              autoGrowTextarea.call(modalText);
-              updateEditorMirror(modalText, document.getElementById('modal-text-mirror'));
-              if (typeof syncModalInputs === 'function') {
-                syncModalInputs(editingNote);
-              }
-            }
-          }
-        }
-      });
-    } catch (err) {
-      console.warn('Failed to initialize real-time sync:', err);
-      showToast({ title: 'Sync Error', text: 'Could not connect to real-time sync. Using offline copy.' });
-    }
-
-    // Subscribe to deletion tombstones from other devices
-    try {
-      deletedTombstonesUnsubscribe = subscribeToDeletedNoteTombstones(user.uid, (tombstoneIds) => {
-        if (!tombstoneIds || tombstoneIds.length === 0) return;
-        const existingIds = getPermanentlyDeletedNoteIds();
-        let addedNew = false;
-        tombstoneIds.forEach(id => {
-          if (!existingIds.has(id)) {
-            existingIds.add(id);
-            addedNew = true;
-          }
-          recentlyDeletedNoteIds.add(id);
-        });
-        if (addedNew) {
-          savePermanentlyDeletedNoteIds(existingIds);
-        }
-
-        // Purge any locally-cached copies that were resurrected before this device
-        // learned about the deletion, and stop them being pushed back to the cloud.
-        const beforeCount = notes.length;
-        notes = notes.filter(n => !tombstoneIds.includes(n.id));
-        if (notes.length !== beforeCount) {
-          saveNotesLocalOnly();
-          renderNotes();
-        }
-      });
-    } catch (err) {
-      console.warn('Failed to initialize deletion tombstone sync:', err);
-    }
-  }
   initCloudNotesSyncRef = initCloudNotesSync;
 
   // Firebase Auth State Listener
@@ -9573,8 +9091,7 @@ function initAuth() {
       initCloudNotesSync(user);
     } else {
       currentUser = null;
-      _lastSyncedCloudTimestamps.clear();
-      _lastSyncedCloudNotes.clear();
+      clearSyncCache();
       if (avatarBtn) {
         avatarBtn.textContent = 'G';
         avatarBtn.style.backgroundImage = '';
