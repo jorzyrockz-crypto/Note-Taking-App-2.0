@@ -9602,6 +9602,9 @@ body.dark-theme .edit-modal-overlay.modern-glass-editor-active {
   border: 1px solid rgba(0, 0, 0, 0.08) !important;
   border-radius: 24px !important;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.1) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: scale(1) translateY(0) !important;
 }
 
 body.dark-theme .creator-wrapper.modern-glass-editor-active .note-creator,
@@ -10355,7 +10358,6 @@ body.dark-theme .glass-floating-toolbar .toolbar-btn.active {
   border: 1px solid var(--note-border-color, var(--border-light)) !important;
   border-radius: 20px !important;
   padding: 14px !important;
-  overflow: hidden !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   box-shadow: inset 0 1px rgba(255, 255, 255, 0.55) !important;

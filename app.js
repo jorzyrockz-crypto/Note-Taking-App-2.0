@@ -78,6 +78,13 @@ import {
   customThemes
 } from './theme.js';
 
+window.addEventListener('error', (event) => {
+  alert('Global Error: ' + event.message + '\nAt: ' + event.filename + ':' + event.lineno + '\nStack: ' + (event.error ? event.error.stack : ''));
+});
+window.addEventListener('unhandledrejection', (event) => {
+  alert('Unhandled Rejection: ' + event.reason);
+});
+
 // ==========================================================================
 // 1. Initial State & Data Definition (Upgraded)
 // ==========================================================================
