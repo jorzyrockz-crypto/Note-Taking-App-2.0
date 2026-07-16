@@ -47,7 +47,8 @@ import {
   clearSyncCache,
   rememberPermanentlyDeletedNoteIds,
   getPermanentlyDeletedNoteIds,
-  stopCloudSync
+  stopCloudSync,
+  deleteNoteFromCloudWithQueue
 } from './sync.js';
 
 import {
