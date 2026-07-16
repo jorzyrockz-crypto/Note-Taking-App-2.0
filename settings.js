@@ -473,12 +473,12 @@ export function renderSettingsBgPicker() {
   const activeBg = appSettings.appBgColor || 'base';
 
   const options = [
-    { id: 'base', title: 'Default (Sky Match)', subtitle: 'Matches navigation bar', previewBg: '#f0f9ff', previewBgDark: '#0f172a' },
-    { id: 'sky', title: 'Sky Blue', subtitle: 'Premium soft gradient', previewBg: 'linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%)', previewBgDark: '#0b1329' },
-    { id: 'lilac', title: 'Lilac Lavender', subtitle: 'Relaxing light purple', previewBg: 'linear-gradient(180deg, #faf5ff 0%, #ffffff 100%)', previewBgDark: '#120d1e' },
-    { id: 'sage', title: 'Sage Mint', subtitle: 'Resting organic green', previewBg: 'linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%)', previewBgDark: '#0b1812' },
-    { id: 'peach', title: 'Peach Glow', subtitle: 'Warm cozy workspace', previewBg: 'linear-gradient(180deg, #fff7ed 0%, #ffffff 100%)', previewBgDark: '#1f1208' },
-    { id: 'offwhite', title: 'Soft Off-White', subtitle: 'Clean paper-like warmth', previewBg: 'linear-gradient(180deg, #fdfcf8 0%, #ffffff 100%)', previewBgDark: '#171511' },
+    { id: 'base', title: 'Default (Sky Match)', subtitle: 'Matches navigation bar', previewBg: 'linear-gradient(180deg, #e0f2fe 0%, #f0f9ff 100%)', previewBgDark: 'linear-gradient(180deg, #131e35 0%, #0d1424 100%)' },
+    { id: 'sky', title: 'Sky Blue', subtitle: 'Premium soft gradient', previewBg: 'linear-gradient(180deg, #e0f2fe 0%, #fafafd 100%)', previewBgDark: 'linear-gradient(180deg, #0f1a38 0%, #080d1c 100%)' },
+    { id: 'lilac', title: 'Lilac Lavender', subtitle: 'Relaxing light purple', previewBg: 'linear-gradient(180deg, #f3e8ff 0%, #faf9fc 100%)', previewBgDark: 'linear-gradient(180deg, #19122a 0%, #0d0916 100%)' },
+    { id: 'sage', title: 'Sage Mint', subtitle: 'Resting organic green', previewBg: 'linear-gradient(180deg, #dcfce7 0%, #f9fbf9 100%)', previewBgDark: 'linear-gradient(180deg, #0e2219 0%, #08120d 100%)' },
+    { id: 'peach', title: 'Peach Glow', subtitle: 'Warm cozy workspace', previewBg: 'linear-gradient(180deg, #ffedd5 0%, #fdfbf8 100%)', previewBgDark: 'linear-gradient(180deg, #28170a 0%, #170d05 100%)' },
+    { id: 'offwhite', title: 'Soft Off-White', subtitle: 'Clean paper-like warmth', previewBg: 'linear-gradient(180deg, #fdfcf8 0%, #faf9f6 100%)', previewBgDark: '#171511' },
     { id: 'white', title: 'Pure White', subtitle: 'Bright minimal canvas', previewBg: '#ffffff', previewBgDark: '#111827' }
   ];
 

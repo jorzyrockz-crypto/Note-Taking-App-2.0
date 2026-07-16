@@ -1865,20 +1865,26 @@ export function applyAppBgColor() {
   const isDark = document.body.classList.contains('dark-theme');
   const bgColor = appSettings.appBgColor || 'base';
   
+  // Toggle active preset classes on the body for styling isolation
+  const presets = ['base', 'sky', 'lilac', 'sage', 'peach', 'offwhite', 'white'];
+  presets.forEach(preset => {
+    document.body.classList.toggle(`bg-preset-${preset}`, bgColor === preset);
+  });
+  
   let bgValue = '';
   if (isDark) {
     switch (bgColor) {
       case 'sky':
-        bgValue = '#0b1329';
+        bgValue = 'linear-gradient(180deg, #0f1a38 0%, #080d1c 100%)';
         break;
       case 'lilac':
-        bgValue = '#120d1e';
+        bgValue = 'linear-gradient(180deg, #19122a 0%, #0d0916 100%)';
         break;
       case 'sage':
-        bgValue = '#0b1812';
+        bgValue = 'linear-gradient(180deg, #0e2219 0%, #08120d 100%)';
         break;
       case 'peach':
-        bgValue = '#1f1208';
+        bgValue = 'linear-gradient(180deg, #28170a 0%, #170d05 100%)';
         break;
       case 'offwhite':
         bgValue = '#171511';
@@ -1888,32 +1894,32 @@ export function applyAppBgColor() {
         break;
       case 'base':
       default:
-        bgValue = '#0f172a';
+        bgValue = 'linear-gradient(180deg, #131e35 0%, #0d1424 100%)';
         break;
     }
   } else {
     switch (bgColor) {
       case 'sky':
-        bgValue = 'linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%)';
+        bgValue = 'linear-gradient(180deg, #e0f2fe 0%, #f0f9ff 45%, #fafafd 100%)';
         break;
       case 'lilac':
-        bgValue = 'linear-gradient(180deg, #faf5ff 0%, #ffffff 100%)';
+        bgValue = 'linear-gradient(180deg, #f3e8ff 0%, #faf5ff 45%, #faf9fc 100%)';
         break;
       case 'sage':
-        bgValue = 'linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%)';
+        bgValue = 'linear-gradient(180deg, #dcfce7 0%, #f0fdf4 45%, #f9fbf9 100%)';
         break;
       case 'peach':
-        bgValue = 'linear-gradient(180deg, #fff7ed 0%, #ffffff 100%)';
+        bgValue = 'linear-gradient(180deg, #ffedd5 0%, #fff7ed 45%, #fdfbf8 100%)';
         break;
       case 'offwhite':
-        bgValue = 'linear-gradient(180deg, #fdfcf8 0%, #ffffff 100%)';
+        bgValue = 'linear-gradient(180deg, #fdfcf8 0%, #faf9f6 100%)';
         break;
       case 'white':
         bgValue = '#ffffff';
         break;
       case 'base':
       default:
-        bgValue = '#f0f9ff';
+        bgValue = 'linear-gradient(180deg, #e0f2fe 0%, #f0f9ff 100%)';
         break;
     }
   }

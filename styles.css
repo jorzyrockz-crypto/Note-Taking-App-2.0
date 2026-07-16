@@ -9290,6 +9290,66 @@ body.dark-theme .bg-shape {
   100% { transform: translateY(40px) scale(0.9) rotate(0deg); }
 }
 
+/* ==========================================================================
+   Refined Glow and Ambient Background System overrides
+   ========================================================================== */
+
+/* Target only ambient glow presets: base, sky, lilac, sage, peach */
+body.bg-preset-base .bg-shape,
+body.bg-preset-sky .bg-shape,
+body.bg-preset-lilac .bg-shape,
+body.bg-preset-sage .bg-shape,
+body.bg-preset-peach .bg-shape {
+  /* Reduce overall glow intensity by approx 35% (0.45 * 0.65 = ~0.29) */
+  opacity: 0.28 !important;
+}
+
+body.bg-preset-base.dark-theme .bg-shape,
+body.bg-preset-sky.dark-theme .bg-shape,
+body.bg-preset-lilac.dark-theme .bg-shape,
+body.bg-preset-sage.dark-theme .bg-shape,
+body.bg-preset-peach.dark-theme .bg-shape {
+  /* Reduce dark theme glow intensity by 40% (0.30 * 0.60 = 0.18) */
+  opacity: 0.18 !important;
+}
+
+/* Concentrate glow behind the Quick Note Composer (top-left shape) */
+body.bg-preset-base .shape-left,
+body.bg-preset-sky .shape-left,
+body.bg-preset-lilac .shape-left,
+body.bg-preset-sage .shape-left,
+body.bg-preset-peach .shape-left {
+  /* Adjust radial gradient position so it leans towards the top center composer area */
+  background: radial-gradient(circle at 40% 40%, rgba(56, 189, 248, 0.45) 0%, rgba(56, 189, 248, 0) 75%) !important;
+}
+
+/* Allow bottom glow to fade naturally and keep notes area clean (bottom-right shape) */
+body.bg-preset-base .shape-right,
+body.bg-preset-sky .shape-right,
+body.bg-preset-lilac .shape-right,
+body.bg-preset-sage .shape-right,
+body.bg-preset-peach .shape-right {
+  /* Additional opacity reduction for the notes grid area */
+  opacity: 0.16 !important;
+  /* Shorter gradient reach to fade out before notes grid (from 70% to 50%) */
+  background: radial-gradient(circle at 60% 60%, rgba(251, 113, 133, 0.35) 0%, rgba(251, 113, 133, 0) 50%) !important;
+}
+
+body.bg-preset-base.dark-theme .shape-right,
+body.bg-preset-sky.dark-theme .shape-right,
+body.bg-preset-lilac.dark-theme .shape-right,
+body.bg-preset-sage.dark-theme .shape-right,
+body.bg-preset-peach.dark-theme .shape-right {
+  opacity: 0.10 !important;
+  background: radial-gradient(circle at 60% 60%, rgba(251, 113, 133, 0.25) 0%, rgba(251, 113, 133, 0) 50%) !important;
+}
+
+/* Hide ambient glow shapes completely on clean, minimal presets */
+body.bg-preset-offwhite .bg-shape,
+body.bg-preset-white .bg-shape {
+  display: none !important;
+}
+
 /* Heavy glassmorphism effect overlay */
 .bg-glass-overlay {
   position: absolute;
