@@ -28,6 +28,8 @@ import {
   uploadFileToCloud,
   deleteFileFromCloud,
   subscribeToCloudNotes,
+  saveDeletedNoteTombstone,
+  subscribeToDeletedNoteTombstones,
   subscribeToVersionUpdates,
   saveSettingsToCloud,
   fetchSettingsFromCloud,
@@ -121,6 +123,8 @@ export let currentUser = null;
 let isBulkOperationsActive = false;
 const recentlyDeletedNoteIds = new Set();
 let cloudNotesUnsubscribe = null;
+let deletedTombstonesUnsubscribe = null;
+let initCloudNotesSyncRef = null;
 let settingsUnsubscribe = null;
 let offlineBannerShown = false;
 let selectedProductivityTaskFilter = 'all';
@@ -1556,6 +1560,9 @@ function deleteNotePermanently(id) {
   }
   if (currentUser) {
     deleteNoteFromCloudWithQueue(id, note);
+    saveDeletedNoteTombstone(currentUser.uid, id).catch(err => {
+      console.warn('Failed to write deletion tombstone:', err);
+    });
   }
   saveToLocalStorage();
   closeAllNoteCardMenus();
@@ -1599,6 +1606,9 @@ function deleteAllDeletedNotes() {
   if (currentUser) {
     deletedNotes.forEach(note => {
       deleteNoteFromCloudWithQueue(note.id, note);
+      saveDeletedNoteTombstone(currentUser.uid, note.id).catch(err => {
+        console.warn('Failed to write deletion tombstone:', err);
+      });
     });
   }
 
@@ -1824,7 +1834,7 @@ window.addEventListener('online', () => {
     syncLocalFilesToCloud(note);
   });
   // Re-establish cloud sync subscription to force updates
-  initCloudNotesSync(currentUser);
+  initCloudNotesSyncRef?.(currentUser);
 });
 
 window.addEventListener('offline', () => {
@@ -1837,7 +1847,7 @@ document.addEventListener('visibilitychange', () => {
     console.log('App active (visible) — checking sync status and processing queue...');
     updateOnlineStatusUI();
     processPendingSyncQueue(currentUser.uid);
-    initCloudNotesSync(currentUser);
+    initCloudNotesSyncRef?.(currentUser);
   }
 });
 
@@ -1846,7 +1856,7 @@ window.addEventListener('focus', () => {
     console.log('App active (focused) — checking sync status and processing queue...');
     updateOnlineStatusUI();
     processPendingSyncQueue(currentUser.uid);
-    initCloudNotesSync(currentUser);
+    initCloudNotesSyncRef?.(currentUser);
   }
 });
 
@@ -9225,6 +9235,12 @@ function initAuth() {
       } catch (e) {}
       cloudNotesUnsubscribe = null;
     }
+    if (deletedTombstonesUnsubscribe) {
+      try {
+        deletedTombstonesUnsubscribe();
+      } catch (e) {}
+      deletedTombstonesUnsubscribe = null;
+    }
 
     const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
     if (!isOnline) {
@@ -9264,7 +9280,38 @@ function initAuth() {
       console.warn('Failed to initialize real-time sync:', err);
       showToast({ title: 'Sync Error', text: 'Could not connect to real-time sync. Using offline copy.' });
     }
+
+    // Subscribe to deletion tombstones from other devices
+    try {
+      deletedTombstonesUnsubscribe = subscribeToDeletedNoteTombstones(user.uid, (tombstoneIds) => {
+        if (!tombstoneIds || tombstoneIds.length === 0) return;
+        const existingIds = getPermanentlyDeletedNoteIds();
+        let addedNew = false;
+        tombstoneIds.forEach(id => {
+          if (!existingIds.has(id)) {
+            existingIds.add(id);
+            addedNew = true;
+          }
+          recentlyDeletedNoteIds.add(id);
+        });
+        if (addedNew) {
+          savePermanentlyDeletedNoteIds(existingIds);
+        }
+
+        // Purge any locally-cached copies that were resurrected before this device
+        // learned about the deletion, and stop them being pushed back to the cloud.
+        const beforeCount = notes.length;
+        notes = notes.filter(n => !tombstoneIds.includes(n.id));
+        if (notes.length !== beforeCount) {
+          saveNotesLocalOnly();
+          renderNotes();
+        }
+      });
+    } catch (err) {
+      console.warn('Failed to initialize deletion tombstone sync:', err);
+    }
   }
+  initCloudNotesSyncRef = initCloudNotesSync;
 
   // Firebase Auth State Listener
   onAuthChange(async (user) => {
@@ -9285,6 +9332,10 @@ function initAuth() {
     if (cloudNotesUnsubscribe) {
       cloudNotesUnsubscribe();
       cloudNotesUnsubscribe = null;
+    }
+    if (deletedTombstonesUnsubscribe) {
+      deletedTombstonesUnsubscribe();
+      deletedTombstonesUnsubscribe = null;
     }
     if (settingsUnsubscribe) {
       settingsUnsubscribe();

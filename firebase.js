@@ -389,6 +389,61 @@ export function subscribeToCloudNotes(uid, callback) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// Deletion Tombstones
+// A note deleted on one device must be recognized as deleted by
+// every other device — not just the one that deleted it. Without
+// this, a device that still has the note cached locally will see
+// it "missing" from the cloud, assume it's an unsynced local note,
+// and re-upload it (resurrecting a deleted note).
+// ─────────────────────────────────────────────────────────────
+
+const MOCK_TOMBSTONES_PREFIX = 'paperuss_mock_tombstones_';
+
+function getMockTombstoneIds(uid) {
+  try {
+    return JSON.parse(localStorage.getItem(MOCK_TOMBSTONES_PREFIX + uid)) || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveMockTombstoneIds(uid, ids) {
+  localStorage.setItem(MOCK_TOMBSTONES_PREFIX + uid, JSON.stringify(ids));
+}
+
+export async function saveDeletedNoteTombstone(uid, noteId) {
+  if (!uid || !noteId) return;
+  if (isRealFirebase) {
+    const tombstoneRef = doc(db, 'users', uid, 'deletedNotes', noteId);
+    await setDoc(tombstoneRef, { deletedAt: Date.now() });
+  } else {
+    const ids = getMockTombstoneIds(uid);
+    if (!ids.includes(noteId)) {
+      ids.push(noteId);
+      saveMockTombstoneIds(uid, ids);
+    }
+  }
+}
+
+export function subscribeToDeletedNoteTombstones(uid, callback) {
+  if (isRealFirebase) {
+    const tombstonesColl = collection(db, 'users', uid, 'deletedNotes');
+    return onSnapshot(tombstonesColl, (snapshot) => {
+      const ids = [];
+      snapshot.forEach(docSnap => ids.push(docSnap.id));
+      callback(ids);
+    }, (error) => {
+      console.error('Deletion tombstone sync listener failed:', error);
+    });
+  } else {
+    setTimeout(() => {
+      callback(getMockTombstoneIds(uid));
+    }, 0);
+    return () => {};
+  }
+}
+
 export function subscribeToVersionUpdates(callback) {
   if (isRealFirebase) {
     try {
