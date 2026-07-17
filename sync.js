@@ -25,6 +25,7 @@ let config = {
   setNotes: () => {},
   getCustomFolders: () => [],
   getAppSettings: () => ({}),
+  saveAppSettings: () => {},
   getRecentlyDeletedNoteIds: () => new Set(),
   getPermanentlyDeletedNoteIds: () => new Set(),
   getIsBulkActive: () => false,
@@ -117,13 +118,16 @@ export function isFieldEqual(val1, val2, fieldName) {
 
 export function areNotesEqual(n1, n2) {
   if (!n1 || !n2) return false;
-  const fields = [
-    'title', 'text', 'color', 'theme', 'customTheme', 'pinned', 'archived', 'deleted',
-    'folders', 'isRichText', 'editorMode', 'audio', 'audioDuration', 'files',
-    'reminder', 'recipeData', 'drawingData', 'favorite', 'locked', 'image'
-  ];
-  return fields.every(field => isFieldEqual(n1[field], n2[field], field));
+  return NOTE_SYNC_FIELDS.every(field => isFieldEqual(n1[field], n2[field], field));
 }
+
+const NOTE_SYNC_FIELDS = [
+  'title', 'text', 'type', 'color', 'theme', 'customTheme', 'pinned', 'favorite',
+  'archived', 'archivedAt', 'deleted', 'deletedAt', 'folders', 'folder', 'status',
+  'isRichText', 'editorMode', 'audio', 'audioDuration', 'files', 'reminder',
+  'reminderTriggered', 'recipeData', 'recipeSourceUrl', 'drawingData', 'locked',
+  'image', 'createdAt'
+];
 
 export function mergeNoteThreeWay(localNote, cloudNote, lastSyncedNote) {
   if (!lastSyncedNote) {
@@ -133,13 +137,7 @@ export function mergeNoteThreeWay(localNote, cloudNote, lastSyncedNote) {
   }
 
   const mergedNote = { ...localNote };
-  const fields = [
-    'title', 'text', 'color', 'theme', 'customTheme', 'pinned', 'archived', 'deleted',
-    'folders', 'isRichText', 'editorMode', 'audio', 'audioDuration', 'files',
-    'reminder', 'recipeData', 'drawingData', 'favorite', 'locked', 'image'
-  ];
-
-  fields.forEach(field => {
+  NOTE_SYNC_FIELDS.forEach(field => {
     const localVal = localNote[field];
     const cloudVal = cloudNote[field];
     const lastVal = lastSyncedNote[field];
@@ -356,12 +354,7 @@ export async function syncNoteToCloudWithQueue(note) {
   } else {
     diff = {};
     let hasChanged = false;
-    const fieldsToDiff = [
-      'title', 'text', 'color', 'theme', 'customTheme', 'pinned', 'archived', 'deleted',
-      'folders', 'isRichText', 'editorMode', 'audio', 'audioDuration', 'files',
-      'reminder', 'recipeData', 'drawingData', 'favorite', 'locked', 'image'
-    ];
-    fieldsToDiff.forEach(field => {
+    NOTE_SYNC_FIELDS.forEach(field => {
       if (!isFieldEqual(note[field], lastCloudNote[field], field)) {
         diff[field] = note[field];
         hasChanged = true;
@@ -428,6 +421,7 @@ export function mergeCloudNotesWithLocal(cloudNotes = []) {
   const mergedById = new Map();
   const dirtyLocalNotes = [];
   const normalizedCloudNotes = cloudNotes.map(normalizeNoteType);
+  const previousCloudNotes = new Map(_lastSyncedCloudNotes);
 
   const permanentlyDeletedNoteIds = getPermanentlyDeletedNoteIds();
 
@@ -439,9 +433,24 @@ export function mergeCloudNotesWithLocal(cloudNotes = []) {
       return;
     }
     const normalized = normalizeNoteAppearance(cloudNote);
-    _lastSyncedCloudNotes.set(normalized.id, JSON.parse(JSON.stringify(normalized)));
     setNoteFolders(normalized, getNoteFolders(normalized, inferDefaultFolder(normalized, index)));
     mergedById.set(normalized.id, normalized);
+  });
+
+  // Refresh the cloud baseline only after building the incoming cloud map.
+  // mergeNoteThreeWay needs the previous baseline to distinguish:
+  // - unchanged local notes that should accept a newer cloud snapshot, from
+  // - genuinely dirty local notes that should be pushed back to the cloud.
+  // Updating this cache before the merge makes each incoming cloud snapshot
+  // look like the "last synced" version and can cause two open devices with
+  // stale local state to keep overwriting each other.
+  normalizedCloudNotes.forEach((cloudNote, index) => {
+    if (recentlyDeletedNoteIds.has(cloudNote.id) || permanentlyDeletedNoteIds.has(cloudNote.id)) {
+      return;
+    }
+    const normalized = normalizeNoteAppearance(cloudNote);
+    setNoteFolders(normalized, getNoteFolders(normalized, inferDefaultFolder(normalized, index)));
+    _lastSyncedCloudNotes.set(normalized.id, JSON.parse(JSON.stringify(normalized)));
   });
 
   localNotes.map(normalizeNoteType).forEach((localNote, index) => {
@@ -450,7 +459,7 @@ export function mergeCloudNotesWithLocal(cloudNotes = []) {
     const cloudNote = mergedById.get(normalized.id);
 
     if (cloudNote) {
-      const lastSynced = _lastSyncedCloudNotes.get(normalized.id);
+      const lastSynced = previousCloudNotes.get(normalized.id);
       const merged = mergeNoteThreeWay(normalized, cloudNote, lastSynced);
       mergedById.set(normalized.id, merged);
       
@@ -473,9 +482,11 @@ export function mergeCloudNotesWithLocal(cloudNotes = []) {
   });
 
   const appSettings = config.getAppSettings();
-  if (currentUser && !appSettings.welcomeNoteDismissed) {
+  if (currentUser) {
     const hasWelcomeNote = mergedById.has('user-welcome-changelog');
-    if (!hasWelcomeNote) {
+    if (hasWelcomeNote || appSettings.welcomeNoteDismissed) {
+      rememberWelcomeNoteSeeded(appSettings);
+    } else if (!appSettings.welcomeNoteSeeded) {
       const welcomeNote = {
         id: 'user-welcome-changelog',
         title: '🚀 Welcome to Paperuss v2.2.1',
@@ -493,6 +504,7 @@ export function mergeCloudNotesWithLocal(cloudNotes = []) {
       };
       mergedById.set(welcomeNote.id, welcomeNote);
       dirtyLocalNotes.push(welcomeNote);
+      rememberWelcomeNoteSeeded(appSettings);
     }
   }
 
@@ -524,6 +536,12 @@ function registerNoteFoldersInternal(note) {
       }
     });
   }
+}
+
+function rememberWelcomeNoteSeeded(appSettings) {
+  if (!appSettings || appSettings.welcomeNoteSeeded) return;
+  appSettings.welcomeNoteSeeded = true;
+  config.saveAppSettings();
 }
 
 export function pushDirtyLocalNotesToCloud(uid, dirtyLocalNotes = []) {

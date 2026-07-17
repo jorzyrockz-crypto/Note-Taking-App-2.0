@@ -91,8 +91,8 @@ window.addEventListener('unhandledrejection', (event) => {
 // ==========================================================================
 
 const COLOR_PRESETS = [
-  'default', 'red', 'orange', 'yellow', 
-  'green', 'teal', 'blue', 'darkblue', 
+  'default', 'red', 'orange', 'yellow',
+  'green', 'teal', 'blue', 'darkblue',
   'purple', 'pink', 'brown', 'grey'
 ];
 
@@ -125,6 +125,7 @@ export let appSettings = {
   modernGlassEditorEnabled: true,
   cardLayoutStyle: 'default',
   welcomeNoteDismissed: false,
+  welcomeNoteSeeded: false,
   appBgColor: 'base',
   reminderTimes: {
     morning: '08:00',
@@ -256,6 +257,17 @@ function saveEmojiThemeControls() {
   }
 }
 
+function getSettingsCloudPayload(updatedAt = Date.now()) {
+  return {
+    settings: appSettings,
+    customThemes: customThemes,
+    emojiThemeControls: getEmojiThemeControls(),
+    experimentalSkyTheme,
+    premiumSkyTheme,
+    updatedAt
+  };
+}
+
 export function saveSettingsAndSync() {
   const timestamp = Date.now();
   localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
@@ -264,12 +276,8 @@ export function saveSettingsAndSync() {
   applyAppBgColor();
 
   if (currentUser) {
-    saveSettingsToCloud(currentUser.uid, {
-      settings: appSettings,
-      customThemes: customThemes,
-      emojiThemeControls: getEmojiThemeControls(),
-      updatedAt: timestamp
-    }).catch(err => console.warn('Failed to sync settings to cloud:', err));
+    saveSettingsToCloud(currentUser.uid, getSettingsCloudPayload(timestamp))
+      .catch(err => console.warn('Failed to sync settings to cloud:', err));
   }
 }
 
@@ -279,12 +287,8 @@ export function saveCustomThemesAndSync() {
   localStorage.setItem(STORAGE_KEYS.settingsUpdatedAt, timestamp.toString());
 
   if (currentUser) {
-    saveSettingsToCloud(currentUser.uid, {
-      settings: appSettings,
-      customThemes: customThemes,
-      emojiThemeControls: getEmojiThemeControls(),
-      updatedAt: timestamp
-    }).catch(err => console.warn('Failed to sync settings to cloud:', err));
+    saveSettingsToCloud(currentUser.uid, getSettingsCloudPayload(timestamp))
+      .catch(err => console.warn('Failed to sync settings to cloud:', err));
   }
 }
 
@@ -294,74 +298,86 @@ export function initSettingsCloudSync(uid) {
     settingsUnsubscribe = null;
   }
 
-  settingsUnsubscribe = subscribeToSettings(uid, async (cloudData) => {
-    try {
-      const localUpdatedAt = parseInt(localStorage.getItem(STORAGE_KEYS.settingsUpdatedAt) || '0', 10);
+  return new Promise((resolve) => {
+    let resolvedInitialSettings = false;
+    const resolveInitialSettings = () => {
+      if (!resolvedInitialSettings) {
+        resolvedInitialSettings = true;
+        resolve();
+      }
+    };
 
-      if (cloudData) {
-        const cloudUpdatedAt = cloudData.updatedAt || 0;
-        if (localUpdatedAt > cloudUpdatedAt) {
-          await saveSettingsToCloud(uid, {
-            settings: appSettings,
-            customThemes: customThemes,
-            emojiThemeControls: getEmojiThemeControls(),
-            updatedAt: localUpdatedAt
-          });
-          showToast({ title: 'Settings Synced', text: 'Local preferences synced to cloud.' });
-        } else if (cloudUpdatedAt > localUpdatedAt) {
-          if (cloudData.settings) {
-            Object.assign(appSettings, cloudData.settings);
-            localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
-          }
-          if (cloudData.customThemes) {
-            customThemes.splice(0, customThemes.length, ...cloudData.customThemes);
-            localStorage.setItem(STORAGE_KEYS.customThemes, JSON.stringify(customThemes));
-            THEME_PRESETS.splice(0, THEME_PRESETS.length, ...DEFAULT_THEME_PRESETS, ...customThemes);
-          }
-          if (cloudData.emojiThemeControls) {
-            setGlobalEmojiThemeControls({
-              opacity: clamp(numericSetting(cloudData.emojiThemeControls.opacity, DEFAULT_EMOJI_THEME_CONTROLS.opacity), 0, 28),
-              size: clamp(numericSetting(cloudData.emojiThemeControls.size, DEFAULT_EMOJI_THEME_CONTROLS.size), 10, 34),
-              spacing: clamp(numericSetting(cloudData.emojiThemeControls.spacing, DEFAULT_EMOJI_THEME_CONTROLS.spacing), 64, 160)
-            });
-            saveEmojiThemeControls();
-          }
-          
-          localStorage.setItem(STORAGE_KEYS.settingsUpdatedAt, cloudUpdatedAt.toString());
-          
-          applyCardLayoutStyle(appSettings.cardLayoutStyle);
-          syncEmojiThemePresentation();
-          buildColorPickers();
-          renderNotes();
+    settingsUnsubscribe = subscribeToSettings(uid, async (cloudData) => {
+      try {
+        const localUpdatedAt = parseInt(localStorage.getItem(STORAGE_KEYS.settingsUpdatedAt) || '0', 10);
 
-          if (currentPage === 'settings') {
-            const settingsModule = await import('./settings.js').catch(() => null);
-            if (settingsModule) {
-              if (typeof settingsModule.renderSettingsPage === 'function') {
-                settingsModule.renderSettingsPage();
-              }
-              if (typeof settingsModule.renderSettingsCustomThemesList === 'function') {
-                settingsModule.renderSettingsCustomThemesList();
+        if (cloudData) {
+          const cloudUpdatedAt = cloudData.updatedAt || 0;
+          if (localUpdatedAt > cloudUpdatedAt) {
+            await saveSettingsToCloud(uid, getSettingsCloudPayload(localUpdatedAt));
+            showToast({ title: 'Settings Synced', text: 'Local preferences synced to cloud.' });
+          } else if (cloudUpdatedAt > localUpdatedAt) {
+            if (cloudData.settings) {
+              Object.assign(appSettings, cloudData.settings);
+              localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(appSettings));
+            }
+            if (cloudData.customThemes) {
+              customThemes.splice(0, customThemes.length, ...cloudData.customThemes);
+              localStorage.setItem(STORAGE_KEYS.customThemes, JSON.stringify(customThemes));
+              THEME_PRESETS.splice(0, THEME_PRESETS.length, ...DEFAULT_THEME_PRESETS, ...customThemes);
+            }
+            if (cloudData.emojiThemeControls) {
+              setGlobalEmojiThemeControls({
+                opacity: clamp(numericSetting(cloudData.emojiThemeControls.opacity, DEFAULT_EMOJI_THEME_CONTROLS.opacity), 0, 28),
+                size: clamp(numericSetting(cloudData.emojiThemeControls.size, DEFAULT_EMOJI_THEME_CONTROLS.size), 10, 34),
+                spacing: clamp(numericSetting(cloudData.emojiThemeControls.spacing, DEFAULT_EMOJI_THEME_CONTROLS.spacing), 64, 160)
+              });
+              saveEmojiThemeControls();
+            }
+            if (typeof cloudData.experimentalSkyTheme === 'boolean') {
+              experimentalSkyTheme = cloudData.experimentalSkyTheme;
+              localStorage.setItem('paperuss_experimental_sky', experimentalSkyTheme ? 'true' : 'false');
+              applySkyThemeClass(experimentalSkyTheme);
+            }
+            if (typeof cloudData.premiumSkyTheme === 'boolean') {
+              premiumSkyTheme = cloudData.premiumSkyTheme;
+              localStorage.setItem('paperuss_theme_premium_ambient', premiumSkyTheme ? 'true' : 'false');
+              applyPremiumSkyThemeClass(premiumSkyTheme);
+            }
+
+            localStorage.setItem(STORAGE_KEYS.settingsUpdatedAt, cloudUpdatedAt.toString());
+
+            applyCardLayoutStyle(appSettings.cardLayoutStyle);
+            syncEmojiThemePresentation();
+            buildColorPickers();
+            renderNotes();
+
+            if (currentPage === 'settings') {
+              const settingsModule = await import('./settings.js').catch(() => null);
+              if (settingsModule) {
+                if (typeof settingsModule.renderSettingsPage === 'function') {
+                  settingsModule.renderSettingsPage();
+                }
+                if (typeof settingsModule.renderSettingsCustomThemesList === 'function') {
+                  settingsModule.renderSettingsCustomThemesList();
+                }
               }
             }
-          }
 
-          showToast({ title: 'Settings Restored', text: 'Restored latest preferences from cloud.' });
+            showToast({ title: 'Settings Restored', text: 'Restored latest preferences from cloud.' });
+          }
+        } else {
+          await saveSettingsToCloud(uid, getSettingsCloudPayload(localUpdatedAt || Date.now()));
+          if (!localUpdatedAt) {
+            localStorage.setItem(STORAGE_KEYS.settingsUpdatedAt, Date.now().toString());
+          }
         }
-      } else {
-        await saveSettingsToCloud(uid, {
-          settings: appSettings,
-          customThemes: customThemes,
-          emojiThemeControls: getEmojiThemeControls(),
-          updatedAt: localUpdatedAt || Date.now()
-        });
-        if (!localUpdatedAt) {
-          localStorage.setItem(STORAGE_KEYS.settingsUpdatedAt, Date.now().toString());
-        }
+      } catch (error) {
+        console.warn('Failed to sync settings with cloud:', error);
+      } finally {
+        resolveInitialSettings();
       }
-    } catch (error) {
-      console.warn('Failed to sync settings with cloud:', error);
-    }
+    });
   });
 }
 
@@ -1517,6 +1533,7 @@ function deleteNotePermanently(id) {
   notes = notes.filter(n => n.id !== id);
   if (id === 'user-welcome-changelog') {
     appSettings.welcomeNoteDismissed = true;
+    appSettings.welcomeNoteSeeded = true;
     saveSettingsAndSync();
   }
   if (currentUser) {
@@ -1533,9 +1550,9 @@ function deleteNotePermanently(id) {
 function deleteAllDeletedNotes() {
   const deletedNotes = notes.filter(isDeletedNote);
   if (deletedNotes.length === 0) return;
-  
+
   isBulkOperationsActive = true;
-  
+
   deletedNotes.forEach(note => {
     recentlyDeletedNoteIds.add(note.id);
     if (note.files) {
@@ -1559,6 +1576,7 @@ function deleteAllDeletedNotes() {
   const deletedWelcome = deletedNotes.some(n => n.id === 'user-welcome-changelog');
   if (deletedWelcome) {
     appSettings.welcomeNoteDismissed = true;
+    appSettings.welcomeNoteSeeded = true;
     saveSettingsAndSync();
   }
 
@@ -1611,7 +1629,7 @@ function updatePageActionBar() {
   const titleEl = document.getElementById('page-action-title');
   const subtitleEl = document.getElementById('page-action-subtitle');
   const btnEl = document.getElementById('page-action-btn');
-  
+
   if (!bar) return;
 
   if (currentPage === 'deleted' || currentPage === 'archive') {
@@ -1687,10 +1705,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   registerServiceWorker();
   updateOnlineStatusUI();
-  
+
   creatorText.addEventListener('keydown', handleTextareaTabKey);
   modalText.addEventListener('keydown', handleTextareaTabKey);
-  
+
   // Start background checks for note reminders
   setInterval(checkReminders, 10000);
 
@@ -1718,7 +1736,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
   if (installRow) {
     installRow.style.display = 'flex';
   }
-  
+
   // Install button click handler
   const installBtn = document.getElementById('settings-install-btn');
   if (installBtn && !installBtn.dataset.bound) {
@@ -1859,13 +1877,13 @@ function showInstallNotification() {
 export function applyAppBgColor() {
   const isDark = document.body.classList.contains('dark-theme');
   const bgColor = appSettings.appBgColor || 'base';
-  
+
   // Toggle active preset classes on the body for styling isolation
   const presets = ['base', 'sky', 'lilac', 'sage', 'peach', 'offwhite', 'white', 'coolgray'];
   presets.forEach(preset => {
     document.body.classList.toggle(`bg-preset-${preset}`, bgColor === preset);
   });
-  
+
   let bgValue = '';
   if (isDark) {
     switch (bgColor) {
@@ -1924,7 +1942,7 @@ export function applyAppBgColor() {
         break;
     }
   }
-  
+
   document.body.style.setProperty('--bg-app', bgValue, 'important');
 }
 
@@ -1984,16 +2002,17 @@ function initData() {
     setNotes: (newNotes) => { notes = newNotes; },
     getCustomFolders: () => customFolders,
     getAppSettings: () => appSettings,
+    saveAppSettings: () => saveSettingsAndSync(),
     getRecentlyDeletedNoteIds: () => recentlyDeletedNoteIds,
     getPermanentlyDeletedNoteIds: () => getPermanentlyDeletedNoteIds(),
     getIsBulkActive: () => isBulkOperationsActive,
     onSyncComplete: () => {
       renderNotes();
-      
+
       const activeEl = document.activeElement;
       const isEditingText = activeEl && (
-        activeEl.id === 'modal-text' || 
-        activeEl.id === 'modal-title' || 
+        activeEl.id === 'modal-text' ||
+        activeEl.id === 'modal-title' ||
         activeEl.classList.contains('checklist-editor-input') ||
         activeEl.classList.contains('mirror-content') ||
         activeEl.isContentEditable
@@ -2024,7 +2043,7 @@ function initData() {
   const localFolders = localStorage.getItem(STORAGE_KEYS.folders);
   let loadedNotes = [];
   let loadedFolders = [];
-  
+
   if (localData) {
     try {
       loadedNotes = JSON.parse(localData);
@@ -2048,7 +2067,7 @@ function initData() {
       loadedFolders = [];
     }
   }
-  
+
   // Seed starter notes only once so user deletions stay deleted after reload.
   if (!currentUser) {
     const hasSeededStarterNotes = localStorage.getItem(STORAGE_KEYS.starterSeeded) === 'true';
@@ -2075,10 +2094,10 @@ function initData() {
   loadedNotes.forEach((note, index) => {
     setNoteFolders(note, getNoteFolders(note, inferDefaultFolder(note, index)));
   });
-  
+
   // Sort notes by sync timestamp descending to keep new notes at the top
   loadedNotes.sort((a, b) => getNoteSyncTimestamp(b) - getNoteSyncTimestamp(a));
-  
+
   notes = loadedNotes;
   customFolders = sanitizeFolderList(loadedFolders);
   notes.forEach(registerNoteFolders);
@@ -2289,7 +2308,7 @@ function setupEventHandlers() {
     expandCreator();
     openDrawingWorkspace('creator');
   });
-  
+
   // Auto-grow textareas
   creatorText.addEventListener('input', () => {
     autoGrowTextarea.call(creatorText);
@@ -2463,7 +2482,7 @@ function setupEventHandlers() {
         collapseCreator();
       }
     }
-    
+
     // Close color pickers
     if (!e.target.closest('.color-palette-trigger-wrapper')) {
       document.querySelectorAll('.color-picker-bubble').forEach(el => el.classList.remove('visible'));
@@ -2823,14 +2842,14 @@ function setupEventHandlers() {
   document.querySelectorAll('.emoji-popover').forEach(popover => {
     const isModal = popover.id === 'modal-emoji-popover';
     const formatFunc = isModal ? formatModalText : formatSelectedText;
-    
+
     popover.querySelectorAll('.emoji-item').forEach(item => {
       item.addEventListener('click', (e) => {
         e.stopPropagation();
         const emojiValue = item.textContent;
         formatFunc(emojiValue);
         popover.style.display = 'none';
-        
+
         if (isModal) {
           debouncedSave();
         } else {
@@ -3033,7 +3052,7 @@ function expandCreator() {
   // Fallback / Standard Plain Text Editor inline expansion
   creatorCollapsed.style.display = 'none';
   creatorExpanded.style.display = 'flex';
-  
+
   creatorWrapper.classList.remove('modern-glass-editor-active');
   document.getElementById('creator-glass-workspace').style.display = 'none';
   document.getElementById('creator-glass-floating-toolbar').style.display = 'none';
@@ -3046,17 +3065,17 @@ function expandCreator() {
   if (creatorAdvancedHeader) creatorAdvancedHeader.style.display = 'none';
   if (creatorMetadata) creatorMetadata.style.display = 'none';
   if (creatorFloatingToolbar) creatorFloatingToolbar.style.display = 'none';
-  
+
   const creatorToolbar = document.getElementById('creator-markdown-toolbar');
   if (creatorToolbar) creatorToolbar.style.display = 'none';
-  
+
   creatorPin.style.display = 'flex';
   creatorTitle.placeholder = 'Title';
   creatorText.placeholder = 'Take a note...';
-  
+
   syncCreatorInputs();
   syncCreatorFolderInput(true);
-  
+
   creatorText.focus();
 }
 
@@ -3064,10 +3083,10 @@ function collapseCreator() {
   creatorCollapsed.style.display = 'flex';
   creatorExpanded.style.display = 'none';
   creatorPin.style.display = 'none';
-  
+
   const creatorToolbar = document.getElementById('creator-markdown-toolbar');
   if (creatorToolbar) creatorToolbar.style.display = 'none';
-  
+
   if (appSettings.modernGlassEditorEnabled) {
     creatorWrapper.classList.remove('modern-glass-editor-active');
     document.body.classList.remove('advanced-editor-open');
@@ -3080,7 +3099,7 @@ function collapseCreator() {
     if (glassColorPopup) glassColorPopup.style.display = 'none';
     creatorMorePopover.style.display = 'none';
     creatorActiveNoteId = null;
-    
+
     document.getElementById('creator-glass-title').innerHTML = '';
     document.getElementById('creator-glass-editor').innerHTML = '';
   } else if (appSettings.advancedEditorEnabled) {
@@ -3091,12 +3110,12 @@ function collapseCreator() {
     creatorMetadata.style.display = 'none';
     creatorFloatingToolbar.style.display = 'none';
     creatorMorePopover.style.display = 'none';
-    
+
     creatorTitle.placeholder = 'Title';
     creatorText.placeholder = 'Take a note...';
     creatorActiveNoteId = null;
   }
-  
+
   creatorTitle.value = '';
   creatorText.value = '';
   creatorText.style.height = 'auto';
@@ -3104,7 +3123,7 @@ function collapseCreator() {
   clearTimeout(creatorLinkPreviewTimer);
   creatorLinkPreviewAbort?.abort();
   creatorLinkPreviewAbort = null;
-  
+
   creatorColor = 'default';
   creatorTheme = null;
   creatorCustomTheme = null;
@@ -3118,7 +3137,7 @@ function collapseCreator() {
   creatorPinned = false;
   creatorImage = null;
   creatorFiles = [];
-  
+
   applyCreatorAppearance();
   creatorPin.classList.remove('pinned');
   if (creatorFolderInput) creatorFolderInput.value = '';
@@ -3129,11 +3148,11 @@ function collapseCreator() {
   creatorImageInput.value = '';
   if (creatorCameraInput) creatorCameraInput.value = '';
   if (creatorFileInput) creatorFileInput.value = '';
-  
+
   renderCreatorReminderChip();
   renderCreatorAudioPreview();
   renderCreatorFileAttachments();
-  
+
   // Rebuild creator picker to clear selection styling
   buildColorGrid(creatorColorPicker, creatorColor, creatorTheme, creatorCustomTheme, (type, value) => {
     const normalized = applyAppearanceSelection({
@@ -3203,7 +3222,7 @@ function saveCreatorNoteDraft() {
       createdAt: Date.now(),
       updatedAt: Date.now()
     }, selectedFolders));
-    
+
     registerNoteFolders(note);
     notes.unshift(note);
   } else {
@@ -3266,7 +3285,7 @@ function renderPopoverCategories() {
   const container = document.getElementById('popover-category-container');
   if (!container) return;
   container.innerHTML = '';
-  
+
   const currentFolders = getSelectedFolders(creatorFolders.length ? creatorFolders : decodeFolderSelection(creatorFolderInput?.value || ''));
 
   getAllFolders().forEach(folder => {
@@ -3280,12 +3299,12 @@ function renderPopoverCategories() {
     item.querySelector('input').addEventListener('change', () => {
       toggleCreatorFolder(folder);
       renderPopoverCategories();
-      
+
       // Update breadcrumb category
       const activeFolders = getSelectedFolders(creatorFolders.length ? creatorFolders : decodeFolderSelection(creatorFolderInput?.value || ''));
       const primaryFolder = activeFolders[0] || 'Personal';
       creatorBreadcrumb.textContent = `${primaryFolder} / Ideas`;
-      
+
       saveCreatorNoteDraft();
     });
     container.appendChild(item);
@@ -3295,18 +3314,18 @@ function renderPopoverCategories() {
 function renderPopoverColors() {
   const container = document.getElementById('popover-color-grid');
   if (!container) return;
-  
+
   buildColorGrid(container, creatorColor, creatorTheme, creatorCustomTheme, (type, value) => {
     const normalized = applyAppearanceSelection({
       color: creatorColor,
       theme: creatorTheme,
       customTheme: creatorCustomTheme
     }, type, value);
-    
+
     creatorColor = normalized.color;
     creatorTheme = normalized.theme;
     creatorCustomTheme = normalized.customTheme;
-    
+
     applyCreatorAppearance();
     saveCreatorNoteDraft();
     renderPopoverColors();
@@ -3316,7 +3335,7 @@ function renderPopoverColors() {
 function initPopoverReminder() {
   const input = document.getElementById('popover-reminder-input');
   if (!input) return;
-  
+
   if (creatorReminder) {
     const date = new Date(creatorReminder);
     if (!Number.isNaN(date.getTime())) {
@@ -3336,7 +3355,7 @@ function renderModalPopoverCategories(note) {
   const container = document.getElementById('modal-popover-category-container');
   if (!container) return;
   container.innerHTML = '';
-  
+
   const currentFolders = getNoteFolders(note);
 
   getAllFolders().forEach(folder => {
@@ -3357,15 +3376,15 @@ function renderModalPopoverCategories(note) {
       setNoteFolders(note, folders);
       registerNoteFolders(note);
       note.updatedAt = Date.now();
-      
+
       setModalFolderValue(folders, { preserveDraft: true });
-      
+
       // Update modal breadcrumbs
       const modalBreadcrumb = document.getElementById('modal-breadcrumb');
       if (modalBreadcrumb) {
         modalBreadcrumb.textContent = `${folders[0] || 'Personal'} / Ideas`;
       }
-      
+
       debouncedSave();
       renderNotes();
       renderModalPopoverCategories(note);
@@ -3377,7 +3396,7 @@ function renderModalPopoverCategories(note) {
 function renderModalPopoverColors(note) {
   const container = document.getElementById('modal-popover-color-grid');
   if (!container) return;
-  
+
   buildColorGrid(container, note.color, note.theme, note.customTheme, (type, value) => {
     applyAppearanceSelection(note, type, value);
     applyNoteAppearance(editModalCard, note);
@@ -3390,7 +3409,7 @@ function renderModalPopoverColors(note) {
 function initModalPopoverReminder(note) {
   const input = document.getElementById('modal-popover-reminder-input');
   if (!input) return;
-  
+
   if (note.reminder) {
     const date = new Date(note.reminder);
     if (!Number.isNaN(date.getTime())) {
@@ -3472,17 +3491,17 @@ function setupFloatingSelectionToolbar(textarea, toolbar) {
   const handleSelection = () => {
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    
+
     if (start !== end && start !== undefined && end !== undefined && (end - start) > 0) {
       const textBeforeSelection = textarea.value.substring(0, start);
       const lineNumber = textBeforeSelection.split('\n').length;
       const lineHeight = 24;
-      
+
       let topPosition = (lineNumber * lineHeight) - textarea.scrollTop - 44;
       if (topPosition < 10) {
         topPosition = (lineNumber * lineHeight) - textarea.scrollTop + 28;
       }
-      
+
       toolbar.style.top = `${topPosition}px`;
       toolbar.style.display = 'flex';
       setTimeout(() => {
@@ -3571,14 +3590,14 @@ function initAdvancedEditorHandlers() {
       document.getElementById('creator-pin')?.classList.toggle('active', !!creatorPinned);
       document.getElementById('creator-favorite')?.classList.toggle('active', !!creatorFavorite);
       document.getElementById('creator-archive')?.classList.toggle('active', !!creatorArchived);
-      
+
       // Render tags and theme previews
       const themePreset = THEME_PRESETS.find(t => t.id === (creatorTheme || 'none'));
       const themeValEl = document.getElementById('creator-theme-preview-val');
       if (themeValEl) {
         themeValEl.textContent = themePreset ? `${themePreset.title} ${themePreset.emoji}` : 'None';
       }
-      
+
       const reminderVal = creatorReminder ? new Date(creatorReminder).toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'}) : 'None';
       const reminderValEl = document.getElementById('creator-reminder-preview-val');
       if (reminderValEl) {
@@ -3635,7 +3654,7 @@ function initAdvancedEditorHandlers() {
   const reminderInput = document.getElementById('popover-reminder-input');
   const reminderSaveBtn = document.getElementById('popover-reminder-save-btn');
   const reminderClearBtn = document.getElementById('popover-reminder-clear-btn');
-  
+
   reminderSaveBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
     if (!reminderInput.value) return;
@@ -3643,7 +3662,7 @@ function initAdvancedEditorHandlers() {
     if (Number.isNaN(timeMs)) return;
     creatorReminder = timeMs;
     renderCreatorReminderChip();
-    
+
     const reminderVal = new Date(timeMs).toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'});
     const previewVal = document.getElementById('creator-reminder-preview-val');
     if (previewVal) previewVal.textContent = reminderVal;
@@ -3657,7 +3676,7 @@ function initAdvancedEditorHandlers() {
     creatorReminder = null;
     reminderInput.value = '';
     renderCreatorReminderChip();
-    
+
     const previewVal = document.getElementById('creator-reminder-preview-val');
     if (previewVal) previewVal.textContent = 'None';
 
@@ -3802,7 +3821,7 @@ function initModalAdvancedEditorHandlers() {
   const modalBackBtn = document.getElementById('modal-back-btn');
   const modalMoreBtn = document.getElementById('modal-more-btn');
   const modalMorePopover = document.getElementById('modal-more-popover');
-  
+
   modalBackBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
     closeEditModal();
@@ -3840,12 +3859,12 @@ function initModalAdvancedEditorHandlers() {
       setNoteFolders(note, folders);
       registerNoteFolders(note);
       note.updatedAt = Date.now();
-      
+
       const modalBreadcrumb = document.getElementById('modal-breadcrumb');
       if (modalBreadcrumb) {
         modalBreadcrumb.textContent = `${folders[0] || 'Personal'} / Ideas`;
       }
-      
+
       popoverCategoryInput.value = '';
       renderModalPopoverCategories(note);
       debouncedSave();
@@ -3857,7 +3876,7 @@ function initModalAdvancedEditorHandlers() {
   const reminderInput = document.getElementById('modal-popover-reminder-input');
   const reminderSaveBtn = document.getElementById('modal-popover-reminder-save-btn');
   const reminderClearBtn = document.getElementById('modal-popover-reminder-clear-btn');
-  
+
   reminderSaveBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
     if (!reminderInput.value) return;
@@ -4075,16 +4094,16 @@ function formatModalText(syntaxStart, syntaxEnd = '') {
   const start = modalText.selectionStart;
   const end = modalText.selectionEnd;
   const val = modalText.value;
-  
+
   const selectedText = val.substring(start, end);
   const replacement = syntaxStart + selectedText + syntaxEnd;
-  
+
   modalText.value = val.substring(0, start) + replacement + val.substring(end);
   modalText.focus();
-  
+
   modalText.selectionStart = start + syntaxStart.length;
   modalText.selectionEnd = start + syntaxStart.length + selectedText.length;
-  
+
   debouncedSave();
   autoGrowTextarea.call(modalText);
   updateEditorMirror(modalText, document.getElementById('modal-text-mirror'));
@@ -4094,16 +4113,16 @@ function formatSelectedText(syntaxStart, syntaxEnd = '') {
   const start = creatorText.selectionStart;
   const end = creatorText.selectionEnd;
   const val = creatorText.value;
-  
+
   const selectedText = val.substring(start, end);
   const replacement = syntaxStart + selectedText + syntaxEnd;
-  
+
   creatorText.value = val.substring(0, start) + replacement + val.substring(end);
   creatorText.focus();
-  
+
   creatorText.selectionStart = start + syntaxStart.length;
   creatorText.selectionEnd = start + syntaxStart.length + selectedText.length;
-  
+
   triggerAutosave();
   autoGrowTextarea.call(creatorText);
   updateEditorMirror(creatorText, document.getElementById('creator-text-mirror'));
@@ -4145,12 +4164,12 @@ function saveCreatorNote() {
 
   const title = creatorTitle.value.trim();
   const text = creatorText.value.trim();
-  
+
   // Don't save if completely empty (allow save when audio or image exists)
   if (isNoteEffectivelyEmpty(title, text, creatorImage, creatorAudio, creatorFiles)) {
     return;
   }
-  
+
   const selectedFolders = decodeFolderSelection(creatorFolderInput?.value || '');
   const newNote = normalizeNoteAppearance(setNoteFolders({
     id: 'note-' + Date.now(),
@@ -4174,7 +4193,7 @@ function saveCreatorNote() {
     createdAt: Date.now(),
     updatedAt: Date.now()
   }, selectedFolders));
-  
+
   registerNoteFolders(newNote);
   notes.unshift(newNote);
   saveToLocalStorage();
@@ -4640,7 +4659,7 @@ function renderSidebarTags() {
   if (!sidebarTagsList) return;
   sidebarTagsList.innerHTML = '';
   const tags = scanUniqueTags();
-  
+
   tags.forEach(tag => {
     const item = document.createElement('div');
     item.className = `sidebar-item ${selectedTagFilter === tag ? 'active' : ''}`;
@@ -5121,9 +5140,9 @@ async function handleSelectedFiles(target, fileList) {
       continue;
     }
     if (file.size > fastSyncLimit) {
-      showToast({ 
-        title: 'Large file sync warning', 
-        text: `"${file.name}" is over 25 MB. Syncing this file to the cloud may take a moment depending on your network.` 
+      showToast({
+        title: 'Large file sync warning',
+        text: `"${file.name}" is over 25 MB. Syncing this file to the cloud may take a moment depending on your network.`
       });
     }
     try {
@@ -5131,7 +5150,7 @@ async function handleSelectedFiles(target, fileList) {
       let dataUrl = 'db';
       let storedInDB = false;
       let cloudUrl = null;
-      
+
       if (file.size > 100 * 1024) { // Larger than 100KB
         await storeFileInDB(fileId, file);
         storedInDB = true;
@@ -5339,7 +5358,7 @@ function fallbackToFileReader(file, onCompressComplete, onError) {
 
 function initCanvasDrawEngine() {
   canvasCtx = sketchCanvas.getContext('2d');
-  
+
   // Mouse Draw Event Listeners
   sketchCanvas.addEventListener('mousedown', startDrawing);
   sketchCanvas.addEventListener('mousemove', draw);
@@ -5412,7 +5431,7 @@ function initCanvasDrawEngine() {
     const scale = Math.min(1, maxW / sketchCanvas.width);
     tempCanvas.width = sketchCanvas.width * scale;
     tempCanvas.height = sketchCanvas.height * scale;
-    
+
     // Draw white background
     tempCtx.fillStyle = '#ffffff';
     tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
@@ -5446,12 +5465,12 @@ function initCanvasDrawEngine() {
 function openDrawingWorkspace(target) {
   activeSketchTarget = target;
   sketchModal.classList.add('visible');
-  
+
   // Set dimensions matching canvas wrapper
   const wrapper = sketchCanvas.parentNode;
   sketchCanvas.width = wrapper.clientWidth;
   sketchCanvas.height = wrapper.clientHeight;
-  
+
   // Fill canvas white
   canvasCtx.fillStyle = '#ffffff';
   canvasCtx.fillRect(0, 0, sketchCanvas.width, sketchCanvas.height);
@@ -5482,14 +5501,14 @@ function drawStroke(x, y) {
   canvasCtx.beginPath();
   canvasCtx.moveTo(lastDrawX, lastDrawY);
   canvasCtx.lineTo(x, y);
-  
+
   canvasCtx.strokeStyle = isEraserActive ? '#ffffff' : brushColor;
   canvasCtx.lineWidth = brushSize;
   canvasCtx.lineCap = 'round';
   canvasCtx.lineJoin = 'round';
-  
+
   canvasCtx.stroke();
-  
+
   lastDrawX = x;
   lastDrawY = y;
 }
@@ -5510,10 +5529,10 @@ function renderNotesPage() {
   updatePageActionBar();
   const settingsPageEl = document.getElementById('settings-page');
   const prodPageEl = document.getElementById('productivity-page');
-  
+
   if (settingsPageEl) settingsPageEl.style.display = 'none';
   if (prodPageEl) prodPageEl.style.display = 'none';
-  
+
   if (creatorWrapper) {
     creatorWrapper.style.display = (currentPage === 'notes') ? '' : 'none';
   }
@@ -5531,10 +5550,10 @@ function renderNotesPage() {
 
   const query = searchInput.value.toLowerCase().trim();
   const pageNotes = getPageNotes(currentPage);
-  
+
   // Apply Search + Tag filters
   const filteredNotes = pageNotes.filter(note => {
-    
+
     if (selectedFolderFilter && !noteHasFolder(note, selectedFolderFilter)) return false;
 
     // Tag filter matching
@@ -5547,7 +5566,7 @@ function renderNotesPage() {
       const noteKind = getVisualNoteType(note);
       if (noteKind !== selectedTypeFilter) return false;
     }
-    
+
     // Search query matching
     if (query === '') return true;
     return (note.title || '').toLowerCase().includes(query) || (note.text || '').toLowerCase().includes(query);
@@ -5811,9 +5830,9 @@ function getTaskPreviewSchedule(note, dateKey = '') {
 
 function renderGrid(gridContainer, notesArray) {
   gridContainer.innerHTML = '';
-  
+
   const validNotes = (notesArray || []).filter(note => note !== null && typeof note === 'object' && note.id);
-  
+
   validNotes.forEach(note => {
     const card = document.createElement('div');
     const noteKind = getVisualNoteType(note);
@@ -5846,7 +5865,7 @@ function renderGrid(gridContainer, notesArray) {
     const surface = document.createElement('div');
     surface.className = 'note-surface';
     card.appendChild(surface);
-    
+
     // 1. Image Banner
     const bannerImage = note.image || null;
     if (bannerImage) {
@@ -5914,11 +5933,11 @@ function renderGrid(gridContainer, notesArray) {
       const audioChip = document.createElement('div');
       audioChip.className = 'audio-player-chip';
       audioChip.addEventListener('click', (e) => e.stopPropagation()); // prevent modal open
-      
+
       const playBtn = document.createElement('button');
       playBtn.className = 'audio-play-btn';
       playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
-      
+
       const visualizer = document.createElement('div');
       visualizer.className = 'audio-wave-visualizer';
       for (let w = 0; w < 8; w++) {
@@ -5926,14 +5945,14 @@ function renderGrid(gridContainer, notesArray) {
         bar.className = 'audio-wave-bar';
         visualizer.appendChild(bar);
       }
-      
+
       const durationLabel = document.createElement('span');
       durationLabel.className = 'audio-duration-label';
       durationLabel.textContent = `0:00 / ${note.audioDuration || '0:05'}`;
-      
+
       let audioObj = null;
       let playInterval = null;
-      
+
       playBtn.addEventListener('click', () => {
         if (audioObj && !audioObj.paused) {
           audioObj.pause();
@@ -5951,11 +5970,11 @@ function renderGrid(gridContainer, notesArray) {
               audioObj = null;
             });
           }
-          
+
           audioObj.play();
           playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
           audioChip.classList.add('playing');
-          
+
           playInterval = setInterval(() => {
             if (audioObj) {
               const curMin = Math.floor(audioObj.currentTime / 60);
@@ -5965,7 +5984,7 @@ function renderGrid(gridContainer, notesArray) {
           }, 250);
         }
       });
-      
+
       audioChip.appendChild(playBtn);
       audioChip.appendChild(visualizer);
       audioChip.appendChild(durationLabel);
@@ -5988,7 +6007,7 @@ function renderGrid(gridContainer, notesArray) {
     if (tags.length > 0 || note.reminder) {
       const tagList = document.createElement('div');
       tagList.className = 'note-tags-list';
-      
+
       // Prepend reminder chip if set
       if (note.reminder) {
         const chip = document.createElement('span');
@@ -6270,19 +6289,19 @@ function renderGrid(gridContainer, notesArray) {
 function legacyRenderChecklistMarkup(note) {
   const container = document.createElement('div');
   container.className = 'checklist-container';
-  
+
   const lines = note.text.split('\n');
   const uncheckedRows = [];
   const checkedRows = [];
-  
+
   lines.forEach((line, index) => {
     if (line.startsWith('- [ ] ') || line.startsWith('- [x] ')) {
       const checked = line.startsWith('- [x] ');
       const cleanText = line.substring(6);
-      
+
       const row = document.createElement('div');
       row.className = 'checklist-row';
-      
+
       const checkbox = document.createElement('div');
       checkbox.className = `checklist-checkbox ${checked ? 'checked' : ''}`;
       checkbox.innerHTML = `<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
@@ -6291,10 +6310,10 @@ function legacyRenderChecklistMarkup(note) {
         const newPrefix = checked ? '- [ ] ' : '- [x] ';
         lines[index] = newPrefix + cleanText;
         note.text = lines.join('\n');
-        
+
         debouncedSave();
         renderNotes();
-        
+
         // Sync open modal if editing this note
         if (currentEditingNoteId === note.id) {
           modalText.value = note.text;
@@ -6308,7 +6327,7 @@ function legacyRenderChecklistMarkup(note) {
 
       row.appendChild(checkbox);
       row.appendChild(label);
-      
+
       if (checked) {
         checkedRows.push(row);
       } else {
@@ -6335,18 +6354,18 @@ function legacyRenderChecklistMarkup(note) {
       <span class="completed-items-toggle-icon">▼</span>
       <span>${checkedRows.length} completed item${checkedRows.length > 1 ? 's' : ''}</span>
     `;
-    
+
     const body = document.createElement('div');
     body.className = 'completed-items-body';
     checkedRows.forEach(row => body.appendChild(row));
-    
+
     header.addEventListener('click', (e) => {
       e.stopPropagation();
       const icon = header.querySelector('.completed-items-toggle-icon');
       const isCollapsed = body.classList.toggle('collapsed');
       icon.classList.toggle('collapsed', isCollapsed);
     });
-    
+
     container.appendChild(header);
     container.appendChild(body);
   }
@@ -6396,18 +6415,18 @@ function openEditModal(note, autoFocus = false) {
     if (modalAdvancedHeader) modalAdvancedHeader.style.display = 'flex';
     if (modalFloatingToolbar) modalFloatingToolbar.style.display = 'none';
     if (modalMetadata) modalMetadata.style.display = 'none';
-    
+
     document.getElementById('modal-glass-workspace').style.display = 'block';
     document.getElementById('modal-glass-floating-toolbar').style.display = 'flex';
     modalTitle.style.display = 'none';
     editModalCard.querySelector('.editor-textarea-wrap').style.display = 'none';
-    
+
     const glassTitle = document.getElementById('modal-glass-title');
     const glassEditor = document.getElementById('modal-glass-editor');
     glassTitle.innerHTML = note.title || '';
     glassEditor.innerHTML = note.text || '';
     window.wireGlassChecklistEvents(glassEditor);
-    
+
     const date = note.updatedAt ? new Date(note.updatedAt) : new Date();
     const glassTimestamp = document.getElementById('modal-glass-timestamp');
     if (glassTimestamp) {
@@ -6415,7 +6434,7 @@ function openEditModal(note, autoFocus = false) {
         month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
       });
     }
-    
+
     window.updateGlassEmptyState(glassTitle);
     window.updateGlassEmptyState(glassEditor);
   } else {
@@ -6430,7 +6449,7 @@ function openEditModal(note, autoFocus = false) {
       if (modalAdvancedHeader) modalAdvancedHeader.style.display = 'flex';
       if (modalFloatingToolbar) modalFloatingToolbar.style.display = 'flex';
       if (modalMetadata) modalMetadata.style.display = 'block';
-      
+
       const modalToolbar = document.getElementById('modal-markdown-toolbar');
       if (modalToolbar) modalToolbar.style.display = 'flex';
     } else {
@@ -6438,7 +6457,7 @@ function openEditModal(note, autoFocus = false) {
       if (modalAdvancedHeader) modalAdvancedHeader.style.display = 'flex';
       if (modalFloatingToolbar) modalFloatingToolbar.style.display = 'none';
       if (modalMetadata) modalMetadata.style.display = 'none';
-      
+
       const modalToolbar = document.getElementById('modal-markdown-toolbar');
       if (modalToolbar) modalToolbar.style.display = 'none';
     }
@@ -6496,14 +6515,14 @@ function openEditModal(note, autoFocus = false) {
     });
     modalFolderCustomInput.dataset.bound = 'true';
   }
-  
+
   modalTitle.value = note.title;
   modalText.value = note.text;
   setModalFolderValue(getNoteFolders(note));
   closeModalFolderPicker();
-  
+
   syncModalInputs(note);
-  
+
   applyNoteAppearance(editModalCard, note);
   modalPin.classList.toggle('pinned', note.pinned);
 
@@ -6556,7 +6575,7 @@ function openEditModal(note, autoFocus = false) {
     modalImgPreview.src = '';
     modalImgPreview.onclick = null;
   }
-  
+
   // Render tag badges inside modal
   renderModalTags(note);
   renderModalReminderChip(note);
@@ -6567,7 +6586,7 @@ function openEditModal(note, autoFocus = false) {
   requestAnimationFrame(() => {
     updateEditorMirror(modalText, document.getElementById('modal-text-mirror'));
   });
-  
+
   // Rebuild modal color picker dynamically
   buildColorGrid(modalColorPicker, note.color, note.theme, note.customTheme, (type, value) => {
     applyAppearanceSelection(note, type, value);
@@ -6580,7 +6599,7 @@ function openEditModal(note, autoFocus = false) {
   // Modal reminder popover click trigger
   const modalReminderBtn = document.getElementById('modal-reminder-btn');
   const modalReminderPicker = document.getElementById('modal-reminder-picker');
-  
+
   modalReminderBtn.onclick = (e) => {
     e.stopPropagation();
     document.querySelectorAll('.color-picker-bubble, .reminder-picker-bubble').forEach(p => {
@@ -6661,11 +6680,11 @@ function openEditModal(note, autoFocus = false) {
 
   editModal.classList.add('visible');
   document.body.classList.add('editor-focus-mode');
-  
+
   setTimeout(() => {
     modalText.style.height = 'auto';
     modalText.style.height = modalText.scrollHeight + 'px';
-    
+
     if (autoFocus) {
       if (appSettings.modernGlassEditorEnabled) {
         const glassEditor = document.getElementById('modal-glass-editor');
@@ -6735,7 +6754,7 @@ function closeEditModal() {
       const text = appSettings.modernGlassEditorEnabled
         ? document.getElementById('modal-glass-editor').innerHTML.trim()
         : modalText.value.trim();
-      
+
       if (isNoteEffectivelyEmpty(title, text, note.image, note.audio, note.files)) {
         if (note.isNewDraft) {
           notes = notes.filter(n => n.id !== currentEditingNoteId);
@@ -6763,7 +6782,7 @@ function closeEditModal() {
       }
     }
   }
-  
+
   currentEditingNoteId = null;
   editModalCard.classList.remove('properties-sheet-open');
   editModalCard.classList.remove('modern-glass-editor-active');
@@ -6898,7 +6917,7 @@ function onViewportResize() {
   const vvh = window.visualViewport?.height ?? window.innerHeight;
   const fullH = window.innerHeight;
   const keyboardH = fullH - vvh;
-  
+
   const isMobileOrTablet = window.innerWidth <= 1024;
   const card = document.getElementById('edit-modal-card');
   const creator = document.querySelector('.note-creator');
@@ -7460,15 +7479,15 @@ function formatReminderDate(dateStr) {
   const date = new Date(dateStr);
   if (Number.isNaN(date.getTime())) return '';
   const now = new Date();
-  
+
   // Check if today
   const isToday = date.toDateString() === now.toDateString();
-  
+
   // Check if tomorrow
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
   const isTomorrow = date.toDateString() === tomorrow.toDateString();
-  
+
   // Format time
   let hours = date.getHours();
   const minutes = date.getMinutes().toString().padStart(2, '0');
@@ -7476,7 +7495,7 @@ function formatReminderDate(dateStr) {
   hours = hours % 12;
   hours = hours ? hours : 12;
   const timeStr = `${hours}:${minutes} ${ampm}`;
-  
+
   if (isToday) {
     return `Today, ${timeStr}`;
   } else if (isTomorrow) {
@@ -7590,7 +7609,7 @@ function buildReminderPicker(pickerContainer, currentReminder, onSave, onDelete)
 
 function showToast(note) {
   const container = document.getElementById('toast-container');
-  
+
   let actionBtnHtml = '';
   if (note.action) {
     actionBtnHtml = `<button class="toast-action-btn" style="background: var(--primary, #1a73e8); color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; margin-top: 6px; width: fit-content; border: 1px solid rgba(255,255,255,0.1);">${note.action.text}</button>`;
@@ -7607,7 +7626,7 @@ function showToast(note) {
     </div>
     <span class="toast-close">✕</span>
   `;
-  
+
   if (note.action) {
     toast.querySelector('.toast-action-btn')?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -7621,9 +7640,9 @@ function showToast(note) {
     toast.classList.add('hide');
     setTimeout(() => toast.remove(), 350);
   });
-  
+
   container.appendChild(toast);
-  
+
   setTimeout(() => {
     if (toast.parentNode) {
       toast.classList.add('hide');
@@ -7635,7 +7654,7 @@ function showToast(note) {
 function checkReminders() {
   const now = new Date();
   let changed = false;
-  
+
   notes.forEach(note => {
     if (note.reminder && !note.reminderTriggered) {
       const reminderTime = new Date(note.reminder);
@@ -7646,7 +7665,7 @@ function checkReminders() {
       }
     }
   });
-  
+
   if (changed) {
     saveToLocalStorage();
     renderNotes();
@@ -7703,27 +7722,27 @@ const SOCIAL_MOCK_METADATA = {
 
 function legacyParseMarkdown(text) {
   if (!text) return '';
-  
+
   let html = text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
-    
+
   html = html.replace(/^### (.*$)/gim, '<h5>$1</h5>');
   html = html.replace(/^## (.*$)/gim, '<h4>$1</h4>');
   html = html.replace(/^# (.*$)/gim, '<h3>$1</h3>');
-  
+
   html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
-  
+
   html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
   html = html.replace(/_(.*?)_/g, '<em>$1</em>');
-  
+
   html = html.replace(/`(.*?)`/g, '<code>$1</code>');
-  
+
   let lines = html.split('\n');
   let inList = false;
-  
+
   lines = lines.map((line) => {
     const trimmed = line.trim();
     if (trimmed.startsWith('* ') || trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
@@ -7748,15 +7767,15 @@ function legacyParseMarkdown(text) {
   if (inList) {
     lines.push('</ul>');
   }
-  
+
   html = lines.join('<br>');
-  
+
   html = html.replace(/<\/ul><br>/g, '</ul>');
   html = html.replace(/<ul><br>/g, '<ul>');
   html = html.replace(/<\/li><br><li>/g, '</li><li>');
   html = html.replace(/<br><li>/g, '<li>');
   html = html.replace(/<\/li><br>/g, '</li>');
-  
+
   return html;
 }
 
@@ -7841,29 +7860,29 @@ function startVoiceRecording(target) {
   audioChunks = [];
   voiceRecordingElapsedSeconds = 0;
   updateVoiceRecordingIndicators();
-  
+
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  
+
   navigator.mediaDevices.getUserMedia({ audio: true })
     .then(stream => {
       mediaRecorder = new MediaRecorder(stream);
       mediaRecorder.ondataavailable = (e) => {
         audioChunks.push(e.data);
       };
-      
+
       mediaRecorder.onstop = () => {
         // Calculate real duration
         const totalSecs = Math.max(1, Math.round((Date.now() - voiceRecordingStartTime) / 1000));
         const durMin = Math.floor(totalSecs / 60);
         const durSec = (totalSecs % 60).toString().padStart(2, '0');
         const duration = `${durMin}:${durSec}`;
-        
+
         // Clear duration timer
         if (voiceRecordingTimer) {
           clearInterval(voiceRecordingTimer);
           voiceRecordingTimer = null;
         }
-        
+
         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
@@ -7871,16 +7890,16 @@ function startVoiceRecording(target) {
           const base64Audio = reader.result;
           saveVoiceNoteAudio(base64Audio, duration);
         };
-        
+
         stream.getTracks().forEach(track => track.stop());
       };
-      
+
       mediaRecorder.start();
       isRecordingVoice = true;
       voiceRecordingStartTime = Date.now();
       updateVoiceButtonsVisuals(true);
       updateVoiceRecordingIndicators();
-      
+
       // Real-time elapsed counter displayed on buttons
       voiceRecordingTimer = setInterval(() => {
         voiceRecordingElapsedSeconds++;
@@ -7892,20 +7911,20 @@ function startVoiceRecording(target) {
         });
         updateVoiceRecordingIndicators();
       }, 1000);
-      
+
       if (SpeechRecognition) {
         voiceRecognition = new SpeechRecognition();
         voiceRecognition.continuous = true;
         voiceRecognition.interimResults = true;
-        
+
         const targetTextarea = target === 'creator' ? creatorText : modalText;
         let startText = targetTextarea.value;
         if (startText.trim() !== '') startText += '\n';
-        
+
         voiceRecognition.onresult = (event) => {
           let interimTranscript = '';
           let finalTranscript = '';
-          
+
           for (let i = event.resultIndex; i < event.results.length; ++i) {
             if (event.results[i].isFinal) {
               finalTranscript += event.results[i][0].transcript;
@@ -7913,10 +7932,10 @@ function startVoiceRecording(target) {
               interimTranscript += event.results[i][0].transcript;
             }
           }
-          
+
           targetTextarea.value = startText + finalTranscript + interimTranscript;
           autoGrowTextarea.call(targetTextarea);
-          
+
           if (target === 'creator') {
             syncCreatorInputs();
           } else {
@@ -7928,7 +7947,7 @@ function startVoiceRecording(target) {
             }
           }
         };
-        
+
         voiceRecognition.start();
       }
     })
@@ -8070,9 +8089,9 @@ let checklistFocusIsNew = false;
 
 function legacyRenderInteractiveChecklistEditor(container, rawText, onChange) {
   container.innerHTML = '';
-  
+
   let lines = rawText.split('\n').map(line => line.trim());
-  
+
   // Format any non-checklist lines to checklists
   let formatted = false;
   lines = lines.map(line => {
@@ -8082,7 +8101,7 @@ function legacyRenderInteractiveChecklistEditor(container, rawText, onChange) {
     }
     return line;
   });
-  
+
   if (formatted) {
     onChange(lines.join('\n'));
   }
@@ -8109,7 +8128,7 @@ function legacyRenderInteractiveChecklistEditor(container, rawText, onChange) {
     const checkbox = document.createElement('div');
     checkbox.className = `checklist-editor-checkbox ${isChecked ? 'checked' : ''}`;
     checkbox.innerHTML = `<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
-    
+
     checkbox.addEventListener('click', () => {
       const newPrefix = isChecked ? '- [ ] ' : '- [x] ';
       lines[index] = newPrefix + cleanText;
@@ -8146,10 +8165,10 @@ function legacyRenderInteractiveChecklistEditor(container, rawText, onChange) {
         const start = input.selectionStart || 0;
         const textBefore = input.value.substring(0, start);
         const textAfter = input.value.substring(start);
-        
+
         lines[index] = (isChecked ? '- [x] ' : '- [ ] ') + textBefore;
         lines.splice(index + 1, 0, '- [ ] ' + textAfter);
-        
+
         checklistFocusIndex = index + 1;
         checklistFocusCursorPos = 0;
         onChange(lines.join('\n'));
@@ -8160,10 +8179,10 @@ function legacyRenderInteractiveChecklistEditor(container, rawText, onChange) {
           const prevChecked = prevLine.startsWith('- [x] ');
           const prevClean = prevLine.substring(6);
           const currentClean = input.value;
-          
+
           lines[index - 1] = (prevChecked ? '- [x] ' : '- [ ] ') + prevClean + currentClean;
           lines.splice(index, 1);
-          
+
           checklistFocusIndex = index - 1;
           checklistFocusCursorPos = prevClean.length;
           onChange(lines.join('\n'));
@@ -8229,7 +8248,7 @@ function legacyRenderInteractiveChecklistEditor(container, rawText, onChange) {
       onChange(lines.join('\n'));
     }
   });
-  
+
   addInput.addEventListener('blur', () => {
     if (addInput.value.trim() !== '') {
       lines.push('- [ ] ' + addInput.value.trim());
@@ -8440,10 +8459,10 @@ function updateSliderTrackFill(slider) {
   const max = Number(slider.max) || 100;
   const val = Number(slider.value) || 0;
   const percentage = ((val - min) / (max - min)) * 100;
-  
+
   const activeColor = 'var(--primary, #1a73e8)';
   const inactiveColor = document.body.classList.contains('dark-theme') || document.body.classList.contains('theme-dark') ? '#475569' : '#e2e8f0';
-  
+
   slider.style.background = `linear-gradient(to right, ${activeColor} ${percentage}%, ${inactiveColor} ${percentage}%)`;
 }
 
@@ -8567,16 +8586,16 @@ export {
 function initAuth() {
   const avatarBtn = document.getElementById('user-avatar-btn');
   const dropdown = document.getElementById('profile-dropdown');
-  
+
   const guestView = document.getElementById('profile-guest-view');
   const userView = document.getElementById('profile-user-view');
   const profileName = document.getElementById('profile-user-name');
   const profileEmail = document.getElementById('profile-user-email');
   const profileAvatarInner = document.getElementById('profile-user-avatar-inner');
-  
+
   const signinBtn = document.getElementById('profile-signin-btn');
   const signoutBtn = document.getElementById('profile-signout-btn');
-  
+
   const authModal = document.getElementById('auth-modal');
   const authClose = document.getElementById('auth-modal-close');
   const authForm = document.getElementById('auth-form');
@@ -8586,13 +8605,13 @@ function initAuth() {
   const authPasswordInput = document.getElementById('auth-password-input');
   const authErrorMsg = document.getElementById('auth-error-msg');
   const authSubmitBtn = document.getElementById('auth-submit-btn');
-  
+
   const authTabLogin = document.getElementById('auth-tab-login');
   const authTabRegister = document.getElementById('auth-tab-register');
-  
+
   const pwToggleBtn = document.getElementById('auth-pw-toggle');
   const forgotBtn = document.getElementById('auth-forgot-btn');
-  
+
   let activeTab = 'login'; // 'login' or 'register'
 
   // ── Guest Banner elements ──
@@ -8805,7 +8824,7 @@ function initAuth() {
     const email = authEmailInput?.value.trim();
     const password = authPasswordInput?.value;
     const name = authNameInput?.value.trim();
-    
+
     if (!email || !password) return;
 
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -8815,12 +8834,12 @@ function initAuth() {
       }
       return;
     }
-    
+
     if (authSubmitBtn) {
       authSubmitBtn.disabled = true;
       const originalText = authSubmitBtn.textContent;
       authSubmitBtn.textContent = activeTab === 'login' ? 'Signing In...' : 'Creating Account...';
-      
+
       try {
         if (activeTab === 'login') {
           await loginUser(email, password);
@@ -8936,9 +8955,9 @@ function initAuth() {
       } catch (e) {
         console.warn('Failed to cache profile for offline use:', e);
       }
-      
+
       const initial = (user.displayName || user.email || 'U').charAt(0).toUpperCase();
-      
+
       if (user.photoURL) {
         if (avatarBtn) {
           avatarBtn.textContent = '';
@@ -8961,19 +8980,19 @@ function initAuth() {
 
       if (profileName) profileName.textContent = user.displayName || user.email.split('@')[0];
       if (profileEmail) profileEmail.textContent = user.email;
-      
+
       if (guestView) guestView.style.display = 'none';
       if (userView) userView.style.display = 'block';
       // Signed in — hide guest banner and remove gate
       hideGuestBanner();
       authModal?.classList.remove('gate-mode');
       localStorage.setItem('paperuss_auth_choice', 'user');
-      
+
       updateOnlineStatusUI();
       processPendingSyncQueue(user.uid);
 
       // Sync settings with Firestore in real-time
-      initSettingsCloudSync(user.uid);
+      await initSettingsCloudSync(user.uid);
 
       // Subscribe to real-time cloud updates
       initCloudNotesSync(user);
@@ -8990,7 +9009,7 @@ function initAuth() {
       }
       if (guestView) guestView.style.display = 'block';
       if (userView) userView.style.display = 'none';
-      
+
       // Restore guest local notes
       initData();
       renderNotes();
@@ -9010,7 +9029,7 @@ function initAuth() {
 function showGuestWelcomeNotification() {
   if (sessionStorage.getItem('guest-welcomed') === 'true') return;
   sessionStorage.setItem('guest-welcomed', 'true');
-  
+
   setTimeout(() => {
     showToast({
       title: 'Welcome to Paperuss! 🚀',
