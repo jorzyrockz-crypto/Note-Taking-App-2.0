@@ -235,6 +235,14 @@ function getThemeSelectionFromContext() {
   return null;
 }
 
+function getCustomThemeSelectionFromContext() {
+  if (!activeThemePickerContext) return null;
+  if (activeThemePickerContext.type === 'creator') {
+    return creatorCustomTheme || null;
+  }
+  return activeThemePickerContext.note?.customTheme || null;
+}
+
 function loadEmojiThemeControls() {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.emojiThemeControls);
@@ -518,10 +526,100 @@ function applyThemeSelectionFromPicker(themeId) {
   closeThemePickerV2();
 }
 
+function applyCustomThemeSelectionFromPicker(customTheme) {
+  if (!activeThemePickerContext || !customTheme?.image) return;
+
+  if (activeThemePickerContext.type === 'creator') {
+    const normalized = applyAppearanceSelection({
+      color: creatorColor,
+      theme: creatorTheme,
+      customTheme: creatorCustomTheme
+    }, 'custom-theme', customTheme);
+    creatorColor = normalized.color;
+    creatorTheme = normalized.theme;
+    creatorCustomTheme = normalized.customTheme;
+    applyCreatorAppearance();
+  } else if (activeThemePickerContext.type === 'modal' && activeThemePickerContext.note) {
+    applyAppearanceSelection(activeThemePickerContext.note, 'custom-theme', customTheme);
+    applyNoteAppearance(editModalCard, activeThemePickerContext.note);
+    saveToLocalStorage();
+    renderNotes();
+  } else if (activeThemePickerContext.type === 'note' && activeThemePickerContext.note) {
+    applyAppearanceSelection(activeThemePickerContext.note, 'custom-theme', customTheme);
+    saveToLocalStorage();
+    renderNotes();
+  }
+
+  closeThemePickerV2();
+}
+
+async function uploadCustomThemeFromPicker(fileInput, triggerButton) {
+  const [file] = Array.from(fileInput?.files || []);
+  if (!file) return;
+
+  const originalLabel = triggerButton?.textContent || 'Upload image';
+  try {
+    if (triggerButton) {
+      triggerButton.disabled = true;
+      triggerButton.textContent = 'Analyzing...';
+    }
+    const customTheme = await createCustomThemeFromFile(file);
+    applyCustomThemeSelectionFromPicker(customTheme);
+  } catch (error) {
+    console.warn('Unable to create custom note background:', error);
+    showToast({
+      title: 'Theme upload failed',
+      text: error.message || 'The background could not be processed. Try another image.'
+    });
+  } finally {
+    if (triggerButton) {
+      triggerButton.disabled = false;
+      triggerButton.textContent = originalLabel;
+    }
+    if (fileInput) fileInput.value = '';
+  }
+}
+
 function renderThemePickerV2() {
   if (!themePickerV2Grid) return;
   themePickerV2Grid.innerHTML = '';
   const activeTheme = getThemeSelectionFromContext();
+  const activeCustomTheme = activeTheme === CUSTOM_THEME_ID ? getCustomThemeSelectionFromContext() : null;
+
+  const uploadRow = document.createElement('div');
+  uploadRow.className = 'theme-picker-v2-upload-row';
+  const uploadInput = document.createElement('input');
+  uploadInput.type = 'file';
+  uploadInput.accept = 'image/*';
+  uploadInput.hidden = true;
+  const uploadButton = document.createElement('button');
+  uploadButton.type = 'button';
+  uploadButton.className = 'text-btn save-btn theme-picker-v2-upload-btn';
+  uploadButton.textContent = activeCustomTheme?.image ? 'Replace uploaded note background' : 'Upload note background';
+  uploadButton.title = 'Upload a custom note card background image';
+  uploadButton.addEventListener('click', () => uploadInput.click());
+  uploadInput.addEventListener('change', () => uploadCustomThemeFromPicker(uploadInput, uploadButton));
+  uploadRow.appendChild(uploadButton);
+  uploadRow.appendChild(uploadInput);
+  themePickerV2Grid.appendChild(uploadRow);
+
+  if (activeCustomTheme?.image) {
+    const customCard = document.createElement('button');
+    customCard.type = 'button';
+    customCard.className = 'theme-picker-v2-card selected';
+    customCard.innerHTML = `
+      <span class="theme-picker-v2-card-preview theme-picker-v2-custom-upload-preview">
+        <span class="theme-picker-v2-card-preview-inner">Custom</span>
+      </span>
+      <span class="theme-picker-v2-card-meta">
+        <strong>Uploaded image</strong>
+        <span>Current note background</span>
+      </span>
+    `;
+    customCard.querySelector('.theme-picker-v2-custom-upload-preview')?.style.setProperty('--custom-theme-image', `url("${escapeCssUrl(activeCustomTheme.image)}")`);
+    customCard.addEventListener('click', () => applyCustomThemeSelectionFromPicker(activeCustomTheme));
+    themePickerV2Grid.appendChild(customCard);
+  }
 
   const noThemeCard = document.createElement('button');
   noThemeCard.type = 'button';
