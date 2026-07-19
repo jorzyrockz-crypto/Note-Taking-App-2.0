@@ -10811,9 +10811,14 @@ body.dark-theme.card-style-notebook .note-card::before {
 /* Ensure the main app layout renders above the tint overlay */
 .app-header,
 .app-sidebar,
+.main-content-area,
 .app-layout,
 #pwa-splash {
   z-index: 2;
+}
+
+.main-content-area {
+  position: relative;
 }
 
 .app-header { z-index: 100; }

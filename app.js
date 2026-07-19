@@ -1194,7 +1194,7 @@ const othersSection = document.getElementById('others-section');
 const othersGrid = document.getElementById('others-grid');
 const othersSectionTitle = document.getElementById('others-section-title');
 const emptyState = document.getElementById('empty-state');
-const sidebarTagsList = document.getElementById('sidebar-tags-list');
+let sidebarTagsList = null;
 const sidebarAllNotes = document.getElementById('sidebar-all-notes');
 const creatorWrapper = document.querySelector('.creator-wrapper');
 const notesFeed = document.querySelector('.notes-feed');
@@ -1438,6 +1438,27 @@ function enhanceShell() {
   } else {
     sidebarFoldersList = document.getElementById('sidebar-folders-list');
   }
+
+  if (sidebar && !document.getElementById('sidebar-tags-list')) {
+    const divider = document.createElement('div');
+    divider.className = 'sidebar-divider';
+    const title = document.createElement('div');
+    title.className = 'sidebar-section-title sidebar-label';
+    title.textContent = 'TAGS';
+    const tagsList = document.createElement('div');
+    tagsList.className = 'sidebar-tags-container';
+    tagsList.id = 'sidebar-tags-list';
+    if (sidebarSettings) {
+      sidebar.insertBefore(divider, sidebarSettings);
+      sidebar.insertBefore(title, sidebarSettings);
+      sidebar.insertBefore(tagsList, sidebarSettings);
+    } else {
+      sidebar.appendChild(divider);
+      sidebar.appendChild(title);
+      sidebar.appendChild(tagsList);
+    }
+  }
+  sidebarTagsList = document.getElementById('sidebar-tags-list');
 
   const chipsContainer = document.getElementById('creator-chips-container');
   if (chipsContainer && !document.getElementById('creator-folder')) {
@@ -5842,7 +5863,9 @@ function renderNotesPage() {
   if (creatorWrapper) {
     creatorWrapper.style.display = (currentPage === 'notes') ? '' : 'none';
   }
-  if (feedFilterRow) feedFilterRow.style.display = '';
+  if (feedFilterRow) {
+    feedFilterRow.style.display = (currentPage === 'notes') ? '' : 'none';
+  }
   if (notesFeed) {
     notesFeed.style.display = '';
     applySkyThemeClass(experimentalSkyTheme);
