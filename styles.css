@@ -89,6 +89,7 @@ body.dark-theme {
 body {
   --accent-color: var(--accent) !important;
   --accent-dark: var(--accent) !important;
+  --bg-sidebar-active: var(--accent-light) !important;
 }
 
 /* Lavender */
@@ -4930,10 +4931,11 @@ body.dark-theme .share-sheet-overlay {
 
 .filter-pill.active,
 .filter-pill:hover {
-  background: linear-gradient(135deg, #fb923c, #f97316);
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
   border-color: transparent;
   color: white;
-  box-shadow: 0 12px 30px rgba(249, 115, 22, 0.2);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 .note-meta-row {
