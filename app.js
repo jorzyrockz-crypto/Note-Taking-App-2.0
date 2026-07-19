@@ -274,6 +274,9 @@ function getSettingsCloudPayload(updatedAt = Date.now()) {
     emojiThemeControls: getEmojiThemeControls(),
     experimentalSkyTheme,
     premiumSkyTheme,
+    folders: customFolders,
+    theme: localStorage.getItem(STORAGE_KEYS.theme) || 'light',
+    view: localStorage.getItem(STORAGE_KEYS.view) || 'grid',
     updatedAt
   };
 }
@@ -353,6 +356,18 @@ export function initSettingsCloudSync(uid) {
               premiumSkyTheme = cloudData.premiumSkyTheme;
               localStorage.setItem('paperuss_theme_premium_ambient', premiumSkyTheme ? 'true' : 'false');
               applyPremiumSkyThemeClass(premiumSkyTheme);
+            }
+            if (cloudData.folders) {
+              customFolders.splice(0, customFolders.length, ...cloudData.folders);
+              localStorage.setItem(STORAGE_KEYS.folders, JSON.stringify(customFolders));
+              if (typeof renderSidebarFolders === 'function') renderSidebarFolders();
+            }
+            if (cloudData.theme && cloudData.theme !== localStorage.getItem(STORAGE_KEYS.theme)) {
+              if (typeof setTheme === 'function') setTheme(cloudData.theme);
+            }
+            if (cloudData.view && cloudData.view !== localStorage.getItem(STORAGE_KEYS.view)) {
+              localStorage.setItem(STORAGE_KEYS.view, cloudData.view);
+              if (typeof initViewLayout === 'function') initViewLayout();
             }
 
             localStorage.setItem(STORAGE_KEYS.settingsUpdatedAt, cloudUpdatedAt.toString());
@@ -586,22 +601,26 @@ function renderThemePickerV2() {
   const activeTheme = getThemeSelectionFromContext();
   const activeCustomTheme = activeTheme === CUSTOM_THEME_ID ? getCustomThemeSelectionFromContext() : null;
 
-  const uploadRow = document.createElement('div');
-  uploadRow.className = 'theme-picker-v2-upload-row';
+  const uploadCard = document.createElement('button');
+  uploadCard.type = 'button';
+  uploadCard.className = 'theme-picker-v2-card theme-picker-v2-upload-card';
+  uploadCard.innerHTML = `
+    <span class="theme-picker-v2-card-preview">
+      <span class="theme-picker-v2-card-preview-inner">+</span>
+    </span>
+    <span class="theme-picker-v2-card-meta">
+      <strong>${activeCustomTheme?.image ? 'Replace image' : 'Upload image'}</strong>
+      <span>Custom note background</span>
+    </span>
+  `;
   const uploadInput = document.createElement('input');
   uploadInput.type = 'file';
   uploadInput.accept = 'image/*';
   uploadInput.hidden = true;
-  const uploadButton = document.createElement('button');
-  uploadButton.type = 'button';
-  uploadButton.className = 'text-btn save-btn theme-picker-v2-upload-btn';
-  uploadButton.textContent = activeCustomTheme?.image ? 'Replace uploaded note background' : 'Upload note background';
-  uploadButton.title = 'Upload a custom note card background image';
-  uploadButton.addEventListener('click', () => uploadInput.click());
-  uploadInput.addEventListener('change', () => uploadCustomThemeFromPicker(uploadInput, uploadButton));
-  uploadRow.appendChild(uploadButton);
-  uploadRow.appendChild(uploadInput);
-  themePickerV2Grid.appendChild(uploadRow);
+  uploadCard.addEventListener('click', () => uploadInput.click());
+  uploadInput.addEventListener('change', () => uploadCustomThemeFromPicker(uploadInput, uploadCard));
+  themePickerV2Grid.appendChild(uploadInput);
+  themePickerV2Grid.appendChild(uploadCard);
 
   if (activeCustomTheme?.image) {
     const customCard = document.createElement('button');
@@ -1875,6 +1894,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Pre-load dynamic modules asynchronously in the background for instant transitions
   loadSettingsModule().catch(err => console.warn('Failed to pre-load settings module:', err));
   loadProductivityModule().catch(err => console.warn('Failed to pre-load productivity module:', err));
+
+  // Dismiss splash screen since app initialization is complete
+  if (typeof window.__dismissSplash === 'function') {
+    window.__dismissSplash();
+  }
 });
 
 function registerServiceWorker() {
@@ -1882,6 +1906,66 @@ function registerServiceWorker() {
   navigator.serviceWorker.register('./sw.js')
     .then(reg => {
       console.log('Service Worker registered successfully:', reg.scope);
+
+      // Handle updates on controller change (page reload when the new sw takes control)
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      });
+
+      // Bind the Update button click handler on the splash screen
+      const splashUpdateBtn = document.getElementById('splash-update-btn');
+      if (splashUpdateBtn) {
+        splashUpdateBtn.addEventListener('click', () => {
+          if (window.__swWaitingWorker) {
+            window.__swWaitingWorker.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      }
+
+      function handleServiceWorkerUpdate(waitingWorker) {
+        window.__swUpdateWaiting = true;
+        window.__swWaitingWorker = waitingWorker;
+
+        // If the splash screen is still visible, show the update prompt on it.
+        const splash = document.getElementById('pwa-splash');
+        if (splash && document.body.contains(splash)) {
+          if (typeof window.__showSplashUpdateUI === 'function') {
+            window.__showSplashUpdateUI();
+          }
+        } else {
+          // If the user is already inside the app, show a sticky toast notification with an Update button!
+          showToast({
+            title: 'Update Available',
+            text: 'A new version of Paperuss is ready. Click update to load the new features.',
+            duration: 0, // Stay forever
+            action: {
+              text: 'Update',
+              callback: () => {
+                waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+              }
+            }
+          });
+        }
+      }
+
+      // Check if a service worker is already waiting to be activated
+      if (reg.waiting) {
+        handleServiceWorkerUpdate(reg.waiting);
+        return;
+      }
+
+      // Listen for the update found event (a new service worker is installing)
+      reg.addEventListener('updatefound', () => {
+        const installingWorker = reg.installing;
+        installingWorker.addEventListener('statechange', () => {
+          if (installingWorker.state === 'installed') {
+            if (navigator.serviceWorker.controller) {
+              // New update is available and waiting
+              handleServiceWorkerUpdate(installingWorker);
+            }
+          }
+        });
+      });
     })
     .catch(err => {
       console.error('Service Worker registration failed:', err);
@@ -2052,11 +2136,16 @@ export function applyAppBgColor() {
     document.body.style.setProperty('--bg-app', `linear-gradient(${overlayColor}, ${overlayColor}), url("${imageUrl}")`, 'important');
     document.body.style.setProperty('--bg-app-size', appSettings.appBgImage.fit || 'cover');
     document.body.style.setProperty('--bg-app-position', appSettings.appBgImage.position || 'center center');
+    document.body.style.setProperty('--bg-app-repeat', appSettings.appBgImage.fit === 'tile' ? 'repeat' : 'no-repeat');
+    if (appSettings.appBgImage.fit === 'tile') {
+      document.body.style.setProperty('--bg-app-size', 'auto');
+    }
     return;
   }
 
   document.body.style.removeProperty('--bg-app-size');
   document.body.style.removeProperty('--bg-app-position');
+  document.body.style.removeProperty('--bg-app-repeat');
 
   let bgValue = '';
   if (isDark) {
@@ -2937,15 +3026,14 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.3.0';
+  const CURRENT_VERSION = '2.3.1';
   const DEFAULT_CHANGELOG = [
-    'Layered note card architecture inspired by modern paper cards with depth and softness',
-    'New Premium Solid note themes (Sage Green, Soft Blue, Lavender, Warm Peach, Mint, Sand, Blush, Light Yellow)',
-    'Clean Minimalist Cool Gray (#EEEEEE) app background theme preset in settings',
-    'Modern Pastel UI Accent color themes (lavender, sky, aqua, mint, blush, peach, rose, honey)',
-    'Dynamic note text and toolbar icon color mapping based on note theme selection',
-    'Improved responsive checklist keyboard actions and note card feed preview styles',
-    'Page action bars with Delete All Trash / Trash All Archive bulk operations'
+    'Service worker update checking & prompt during splash screen loading and active background usage',
+    'Instant dark/light theme detection on splash screen loading (preventing white flashing)',
+    'Workspace background image fitting settings (Fill, Fit, Stretch, Tile, Center) in Appearance settings',
+    'Note background image upload button styled as a native card in the theme slider picker',
+    'Productivity page hero banner horizontal gradient adapting to the active workspace theme background',
+    'Productivity page todo widget surfacing individual unchecked checklist items across notes'
   ];
 
   subscribeToVersionUpdates((serverConfig) => {
@@ -7823,12 +7911,14 @@ function showToast(note) {
 
   container.appendChild(toast);
 
-  setTimeout(() => {
-    if (toast.parentNode) {
-      toast.classList.add('hide');
-      setTimeout(() => toast.remove(), 350);
-    }
-  }, 8000);
+  if (note.duration !== 0) {
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.classList.add('hide');
+        setTimeout(() => toast.remove(), 350);
+      }
+    }, 8000);
+  }
 }
 
 function checkReminders() {

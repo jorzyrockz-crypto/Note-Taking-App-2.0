@@ -1,4 +1,4 @@
-const CACHE_NAME = 'paperuss-v47';
+const CACHE_NAME = 'paperuss-v48';
 // Static assets that never get hashed — safe to precache by path
 const APP_ASSETS = [
   './',
@@ -26,7 +26,12 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_ASSETS))
   );
-  self.skipWaiting();
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', (event) => {

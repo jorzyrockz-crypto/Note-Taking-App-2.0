@@ -60,6 +60,7 @@ let settingsAppBgUpload;
 let settingsAppBgRemove;
 let settingsAppBgOverlay;
 let settingsAppBgOverlayVal;
+let settingsAppBgFit;
 
 export function initSettings() {
   settingsPage = document.getElementById('settings-page');
@@ -94,6 +95,7 @@ export function initSettings() {
   settingsAppBgRemove = document.getElementById('settings-app-bg-remove');
   settingsAppBgOverlay = document.getElementById('settings-app-bg-overlay');
   settingsAppBgOverlayVal = document.getElementById('settings-app-bg-overlay-val');
+  settingsAppBgFit = document.getElementById('settings-app-bg-fit');
 
   // Bind Event Handlers
   settingsBackBtn?.addEventListener('click', () => {
@@ -137,15 +139,21 @@ export function initSettings() {
     saveSettingsAndSync();
   });
   settingsAppBgOverlay?.addEventListener('input', () => {
-    const overlay = Number(settingsAppBgOverlay.value);
-    if (settingsAppBgOverlayVal) settingsAppBgOverlayVal.textContent = `${overlay}%`;
     if (appSettings.appBgImage) {
-      appSettings.appBgImage.overlay = overlay;
-      appSettings.appBgType = 'custom-image';
+      appSettings.appBgImage.overlay = Number(settingsAppBgOverlay.value);
+      if (settingsAppBgOverlayVal) settingsAppBgOverlayVal.textContent = `${settingsAppBgOverlay.value}%`;
       applyAppBgColor();
+      saveSettingsAndSync();
     }
   });
-  settingsAppBgOverlay?.addEventListener('change', saveSettingsAndSync);
+
+  settingsAppBgFit?.addEventListener('change', () => {
+    if (appSettings.appBgImage) {
+      appSettings.appBgImage.fit = settingsAppBgFit.value;
+      applyAppBgColor();
+      saveSettingsAndSync();
+    }
+  });
 
   // Custom theme create
   settingsCustomThemeCreate?.addEventListener('click', createCustomEmojiTheme);
@@ -547,6 +555,11 @@ export function renderSettingsBgPicker() {
   if (settingsAppBgRemove) settingsAppBgRemove.disabled = !customBg;
   if (settingsAppBgOverlay) settingsAppBgOverlay.value = customBg?.overlay ?? 18;
   if (settingsAppBgOverlayVal) settingsAppBgOverlayVal.textContent = `${customBg?.overlay ?? 18}%`;
+  
+  if (settingsAppBgFit) {
+    settingsAppBgFit.value = customBg?.fit || 'cover';
+    settingsAppBgFit.disabled = !customBg;
+  }
 
   const options = [
     { id: 'base', title: 'Default (Sky Match)', subtitle: 'Matches navigation bar', previewBg: 'linear-gradient(180deg, #e0f2fe 0%, #f0f9ff 100%)', previewBgDark: 'linear-gradient(180deg, #131e35 0%, #0d1424 100%)' },

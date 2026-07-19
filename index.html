@@ -53,6 +53,17 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body class="theme-light light-theme">
+  <script>
+    (function () {
+      try {
+        var theme = localStorage.getItem('paperuss_theme');
+        if (theme === 'dark') {
+          document.body.classList.remove('theme-light', 'light-theme');
+          document.body.classList.add('theme-dark', 'dark-theme');
+        }
+      } catch (e) {}
+    })();
+  </script>
 
   <!-- Custom Glassmorphic Background -->
   <div class="custom-app-bg" aria-hidden="true">
@@ -71,6 +82,10 @@
       <h1 class="splash-title">Paperuss</h1>
       <p class="splash-tagline">Your Visual Note Studio</p>
       <div class="splash-loader"><div class="splash-loader-bar"></div></div>
+      <div id="splash-update-container" class="splash-update-container" style="display: none;">
+        <span class="splash-update-text">A new version of Paperuss is available!</span>
+        <button id="splash-update-btn" class="splash-update-btn">Update Now</button>
+      </div>
     </div>
   </div>
 
@@ -146,24 +161,18 @@
           <div class="profile-divider"></div>
           <div class="profile-version-section">
             <div class="version-header">
-              <span class="version-label">Version 2.2.1</span>
+              <span class="version-label">Version 2.3.1</span>
               <button class="update-btn" id="app-update-btn" type="button">Update</button>
             </div>
             <div class="changelog-container">
               <div class="changelog-title">What's New</div>
               <ul class="changelog-list">
-                 <li>Premium UI Refinement: Floating paper-like note cards with dynamic depth</li>
-                 <li>Improved Glass Editor modal visibility and transitions</li>
-                 <li>Implemented Firestore server timestamps to eliminate client clock-skew syncing issues</li>
-                 <li>Implemented 3-Way Field-Level Merging to prevent concurrent edits from overwriting each other</li>
-                 <li>Implemented Delta Syncing to prevent devices from overwriting each other's checklist states</li>
-                 <li>Fixed real-time checkbox updates not reflecting in the active Edit Note modal</li>
-                 <li>Fixed checklist click/drag binding serialization bugs after note reload</li>
-                 <li>Synchronized properties drawer category selection with note save actions</li>
-                 <li>Added Tab key text indentation support for both Glass and Textarea editors</li>
-                 <li>Added dynamic color feedback (green for saved, red for saving) to autosave status indicators</li>
-                 <li>Resolved transparent sidebar and header overlays persisting on portrait mobile/tablet viewports</li>
-                 <li>Fixed pinned notes persisting in pinned lists after moving to trash or archive</li>
+                 <li>Service worker update checking & prompt during splash screen loading and active background usage</li>
+                 <li>Instant dark/light theme detection on splash screen loading (preventing white flashing)</li>
+                 <li>Workspace background image fitting settings (Fill, Fit, Stretch, Tile, Center) in Appearance settings</li>
+                 <li>Note background image upload button styled as a native card in the theme slider picker</li>
+                 <li>Productivity page hero banner horizontal gradient adapting to the active workspace theme background</li>
+                 <li>Productivity page todo widget surfacing individual unchecked checklist items across notes</li>
               </ul>
             </div>
           </div>
@@ -776,6 +785,18 @@
               </span>
               <input type="range" id="settings-app-bg-overlay" min="0" max="70" step="1" value="18">
             </label>
+            <div class="settings-row flex-column" style="margin-top: 16px; border-top: none; padding-top: 0; padding-bottom: 0;">
+              <div class="settings-info full-width">
+                <strong>Background fitting</strong>
+              </div>
+              <select id="settings-app-bg-fit" class="settings-select" style="max-width: 420px; margin-top: 6px;">
+                <option value="cover">Fill (Cover)</option>
+                <option value="contain">Fit (Contain)</option>
+                <option value="100% 100%">Stretch</option>
+                <option value="tile">Tile</option>
+                <option value="center">Center</option>
+              </select>
+            </div>
           </div>
 
           <div class="settings-row flex-column emoji-controls-group">
@@ -1449,9 +1470,16 @@
       var splash = document.getElementById('pwa-splash');
       if (!splash) return;
       var startTime = Date.now();
-      var MIN_DURATION = 1500; // Enforce minimum 1.5 seconds splash display
+      var MIN_DURATION = 1500;
+      var dismissed = false;
 
       function dismiss() {
+        if (dismissed) return;
+        if (window.__swUpdateWaiting) {
+          showUpdateUI();
+          return;
+        }
+        dismissed = true;
         var elapsed = Date.now() - startTime;
         var remaining = Math.max(0, MIN_DURATION - elapsed);
         
@@ -1463,14 +1491,23 @@
           }, 380);
         }, remaining);
       }
-      
-      if (document.readyState === 'complete') {
-        dismiss();
-      } else {
-        window.addEventListener('load', dismiss, { once: true });
-        // Safety net: force dismiss after 4s even if load never fires
-        setTimeout(dismiss, 4000);
+
+      function showUpdateUI() {
+        var loader = splash.querySelector('.splash-loader');
+        if (loader) loader.style.display = 'none';
+        var updateContainer = document.getElementById('splash-update-container');
+        if (updateContainer) updateContainer.style.display = 'flex';
       }
+
+      window.__dismissSplash = dismiss;
+      window.__showSplashUpdateUI = showUpdateUI;
+      
+      // Safety net: force dismiss after 4s if app.js fails or hangs and no update is waiting
+      setTimeout(function () {
+        if (!window.__swUpdateWaiting) {
+          dismiss();
+        }
+      }, 4000);
     })();
   </script>
 </body>

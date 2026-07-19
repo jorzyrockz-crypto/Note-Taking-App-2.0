@@ -468,15 +468,14 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '2.3.0',
+        version: '2.3.1',
         changelog: [
-          'Layered note card architecture inspired by modern paper cards with depth and softness',
-          'New Premium Solid note themes (Sage Green, Soft Blue, Lavender, Warm Peach, Mint, Sand, Blush, Light Yellow)',
-          'Clean Minimalist Cool Gray (#EEEEEE) app background theme preset in settings',
-          'Modern Pastel UI Accent color themes (lavender, sky, aqua, mint, blush, peach, rose, honey)',
-          'Dynamic note text and toolbar icon color mapping based on note theme selection',
-          'Improved responsive checklist keyboard actions and note card feed preview styles',
-          'Page action bars with Delete All Trash / Trash All Archive bulk operations'
+          'Service worker update checking & prompt during splash screen loading and active background usage',
+          'Instant dark/light theme detection on splash screen loading (preventing white flashing)',
+          'Workspace background image fitting settings (Fill, Fit, Stretch, Tile, Center) in Appearance settings',
+          'Note background image upload button styled as a native card in the theme slider picker',
+          'Productivity page hero banner horizontal gradient adapting to the active workspace theme background',
+          'Productivity page todo widget surfacing individual unchecked checklist items across notes'
         ]
       });
     }, 0);

@@ -1,5 +1,6 @@
 import {
   notes,
+  appSettings,
   selectedCalendarDate,
   calendarCursorDate,
   selectedProductivityDayView,
@@ -35,6 +36,52 @@ import {
   getTaskInlineReminderDateKeys
 } from './app.js';
 
+// Map workspace background preset → hero gradient colors [light, dark]
+const BG_HERO_GRADIENTS = {
+  base:     ['#dbeafe, #eff6ff',         '#1a2540, #0f1a30'],
+  sky:      ['#e0f2fe, #f0f9ff',         '#0f1a38, #080d1c'],
+  lilac:    ['#f3e8ff, #ede9fe',         '#2a1a40, #1a1030'],
+  sage:     ['#dcfce7, #ecfdf5',         '#0e2a1a, #081510'],
+  peach:    ['#ffedd5, #fff7ed',         '#2e1a0a, #1a0f05'],
+  offwhite: ['#fdfcf8, #f9f9f6',         '#1e1c18, #161410'],
+  white:    ['#f8fafc, #f1f5f9',         '#111827, #0d1424'],
+  coolgray: ['#f1f5f9, #e2e8f0',         '#1f2937, #111827'],
+  paper:    ['#f0ede3, #f6f4ec',         '#1d1a14, #15130f'],
+};
+
+function getHeroGradient() {
+  const isDark = document.body.classList.contains('dark-theme');
+  const bgColor = appSettings?.appBgColor || 'base';
+  const hasCustomImage = appSettings?.appBgType === 'custom-image' && appSettings?.appBgImage?.src;
+  if (hasCustomImage) {
+    return isDark
+      ? 'rgba(15,23,42,0.82), rgba(15,23,42,0.72)'
+      : 'rgba(255,255,255,0.82), rgba(241,246,255,0.72)';
+  }
+  const pair = BG_HERO_GRADIENTS[bgColor] || BG_HERO_GRADIENTS.base;
+  return isDark ? pair[1] : pair[0];
+}
+
+function getTodayLabel() {
+  return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase();
+}
+
+// Collect all unchecked items across notes, returning [{text, note}, ...]
+function getAllUncheckedItems(noteList = notes) {
+  const items = [];
+  for (const note of noteList) {
+    if (!note || note.deleted) continue;
+    const lines = `${note.text || ''}`.split('\n');
+    for (const line of lines) {
+      if (line.startsWith('- [ ] ')) {
+        const text = line.slice(6).replace(/\s*@remind\([^)]*\)/g, '').trim();
+        if (text) items.push({ text, note });
+      }
+    }
+  }
+  return items;
+}
+
 let productivityPage;
 
 export function ensureProductivityPage() {
@@ -47,9 +94,9 @@ export function ensureProductivityPage() {
     productivityPage.id = 'productivity-page';
     productivityPage.style.display = 'none';
     productivityPage.innerHTML = `
-      <div class="productivity-hero">
+      <div class="productivity-hero" id="productivity-hero">
         <div class="productivity-hero-copy">
-          <div class="productivity-eyebrow">PRODUCTIVITY</div>
+          <div class="productivity-hero-date" id="productivity-hero-date"></div>
           <h2 class="productivity-title">Calendar Flow</h2>
           <p class="productivity-subtitle">A clean month view with type-colored note dots and a focused day panel for agenda, tasks, and notes created that day.</p>
         </div>
@@ -139,6 +186,17 @@ export function renderProductivityPage() {
 
   setActiveSidebarPage('productivity');
 
+  // Apply workspace-adaptive gradient
+  const heroEl = document.getElementById('productivity-hero');
+  if (heroEl) {
+    const [gradFrom, gradTo] = getHeroGradient().split(', ');
+    heroEl.style.background = `linear-gradient(120deg, ${gradFrom.trim()} 0%, ${gradTo.trim()} 100%)`;
+  }
+
+  // Live date eyebrow
+  const heroDate = document.getElementById('productivity-hero-date');
+  if (heroDate) heroDate.textContent = getTodayLabel();
+
   const reminderNotes = getReminderNotes();
   const taskNotes = getTaskNotes();
   const summary = document.getElementById('productivity-summary');
@@ -146,19 +204,27 @@ export function renderProductivityPage() {
     const selectedDay = getDayCollections(selectedCalendarDate);
     summary.innerHTML = `
       <div class="productivity-stat">
-        <span class="productivity-stat-icon" aria-hidden="true">⏰</span>
-        <strong>${reminderNotes.length}</strong>
-        <span>Reminders</span>
+        <span class="productivity-stat-icon-badge productivity-stat-icon--reminder" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </span>
+        <span class="productivity-stat-value">${reminderNotes.length}</span>
+        <span class="productivity-stat-label">Reminders</span>
       </div>
+      <div class="productivity-stat-divider"></div>
       <div class="productivity-stat">
-        <span class="productivity-stat-icon" aria-hidden="true">☑</span>
-        <strong>${taskNotes.length}</strong>
-        <span>Tasks</span>
+        <span class="productivity-stat-icon-badge productivity-stat-icon--tasks" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </span>
+        <span class="productivity-stat-value">${taskNotes.length}</span>
+        <span class="productivity-stat-label">Tasks</span>
       </div>
-      <div class="productivity-stat accent">
-        <span class="productivity-stat-icon" aria-hidden="true">✦</span>
-        <strong>${selectedDay.created.length}</strong>
-        <span>Made today</span>
+      <div class="productivity-stat-divider"></div>
+      <div class="productivity-stat">
+        <span class="productivity-stat-icon-badge productivity-stat-icon--today" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </span>
+        <span class="productivity-stat-value">${selectedDay.created.length}</span>
+        <span class="productivity-stat-label">Notes Today</span>
       </div>
     `;
   }
@@ -287,36 +353,42 @@ export function renderProductivityPage() {
     notesMadeWrap.style.display = createdNotes.length > 0 ? 'flex' : 'none';
   }
   if (todoWidget) {
-    const widgetTasks = todoNotes.length > 0
-      ? todoNotes
-      : getFilteredProductivityTasks().filter(note => !isTaskCompleted(note)).slice(0, 4);
-    const widgetLabel = todoNotes.length > 0 ? 'Selected day' : 'Next up';
+    // Gather task-level notes for the selected day
+    const dayTaskItems = todoNotes.map(note => ({ type: 'note', note, text: cleanTitleTags(note.title || 'Untitled task'), sub: getTaskPreviewLabel(note), schedule: getTaskPreviewSchedule(note, selectedCalendarDate), completed: isTaskCompleted(note) }));
+
+    // Gather individual unchecked checklist lines from all notes
+    const uncheckedItems = getAllUncheckedItems(notes)
+      .filter(({ note }) => !todoNotes.find(n => n.id === note.id)) // don't double-show
+      .map(({ text, note }) => ({ type: 'item', note, text, sub: cleanTitleTags(note.title || ''), schedule: '', completed: false }));
+
+    // Merge: day tasks first, then unchecked items, cap at 8
+    const widgetItems = [...dayTaskItems, ...uncheckedItems].slice(0, 8);
+    const widgetLabel = todoNotes.length > 0 ? 'Selected day tasks + unchecked items' : 'All unchecked items';
+
     todoWidget.innerHTML = `
       <div class="productivity-todo-widget-head">
         <div>
           <div class="productivity-panel-kicker">To Do</div>
           <h4>Task widget</h4>
         </div>
-        <span class="agenda-count">${widgetTasks.length}</span>
+        <span class="agenda-count">${widgetItems.length}</span>
       </div>
-      <div class="productivity-todo-widget-meta">${widgetLabel} tasks at a glance.</div>
+      <div class="productivity-todo-widget-meta">${widgetLabel}.</div>
       <div class="productivity-todo-list">
-        ${widgetTasks.length > 0
-          ? widgetTasks.map(note => `
-            <button class="productivity-todo-item ${isTaskCompleted(note) ? 'is-complete' : ''}" type="button" data-note-id="${note.id}">
+        ${widgetItems.length > 0
+          ? widgetItems.map(item => `
+            <button class="productivity-todo-item ${item.completed ? 'is-complete' : ''}" type="button" data-note-id="${item.note.id}">
               <span class="productivity-todo-bullet"></span>
               <span class="productivity-todo-copy">
                 <span class="productivity-todo-copy-top">
-                  <strong>${cleanTitleTags(note.title || 'Untitled task')}</strong>
-                  ${getTaskPreviewSchedule(note, selectedCalendarDate)
-                    ? `<span class="productivity-todo-schedule">${getTaskPreviewSchedule(note, selectedCalendarDate)}</span>`
-                    : ''}
+                  <strong>${escapeHtml(item.text)}</strong>
+                  ${item.schedule ? `<span class="productivity-todo-schedule">${item.schedule}</span>` : ''}
                 </span>
-                <span>${getTaskPreviewLabel(note)}</span>
+                ${item.type === 'item' && item.sub ? `<span class="productivity-todo-note-source">${escapeHtml(item.sub)}</span>` : (item.sub ? `<span>${item.sub}</span>` : '')}
               </span>
             </button>
           `).join('')
-          : '<div class="productivity-empty productivity-todo-empty">No open tasks to show.</div>'}
+          : '<div class="productivity-empty productivity-todo-empty">No open tasks or unchecked items.</div>'}
       </div>
     `;
     todoWidget.querySelectorAll('.productivity-todo-item').forEach(button => {
