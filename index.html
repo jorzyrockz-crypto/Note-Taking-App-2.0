@@ -762,6 +762,18 @@
             <div class="theme-picker-v2-grid" id="settings-bg-picker-grid" style="margin-top: 10px; width: 100%; box-sizing: border-box;">
               <!-- Dynamically populated via JS -->
             </div>
+            <div class="settings-app-bg-upload-row">
+              <label class="text-btn save-btn" for="settings-app-bg-upload">Upload app background</label>
+              <input type="file" id="settings-app-bg-upload" accept="image/*" hidden>
+              <button class="text-btn danger-btn" id="settings-app-bg-remove" type="button">Remove custom background</button>
+            </div>
+            <label class="theme-picker-v2-control settings-app-bg-overlay-control">
+              <span class="theme-picker-v2-control-top">
+                <strong>Background overlay</strong>
+                <span id="settings-app-bg-overlay-val">18%</span>
+              </span>
+              <input type="range" id="settings-app-bg-overlay" min="0" max="70" step="1" value="18">
+            </label>
           </div>
 
           <div class="settings-row flex-column emoji-controls-group">

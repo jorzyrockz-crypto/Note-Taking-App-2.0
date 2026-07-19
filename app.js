@@ -127,6 +127,8 @@ export let appSettings = {
   welcomeNoteDismissed: false,
   welcomeNoteSeeded: false,
   appBgColor: 'base',
+  appBgType: 'preset',
+  appBgImage: null,
   reminderTimes: {
     morning: '08:00',
     afternoon: '13:00',
@@ -231,6 +233,14 @@ function getThemeSelectionFromContext() {
     return activeThemePickerContext.note.theme || null;
   }
   return null;
+}
+
+function getCustomThemeSelectionFromContext() {
+  if (!activeThemePickerContext) return null;
+  if (activeThemePickerContext.type === 'creator') {
+    return creatorCustomTheme || null;
+  }
+  return activeThemePickerContext.note?.customTheme || null;
 }
 
 function loadEmojiThemeControls() {
@@ -516,10 +526,100 @@ function applyThemeSelectionFromPicker(themeId) {
   closeThemePickerV2();
 }
 
+function applyCustomThemeSelectionFromPicker(customTheme) {
+  if (!activeThemePickerContext || !customTheme?.image) return;
+
+  if (activeThemePickerContext.type === 'creator') {
+    const normalized = applyAppearanceSelection({
+      color: creatorColor,
+      theme: creatorTheme,
+      customTheme: creatorCustomTheme
+    }, 'custom-theme', customTheme);
+    creatorColor = normalized.color;
+    creatorTheme = normalized.theme;
+    creatorCustomTheme = normalized.customTheme;
+    applyCreatorAppearance();
+  } else if (activeThemePickerContext.type === 'modal' && activeThemePickerContext.note) {
+    applyAppearanceSelection(activeThemePickerContext.note, 'custom-theme', customTheme);
+    applyNoteAppearance(editModalCard, activeThemePickerContext.note);
+    saveToLocalStorage();
+    renderNotes();
+  } else if (activeThemePickerContext.type === 'note' && activeThemePickerContext.note) {
+    applyAppearanceSelection(activeThemePickerContext.note, 'custom-theme', customTheme);
+    saveToLocalStorage();
+    renderNotes();
+  }
+
+  closeThemePickerV2();
+}
+
+async function uploadCustomThemeFromPicker(fileInput, triggerButton) {
+  const [file] = Array.from(fileInput?.files || []);
+  if (!file) return;
+
+  const originalLabel = triggerButton?.textContent || 'Upload image';
+  try {
+    if (triggerButton) {
+      triggerButton.disabled = true;
+      triggerButton.textContent = 'Analyzing...';
+    }
+    const customTheme = await createCustomThemeFromFile(file);
+    applyCustomThemeSelectionFromPicker(customTheme);
+  } catch (error) {
+    console.warn('Unable to create custom note background:', error);
+    showToast({
+      title: 'Theme upload failed',
+      text: error.message || 'The background could not be processed. Try another image.'
+    });
+  } finally {
+    if (triggerButton) {
+      triggerButton.disabled = false;
+      triggerButton.textContent = originalLabel;
+    }
+    if (fileInput) fileInput.value = '';
+  }
+}
+
 function renderThemePickerV2() {
   if (!themePickerV2Grid) return;
   themePickerV2Grid.innerHTML = '';
   const activeTheme = getThemeSelectionFromContext();
+  const activeCustomTheme = activeTheme === CUSTOM_THEME_ID ? getCustomThemeSelectionFromContext() : null;
+
+  const uploadRow = document.createElement('div');
+  uploadRow.className = 'theme-picker-v2-upload-row';
+  const uploadInput = document.createElement('input');
+  uploadInput.type = 'file';
+  uploadInput.accept = 'image/*';
+  uploadInput.hidden = true;
+  const uploadButton = document.createElement('button');
+  uploadButton.type = 'button';
+  uploadButton.className = 'text-btn save-btn theme-picker-v2-upload-btn';
+  uploadButton.textContent = activeCustomTheme?.image ? 'Replace uploaded note background' : 'Upload note background';
+  uploadButton.title = 'Upload a custom note card background image';
+  uploadButton.addEventListener('click', () => uploadInput.click());
+  uploadInput.addEventListener('change', () => uploadCustomThemeFromPicker(uploadInput, uploadButton));
+  uploadRow.appendChild(uploadButton);
+  uploadRow.appendChild(uploadInput);
+  themePickerV2Grid.appendChild(uploadRow);
+
+  if (activeCustomTheme?.image) {
+    const customCard = document.createElement('button');
+    customCard.type = 'button';
+    customCard.className = 'theme-picker-v2-card selected';
+    customCard.innerHTML = `
+      <span class="theme-picker-v2-card-preview theme-picker-v2-custom-upload-preview">
+        <span class="theme-picker-v2-card-preview-inner">Custom</span>
+      </span>
+      <span class="theme-picker-v2-card-meta">
+        <strong>Uploaded image</strong>
+        <span>Current note background</span>
+      </span>
+    `;
+    customCard.querySelector('.theme-picker-v2-custom-upload-preview')?.style.setProperty('--custom-theme-image', `url("${escapeCssUrl(activeCustomTheme.image)}")`);
+    customCard.addEventListener('click', () => applyCustomThemeSelectionFromPicker(activeCustomTheme));
+    themePickerV2Grid.appendChild(customCard);
+  }
 
   const noThemeCard = document.createElement('button');
   noThemeCard.type = 'button';
@@ -576,7 +676,7 @@ function applyCreatorAppearance() {
   });
 }
 
-function readFileAsDataUrl(file) {
+export function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
@@ -865,9 +965,69 @@ function buildCustomThemeFromImage(dataUrl) {
   });
 }
 
+function loadImageFromDataUrl(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Unable to load the selected image.'));
+    img.src = dataUrl;
+  });
+}
+
+function validateBackgroundImageFile(file) {
+  if (!file || !file.type || !file.type.startsWith('image/')) {
+    throw new Error('Please choose an image file.');
+  }
+
+  const maxSize = 12 * 1024 * 1024;
+  if (file.size > maxSize) {
+    throw new Error('Please choose an image smaller than 12 MB.');
+  }
+}
+
+export async function processUploadedBackgroundImage(file, options = {}) {
+  validateBackgroundImageFile(file);
+  const {
+    maxWidth = 1600,
+    maxHeight = 1600,
+    quality = 0.82,
+    type = 'image/jpeg'
+  } = options;
+
+  const originalDataUrl = await readFileAsDataUrl(file);
+  const img = await loadImageFromDataUrl(originalDataUrl);
+  const scale = Math.min(1, maxWidth / img.width, maxHeight / img.height);
+  const width = Math.max(1, Math.round(img.width * scale));
+  const height = Math.max(1, Math.round(img.height * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) {
+    throw new Error('Canvas is unavailable for image processing.');
+  }
+
+  context.drawImage(img, 0, 0, width, height);
+  const dataUrl = canvas.toDataURL(type, quality);
+
+  return {
+    src: dataUrl,
+    name: file.name || 'Custom background',
+    type,
+    width,
+    height,
+    originalSize: file.size
+  };
+}
+
 async function createCustomThemeFromFile(file) {
-  const dataUrl = await readFileAsDataUrl(file);
-  return buildCustomThemeFromImage(dataUrl);
+  const processed = await processUploadedBackgroundImage(file, {
+    maxWidth: 1200,
+    maxHeight: 1200,
+    quality: 0.78
+  });
+  return buildCustomThemeFromImage(processed.src);
 }
 
 export const STORAGE_KEYS = {
@@ -1879,10 +2039,24 @@ export function applyAppBgColor() {
   const bgColor = appSettings.appBgColor || 'base';
 
   // Toggle active preset classes on the body for styling isolation
-  const presets = ['base', 'sky', 'lilac', 'sage', 'peach', 'offwhite', 'white', 'coolgray'];
+  const presets = ['base', 'sky', 'lilac', 'sage', 'peach', 'offwhite', 'white', 'coolgray', 'custom'];
+  const hasCustomImage = appSettings.appBgType === 'custom-image' && appSettings.appBgImage?.src;
   presets.forEach(preset => {
-    document.body.classList.toggle(`bg-preset-${preset}`, bgColor === preset);
+    document.body.classList.toggle(`bg-preset-${preset}`, hasCustomImage ? preset === 'custom' : bgColor === preset);
   });
+
+  if (hasCustomImage) {
+    const overlayOpacity = clamp(numericSetting(appSettings.appBgImage.overlay, isDark ? 38 : 18), 0, 70) / 100;
+    const overlayColor = isDark ? `rgba(15, 23, 42, ${overlayOpacity})` : `rgba(255, 255, 255, ${overlayOpacity})`;
+    const imageUrl = escapeCssUrl(appSettings.appBgImage.src);
+    document.body.style.setProperty('--bg-app', `linear-gradient(${overlayColor}, ${overlayColor}), url("${imageUrl}")`, 'important');
+    document.body.style.setProperty('--bg-app-size', appSettings.appBgImage.fit || 'cover');
+    document.body.style.setProperty('--bg-app-position', appSettings.appBgImage.position || 'center center');
+    return;
+  }
+
+  document.body.style.removeProperty('--bg-app-size');
+  document.body.style.removeProperty('--bg-app-position');
 
   let bgValue = '';
   if (isDark) {

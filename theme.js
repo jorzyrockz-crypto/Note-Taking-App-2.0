@@ -6,7 +6,7 @@ import {
 } from './utils.js';
 
 export const CUSTOM_THEME_ID = 'custom';
-export const ENABLE_CUSTOM_THEME_UPLOAD = false;
+export const ENABLE_CUSTOM_THEME_UPLOAD = true;
 
 export const DEFAULT_EMOJI_THEME_CONTROLS = Object.freeze({
   opacity: 8,
