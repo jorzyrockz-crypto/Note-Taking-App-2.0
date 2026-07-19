@@ -203,6 +203,20 @@ body.ui-theme-honey.dark-theme {
   --accent-text: #facc15;
 }
 
+/* Paper (Notebook Moss) */
+body.ui-theme-paper {
+  --accent: #5b7a63;
+  --accent-hover: #46614c;
+  --accent-light: #e3ebe1;
+  --accent-border: #c7d6c4;
+  --accent-text: #3d5641;
+}
+body.ui-theme-paper.dark-theme {
+  --accent-light: rgba(91, 122, 99, 0.18);
+  --accent-border: rgba(91, 122, 99, 0.32);
+  --accent-text: #8fae95;
+}
+
 /* ==========================================================================
    Base & Resets
    ========================================================================== */

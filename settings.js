@@ -556,7 +556,8 @@ export function renderSettingsBgPicker() {
     { id: 'peach', title: 'Peach Glow', subtitle: 'Warm cozy workspace', previewBg: 'linear-gradient(180deg, #ffedd5 0%, #fdfbf8 100%)', previewBgDark: 'linear-gradient(180deg, #28170a 0%, #170d05 100%)' },
     { id: 'offwhite', title: 'Soft Off-White', subtitle: 'Clean paper-like warmth', previewBg: 'linear-gradient(180deg, #fdfcf8 0%, #faf9f6 100%)', previewBgDark: '#171511' },
     { id: 'white', title: 'Pure White', subtitle: 'Bright minimal canvas', previewBg: '#ffffff', previewBgDark: '#111827' },
-    { id: 'coolgray', title: 'Cool Gray', subtitle: 'Clean neutral grey canvas', previewBg: '#EEEEEE', previewBgDark: '#1F2937' }
+    { id: 'coolgray', title: 'Cool Gray', subtitle: 'Clean neutral grey canvas', previewBg: '#EEEEEE', previewBgDark: '#1F2937' },
+    { id: 'paper', title: 'Notebook Paper', subtitle: 'Warm oat tone for Notebook card style', previewBg: 'linear-gradient(180deg, #efede3 0%, #f6f4ec 100%)', previewBgDark: 'linear-gradient(180deg, #1d1a14 0%, #15130f 100%)' }
   ];
 
   const isDark = document.body.classList.contains('dark-theme');

@@ -2039,7 +2039,7 @@ export function applyAppBgColor() {
   const bgColor = appSettings.appBgColor || 'base';
 
   // Toggle active preset classes on the body for styling isolation
-  const presets = ['base', 'sky', 'lilac', 'sage', 'peach', 'offwhite', 'white', 'coolgray', 'custom'];
+  const presets = ['base', 'sky', 'lilac', 'sage', 'peach', 'offwhite', 'white', 'coolgray', 'paper', 'custom'];
   const hasCustomImage = appSettings.appBgType === 'custom-image' && appSettings.appBgImage?.src;
   presets.forEach(preset => {
     document.body.classList.toggle(`bg-preset-${preset}`, hasCustomImage ? preset === 'custom' : bgColor === preset);
@@ -2082,6 +2082,9 @@ export function applyAppBgColor() {
       case 'coolgray':
         bgValue = '#1F2937';
         break;
+      case 'paper':
+        bgValue = 'linear-gradient(180deg, #1d1a14 0%, #15130f 100%)';
+        break;
       case 'base':
       default:
         bgValue = 'linear-gradient(180deg, #131e35 0%, #0d1424 100%)';
@@ -2109,6 +2112,9 @@ export function applyAppBgColor() {
         break;
       case 'coolgray':
         bgValue = '#EEEEEE';
+        break;
+      case 'paper':
+        bgValue = 'linear-gradient(180deg, #efede3 0%, #f6f4ec 100%)';
         break;
       case 'base':
       default:
@@ -8565,7 +8571,7 @@ export function applyPremiumSkyThemeClass(enabled) {
 
 export function applyUiColorThemeClass(themeId) {
   const normalizedTheme = themeId || 'sky';
-  const uiThemes = ['lavender', 'sky', 'aqua', 'mint', 'blush', 'peach', 'rose', 'honey'];
+  const uiThemes = ['lavender', 'sky', 'aqua', 'mint', 'blush', 'peach', 'rose', 'honey', 'paper'];
   uiThemes.forEach(theme => {
     document.body.classList.remove(`ui-theme-${theme}`);
   });
