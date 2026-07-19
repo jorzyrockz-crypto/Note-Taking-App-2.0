@@ -10490,3 +10490,95 @@ body.bg-preset-custom .bg-shape {
   background-size: cover, cover !important;
   background-position: center, center !important;
 }
+
+/* ==========================================================================
+   Notebook Card Style — mini spiral-bound notebook page
+   Toggle: Settings → Appearance & Card Styles → Card Layout Style → Notebook
+   ========================================================================== */
+
+body.card-style-notebook .note-card {
+  padding-left: 34px !important;
+  border-radius: 4px 20px 20px 4px !important;
+  overflow: visible;
+}
+
+/* Coil binding running down the left edge, punched holes in the paper */
+body.card-style-notebook .note-card::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  bottom: 6px;
+  width: 20px;
+  border-radius: 4px 0 0 4px;
+  background-color: rgba(15, 23, 42, 0.035);
+  border-right: 1px solid var(--border-light);
+  background-image: radial-gradient(circle at center, var(--note-default, #fff) 3.2px, var(--text-secondary) 3.6px, var(--text-secondary) 4.4px, transparent 5px);
+  background-size: 20px 26px;
+  background-position: 0 10px;
+  background-repeat: repeat-y;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* A second sheet peeking out behind the card, like a small notepad */
+body.card-style-notebook .note-card::after {
+  content: '';
+  position: absolute;
+  inset: 6px -7px -9px 7px;
+  background: var(--note-default, #ffffff);
+  border: 1px solid var(--border-light);
+  border-radius: 4px 20px 20px 20px;
+  transform: rotate(-2deg);
+  z-index: -1;
+  pointer-events: none;
+}
+body.card-style-notebook .note-card[data-color="red"]::after      { background: var(--note-red); }
+body.card-style-notebook .note-card[data-color="orange"]::after   { background: var(--note-orange); }
+body.card-style-notebook .note-card[data-color="yellow"]::after   { background: var(--note-yellow); }
+body.card-style-notebook .note-card[data-color="green"]::after    { background: var(--note-green); }
+body.card-style-notebook .note-card[data-color="teal"]::after     { background: var(--note-teal); }
+body.card-style-notebook .note-card[data-color="blue"]::after     { background: var(--note-blue); }
+body.card-style-notebook .note-card[data-color="darkblue"]::after { background: var(--note-darkblue); }
+body.card-style-notebook .note-card[data-color="purple"]::after   { background: var(--note-purple); }
+body.card-style-notebook .note-card[data-color="pink"]::after     { background: var(--note-pink); }
+body.card-style-notebook .note-card[data-color="brown"]::after    { background: var(--note-brown); }
+body.card-style-notebook .note-card[data-color="grey"]::after     { background: var(--note-grey); }
+
+/* Ruled lines + red margin rule on the writing surface itself.
+   Selector includes .note-card to out-specificity the seasonal/custom
+   theme surface backgrounds so notebook mode stays consistent everywhere. */
+body.card-style-notebook .note-card .note-surface {
+  background:
+    linear-gradient(to right, transparent 9px, rgba(193, 105, 79, 0.32) 9px, rgba(193, 105, 79, 0.32) 10px, transparent 10px),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 22px, rgba(94, 126, 147, 0.16) 22px, rgba(94, 126, 147, 0.16) 23px),
+    var(--surface-paper) !important;
+  background-position: 0 2px, 0 4px, 0 0;
+  padding-left: 22px !important;
+}
+
+body.card-style-notebook .note-card:hover {
+  transform: translateY(-2px) rotate(-0.4deg);
+}
+
+/* Dark theme: keep the coil ring visible against the still-light note paper */
+body.dark-theme.card-style-notebook .note-card::before {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+@media (max-width: 760px) {
+  body.card-style-notebook .note-card {
+    padding-left: 26px !important;
+  }
+  body.card-style-notebook .note-card::before {
+    width: 16px;
+    background-size: 16px 22px;
+  }
+  body.card-style-notebook .note-card .note-surface {
+    padding-left: 16px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.card-style-notebook .note-card:hover { transform: none; }
+}

@@ -8578,11 +8578,13 @@ export function setPremiumSkyTheme(enabled) {
 }
 
 function applyCardLayoutStyle(style) {
-  document.body.classList.remove('card-style-keep', 'card-style-flat', 'card-style-glass');
+  document.body.classList.remove('card-style-keep', 'card-style-flat', 'card-style-glass', 'card-style-notebook');
   if (style === 'flat' || style === 'keep') {
     document.body.classList.add('card-style-flat');
   } else if (style === 'glass') {
     document.body.classList.add('card-style-glass');
+  } else if (style === 'notebook') {
+    document.body.classList.add('card-style-notebook');
   }
 }
 
