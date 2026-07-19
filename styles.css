@@ -99,11 +99,18 @@ body.ui-theme-lavender {
   --accent-light: #f5f3ff;
   --accent-border: #ddd6fe;
   --accent-text: #6d28d9;
+  --accent-rgb: 139, 92, 246;
+  --workspace-tint: rgba(var(--accent-rgb), 0.07);
+  --glass-tint: rgba(var(--accent-rgb), 0.09);
+  --ambient-glow: rgba(var(--accent-rgb), 0.15);
 }
 body.ui-theme-lavender.dark-theme {
   --accent-light: rgba(139, 92, 246, 0.15);
   --accent-border: rgba(139, 92, 246, 0.28);
   --accent-text: #a78bfa;
+  --workspace-tint: rgba(var(--accent-rgb), 0.10);
+  --glass-tint: rgba(var(--accent-rgb), 0.12);
+  --ambient-glow: rgba(var(--accent-rgb), 0.18);
 }
 
 /* Sky Blue */
@@ -113,11 +120,18 @@ body.ui-theme-sky {
   --accent-light: #e0f2fe;
   --accent-border: #bae6fd;
   --accent-text: #0369a1;
+  --accent-rgb: 56, 189, 248;
+  --workspace-tint: rgba(var(--accent-rgb), 0.07);
+  --glass-tint: rgba(var(--accent-rgb), 0.09);
+  --ambient-glow: rgba(var(--accent-rgb), 0.15);
 }
 body.ui-theme-sky.dark-theme {
   --accent-light: rgba(56, 189, 248, 0.15);
   --accent-border: rgba(56, 189, 248, 0.28);
   --accent-text: #7dd3fc;
+  --workspace-tint: rgba(var(--accent-rgb), 0.10);
+  --glass-tint: rgba(var(--accent-rgb), 0.12);
+  --ambient-glow: rgba(var(--accent-rgb), 0.18);
 }
 
 /* Aqua */
@@ -127,11 +141,18 @@ body.ui-theme-aqua {
   --accent-light: #ecfeff;
   --accent-border: #cffafe;
   --accent-text: #0e7490;
+  --accent-rgb: 6, 182, 212;
+  --workspace-tint: rgba(var(--accent-rgb), 0.07);
+  --glass-tint: rgba(var(--accent-rgb), 0.09);
+  --ambient-glow: rgba(var(--accent-rgb), 0.15);
 }
 body.ui-theme-aqua.dark-theme {
   --accent-light: rgba(6, 182, 212, 0.15);
   --accent-border: rgba(6, 182, 212, 0.28);
   --accent-text: #22d3ee;
+  --workspace-tint: rgba(var(--accent-rgb), 0.10);
+  --glass-tint: rgba(var(--accent-rgb), 0.12);
+  --ambient-glow: rgba(var(--accent-rgb), 0.18);
 }
 
 /* Mint */
@@ -141,11 +162,18 @@ body.ui-theme-mint {
   --accent-light: #ecfdf5;
   --accent-border: #a7f3d0;
   --accent-text: #047857;
+  --accent-rgb: 16, 185, 129;
+  --workspace-tint: rgba(var(--accent-rgb), 0.07);
+  --glass-tint: rgba(var(--accent-rgb), 0.09);
+  --ambient-glow: rgba(var(--accent-rgb), 0.15);
 }
 body.ui-theme-mint.dark-theme {
   --accent-light: rgba(16, 185, 129, 0.15);
   --accent-border: rgba(16, 185, 129, 0.28);
   --accent-text: #34d399;
+  --workspace-tint: rgba(var(--accent-rgb), 0.10);
+  --glass-tint: rgba(var(--accent-rgb), 0.12);
+  --ambient-glow: rgba(var(--accent-rgb), 0.18);
 }
 
 /* Blush */
@@ -155,11 +183,18 @@ body.ui-theme-blush {
   --accent-light: #fdf2f8;
   --accent-border: #fbcfe8;
   --accent-text: #be185d;
+  --accent-rgb: 236, 72, 153;
+  --workspace-tint: rgba(var(--accent-rgb), 0.07);
+  --glass-tint: rgba(var(--accent-rgb), 0.09);
+  --ambient-glow: rgba(var(--accent-rgb), 0.15);
 }
 body.ui-theme-blush.dark-theme {
   --accent-light: rgba(236, 72, 153, 0.15);
   --accent-border: rgba(236, 72, 153, 0.28);
   --accent-text: #f472b6;
+  --workspace-tint: rgba(var(--accent-rgb), 0.10);
+  --glass-tint: rgba(var(--accent-rgb), 0.12);
+  --ambient-glow: rgba(var(--accent-rgb), 0.18);
 }
 
 /* Peach */
@@ -169,11 +204,18 @@ body.ui-theme-peach {
   --accent-light: #fff7ed;
   --accent-border: #ffedd5;
   --accent-text: #c2410c;
+  --accent-rgb: 249, 115, 22;
+  --workspace-tint: rgba(var(--accent-rgb), 0.07);
+  --glass-tint: rgba(var(--accent-rgb), 0.09);
+  --ambient-glow: rgba(var(--accent-rgb), 0.15);
 }
 body.ui-theme-peach.dark-theme {
   --accent-light: rgba(249, 115, 22, 0.15);
   --accent-border: rgba(249, 115, 22, 0.28);
   --accent-text: #fb923c;
+  --workspace-tint: rgba(var(--accent-rgb), 0.10);
+  --glass-tint: rgba(var(--accent-rgb), 0.12);
+  --ambient-glow: rgba(var(--accent-rgb), 0.18);
 }
 
 /* Rose */
@@ -183,11 +225,18 @@ body.ui-theme-rose {
   --accent-light: #fff1f2;
   --accent-border: #ffe4e6;
   --accent-text: #be123c;
+  --accent-rgb: 244, 63, 94;
+  --workspace-tint: rgba(var(--accent-rgb), 0.07);
+  --glass-tint: rgba(var(--accent-rgb), 0.09);
+  --ambient-glow: rgba(var(--accent-rgb), 0.15);
 }
 body.ui-theme-rose.dark-theme {
   --accent-light: rgba(244, 63, 94, 0.15);
   --accent-border: rgba(244, 63, 94, 0.28);
   --accent-text: #fb7185;
+  --workspace-tint: rgba(var(--accent-rgb), 0.10);
+  --glass-tint: rgba(var(--accent-rgb), 0.12);
+  --ambient-glow: rgba(var(--accent-rgb), 0.18);
 }
 
 /* Honey */
@@ -197,11 +246,18 @@ body.ui-theme-honey {
   --accent-light: #fef9c3;
   --accent-border: #fef08a;
   --accent-text: #a16207;
+  --accent-rgb: 234, 179, 8;
+  --workspace-tint: rgba(var(--accent-rgb), 0.07);
+  --glass-tint: rgba(var(--accent-rgb), 0.09);
+  --ambient-glow: rgba(var(--accent-rgb), 0.15);
 }
 body.ui-theme-honey.dark-theme {
   --accent-light: rgba(234, 179, 8, 0.15);
   --accent-border: rgba(234, 179, 8, 0.28);
   --accent-text: #facc15;
+  --workspace-tint: rgba(var(--accent-rgb), 0.10);
+  --glass-tint: rgba(var(--accent-rgb), 0.12);
+  --ambient-glow: rgba(var(--accent-rgb), 0.18);
 }
 
 /* Paper (Notebook Moss) */
@@ -211,11 +267,18 @@ body.ui-theme-paper {
   --accent-light: #e3ebe1;
   --accent-border: #c7d6c4;
   --accent-text: #3d5641;
+  --accent-rgb: 91, 122, 99;
+  --workspace-tint: rgba(var(--accent-rgb), 0.07);
+  --glass-tint: rgba(var(--accent-rgb), 0.09);
+  --ambient-glow: rgba(var(--accent-rgb), 0.15);
 }
 body.ui-theme-paper.dark-theme {
   --accent-light: rgba(91, 122, 99, 0.18);
   --accent-border: rgba(91, 122, 99, 0.32);
   --accent-text: #8fae95;
+  --workspace-tint: rgba(var(--accent-rgb), 0.10);
+  --glass-tint: rgba(var(--accent-rgb), 0.12);
+  --ambient-glow: rgba(var(--accent-rgb), 0.18);
 }
 
 /* ==========================================================================
@@ -710,31 +773,33 @@ body.sidebar-pinned .app-sidebar .sidebar-label,
   background-size: var(--note-theme-pattern-size, 112px 112px);
   background-repeat: repeat;
 
-  border: 1.5px solid rgba(56, 189, 248, 0.22);
+  border: 1.5px solid var(--accent-border);
   border-radius: 14px;
-  box-shadow: var(--shadow-creator);
+  box-shadow: var(--shadow-creator), 0 4px 24px var(--ambient-glow);
   padding: 12px 16px;
   position: relative;
   transition: border-color 0.25s ease, box-shadow 0.25s ease;
   overflow: visible;
 }
 
-/* Sky-blue focus glow when interacted with */
+/* Accent-driven focus glow when interacted with */
 .note-creator:focus-within {
-  border-color: #38bdf8;
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15),
-              0 4px 16px rgba(56, 189, 248, 0.12);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-border),
+              0 4px 16px var(--ambient-glow),
+              0 8px 32px var(--ambient-glow);
 }
 
 body.dark-theme .note-creator {
-  border-color: rgba(56, 189, 248, 0.15);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  border-color: var(--accent-border);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 4px 24px var(--ambient-glow);
 }
 
 body.dark-theme .note-creator:focus-within {
-  border-color: #38bdf8;
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12),
-              0 4px 20px rgba(0, 0, 0, 0.5);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-border),
+              0 4px 20px var(--ambient-glow),
+              0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 /* Re-enable the gradient border animation only when a non-default colour
@@ -5447,8 +5512,8 @@ body.dark-theme .note-card[data-note-kind="image"] {
   padding: clamp(20px, 3vw, 32px) clamp(24px, 3.5vw, 40px);
   border-radius: 24px;
   border: 1px solid rgba(148, 163, 184, 0.14);
-  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.07);
-  transition: background 0.4s ease;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.07), 0 16px 64px var(--ambient-glow);
+  transition: background 0.4s ease, box-shadow 0.4s ease;
 }
 
 .productivity-hero-copy {
@@ -5470,8 +5535,8 @@ body.dark-theme .note-card[data-note-kind="image"] {
   align-items: center;
   gap: 0;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: linear-gradient(var(--glass-tint), var(--glass-tint)), rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--accent-border);
   border-radius: 16px;
   padding: 12px 20px;
   backdrop-filter: blur(10px);
@@ -9470,8 +9535,8 @@ body.dark-theme .bg-shape {
   height: 45vw;
   max-width: 600px;
   max-height: 600px;
-  /* Light sky blue top-left side shape */
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.45) 0%, rgba(56, 189, 248, 0) 70%);
+  /* Accent-driven ambient blob — reacts to UI color theme */
+  background: radial-gradient(circle, var(--ambient-glow) 0%, rgba(var(--accent-rgb), 0) 70%);
   top: 10%;
   left: -15vw;
   animation: floatLeftShape 25s infinite alternate ease-in-out;
@@ -9482,8 +9547,8 @@ body.dark-theme .bg-shape {
   height: 50vw;
   max-width: 700px;
   max-height: 700px;
-  /* Warm peachy-coral bottom-right side shape */
-  background: radial-gradient(circle, rgba(251, 113, 133, 0.35) 0%, rgba(251, 113, 133, 0) 70%);
+  /* Secondary accent blob — softer, slightly offset in hue */
+  background: radial-gradient(circle, var(--glass-tint) 0%, rgba(var(--accent-rgb), 0) 70%);
   bottom: 5%;
   right: -15vw;
   animation: floatRightShape 30s infinite alternate ease-in-out;
@@ -9530,8 +9595,8 @@ body.bg-preset-sky .shape-left,
 body.bg-preset-lilac .shape-left,
 body.bg-preset-sage .shape-left,
 body.bg-preset-peach .shape-left {
-  /* Adjust radial gradient position so it leans towards the top center composer area */
-  background: radial-gradient(circle at 40% 40%, rgba(56, 189, 248, 0.45) 0%, rgba(56, 189, 248, 0) 75%) !important;
+  /* Accent-driven shape from CSS tint var */
+  background: radial-gradient(circle at 40% 40%, var(--ambient-glow) 0%, rgba(var(--accent-rgb), 0) 75%) !important;
 }
 
 /* Allow bottom glow to fade naturally and keep notes area clean (bottom-right shape) */
@@ -9552,7 +9617,7 @@ body.bg-preset-lilac.dark-theme .shape-right,
 body.bg-preset-sage.dark-theme .shape-right,
 body.bg-preset-peach.dark-theme .shape-right {
   opacity: 0.10 !important;
-  background: radial-gradient(circle at 60% 60%, rgba(251, 113, 133, 0.25) 0%, rgba(251, 113, 133, 0) 50%) !important;
+  background: radial-gradient(circle at 60% 60%, var(--glass-tint) 0%, rgba(var(--accent-rgb), 0) 50%) !important;
 }
 
 /* Hide ambient glow shapes completely on clean, minimal presets */
@@ -9599,26 +9664,28 @@ body {
 
 /* Apply glassmorphism styling to main UI elements to blend with the background */
 .app-header {
-  background: rgba(255, 255, 255, 0.85) !important;
+  background: linear-gradient(var(--glass-tint), var(--glass-tint)), rgba(255, 255, 255, 0.85) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 4px 32px var(--ambient-glow) !important;
 }
 
 body.dark-theme .app-header {
-  background: rgba(15, 23, 42, 0.85) !important;
+  background: linear-gradient(var(--glass-tint), var(--glass-tint)), rgba(15, 23, 42, 0.85) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+  box-shadow: 0 4px 32px var(--ambient-glow) !important;
 }
 
 .app-sidebar {
-  background: rgba(255, 255, 255, 0.8) !important;
+  background: linear-gradient(var(--glass-tint), var(--glass-tint)), rgba(255, 255, 255, 0.8) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
   border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
 }
 
 body.dark-theme .app-sidebar {
-  background: rgba(15, 23, 42, 0.8) !important;
+  background: linear-gradient(var(--glass-tint), var(--glass-tint)), rgba(15, 23, 42, 0.8) !important;
   border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
 
@@ -9637,15 +9704,17 @@ body.dark-theme .note-card {
 }
 
 .note-creator {
-  background: rgba(255, 255, 255, 0.45) !important;
+  background: linear-gradient(var(--glass-tint), var(--glass-tint)), rgba(255, 255, 255, 0.45) !important;
   backdrop-filter: blur(10px) !important;
   -webkit-backdrop-filter: blur(10px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  border: 1px solid var(--accent-border) !important;
+  box-shadow: 0 4px 28px var(--ambient-glow) !important;
 }
 
 body.dark-theme .note-creator {
-  background: rgba(30, 41, 59, 0.45) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: linear-gradient(var(--glass-tint), var(--glass-tint)), rgba(30, 41, 59, 0.45) !important;
+  border: 1px solid var(--accent-border) !important;
+  box-shadow: 0 4px 28px var(--ambient-glow) !important;
 }
 
 /* ==========================================================================
@@ -9878,22 +9947,22 @@ body.dark-theme .note-content-field a {
   bottom: 32px;
   left: 50%;
   transform: translateX(-50%) translateY(0);
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: linear-gradient(var(--glass-tint), var(--glass-tint)), #ffffff;
+  border: 1px solid var(--accent-border);
   border-radius: 999px;
   padding: 8px 16px;
   display: flex;
   gap: 6px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 20px var(--ambient-glow);
   z-index: 1000;
   align-items: center;
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
 }
 
 body.dark-theme .glass-floating-toolbar {
-  background: #1e293b;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(var(--glass-tint), var(--glass-tint)), #1e293b;
+  border: 1px solid var(--accent-border);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3), 0 4px 20px var(--ambient-glow);
 }
 
 .glass-floating-toolbar.toolbar-hidden {
@@ -10697,3 +10766,37 @@ body.dark-theme.card-style-notebook .note-card::before {
 @media (prefers-reduced-motion: reduce) {
   body.card-style-notebook .note-card:hover { transform: none; }
 }
+
+/* ==========================================================================
+   Dynamic Workspace Tint System — Accent-driven atmosphere overlay
+   ========================================================================== */
+
+/* Layer 1 — Wallpaper Tint Overlay
+   Sits above the wallpaper/background at z-index 1, below all UI chrome.
+   Colored by --workspace-tint which auto-updates with the active accent. */
+#workspace-tint-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background-color: var(--workspace-tint);
+  transition: background-color 0.4s ease;
+  will-change: background-color;
+}
+
+/* Ensure the custom-app-bg (blob shapes container) renders below the overlay */
+.custom-app-bg {
+  z-index: 0;
+}
+
+/* Ensure the main app layout renders above the tint overlay */
+.app-header,
+.app-sidebar,
+.app-layout,
+#pwa-splash {
+  z-index: 2;
+}
+
+.app-header { z-index: 100; }
+.app-sidebar { z-index: 90; }
+
