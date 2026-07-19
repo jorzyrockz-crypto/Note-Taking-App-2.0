@@ -9511,6 +9511,9 @@ body.dark-theme .emoji-popover {
   pointer-events: none;
   /* Soft, multi-directional background gradient */
   background: var(--bg-app) !important;
+  background-size: var(--bg-app-size, auto) !important;
+  background-position: var(--bg-app-position, center center) !important;
+  background-repeat: var(--bg-app-repeat, no-repeat) !important;
   transition: background 0.5s ease;
 }
 
@@ -9690,7 +9693,11 @@ body.dark-theme .app-sidebar {
 }
 
 .note-card {
-  background: rgba(255, 255, 255, 0.45) !important;
+  background-color: color-mix(in srgb, var(--note-color, var(--note-default)) 45%, transparent) !important;
+  background-image: var(--theme-pattern, none) !important;
+  background-repeat: no-repeat, no-repeat !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
   backdrop-filter: blur(10px) !important;
   -webkit-backdrop-filter: blur(10px) !important;
   border: 1px solid rgba(255, 255, 255, 0.4) !important;
@@ -9698,13 +9705,21 @@ body.dark-theme .app-sidebar {
 }
 
 body.dark-theme .note-card {
-  background: rgba(30, 41, 59, 0.45) !important;
+  background-color: color-mix(in srgb, var(--note-color, var(--note-default)) 35%, transparent) !important;
+  background-image: var(--theme-pattern, none) !important;
+  background-repeat: no-repeat, no-repeat !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2) !important;
 }
 
 .note-creator {
-  background: linear-gradient(var(--glass-tint), var(--glass-tint)), rgba(255, 255, 255, 0.45) !important;
+  background-color: color-mix(in srgb, var(--note-color, var(--note-default)) 45%, transparent) !important;
+  background-image: linear-gradient(var(--glass-tint), var(--glass-tint)), var(--theme-pattern, none) !important;
+  background-repeat: no-repeat, no-repeat !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
   backdrop-filter: blur(10px) !important;
   -webkit-backdrop-filter: blur(10px) !important;
   border: 1px solid var(--accent-border) !important;
@@ -9712,7 +9727,11 @@ body.dark-theme .note-card {
 }
 
 body.dark-theme .note-creator {
-  background: linear-gradient(var(--glass-tint), var(--glass-tint)), rgba(30, 41, 59, 0.45) !important;
+  background-color: color-mix(in srgb, var(--note-color, var(--note-default)) 35%, transparent) !important;
+  background-image: linear-gradient(var(--glass-tint), var(--glass-tint)), var(--theme-pattern, none) !important;
+  background-repeat: no-repeat, no-repeat !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
   border: 1px solid var(--accent-border) !important;
   box-shadow: 0 4px 28px var(--ambient-glow) !important;
 }

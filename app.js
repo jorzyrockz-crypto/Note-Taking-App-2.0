@@ -3060,7 +3060,7 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.3.4';
+  const CURRENT_VERSION = '2.3.5';
   const DEFAULT_CHANGELOG = [
     'Service worker update checking & prompt during splash screen loading and active background usage',
     'Instant dark/light theme detection on splash screen loading (preventing white flashing)',
@@ -3070,7 +3070,8 @@ function setupEventHandlers() {
     'Productivity page todo widget surfacing individual unchecked checklist items across notes',
     'Fixed raw HTML tag leak in productivity preview cards (agenda lines & todo list) by parsing rich text content',
     'Optimized mobile responsiveness: horizontally scrollable markdown toolbars, grid-aligned productivity stats, and touch swipe gestures to toggle the sidebar drawer',
-    'Dynamic Workspace Tint System: accent color now generates a subtle wallpaper tint overlay, glass surface tints, ambient glow blobs, and accent-driven focus rings across the entire workspace'
+    'Dynamic Workspace Tint System: accent color now generates a subtle wallpaper tint overlay, glass surface tints, ambient glow blobs, and accent-driven focus rings across the entire workspace',
+    'Fixed custom app background image fitting (sizing, repetition, positioning) and resolved issue where note custom theme background uploads were visually overridden by glassmorphism overrides'
   ];
 
   subscribeToVersionUpdates((serverConfig) => {
