@@ -71,6 +71,26 @@ function getAllUncheckedItems(noteList = notes) {
   const items = [];
   for (const note of noteList) {
     if (!note || note.deleted) continue;
+    
+    const isHtml = note.isRichText || /<[a-z][\s\S]*>/i.test(note.text || '');
+    if (isHtml) {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = note.text || '';
+      const checklistItems = tempDiv.querySelectorAll('.checklist-item');
+      checklistItems.forEach(item => {
+        const checkbox = item.querySelector('input[type="checkbox"]');
+        const checked = checkbox ? checkbox.checked : false;
+        if (!checked) {
+          const span = item.querySelector('span');
+          const text = span ? span.textContent.trim() : item.textContent.trim();
+          if (text) {
+            items.push({ text, note });
+          }
+        }
+      });
+      continue;
+    }
+
     const lines = `${note.text || ''}`.split('\n');
     for (const line of lines) {
       if (line.startsWith('- [ ] ')) {
@@ -411,7 +431,31 @@ export function getAgendaPreviewLines(note, dateKey = '') {
 
   if (inlineEntries.length) return inlineEntries;
 
-  const lines = `${note?.text || ''}`
+  let textVal = note?.text || '';
+  const isHtml = note?.isRichText || /<[a-z][\s\S]*>/i.test(textVal);
+  if (isHtml) {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = textVal;
+    
+    // Check if there are checklist items in the HTML
+    const checklistItems = tempDiv.querySelectorAll('.checklist-item');
+    if (checklistItems.length) {
+      const itemsList = Array.from(checklistItems).map(item => {
+        const checked = item.querySelector('input[type="checkbox"]')?.checked || false;
+        const span = item.querySelector('span');
+        return {
+          label: span ? span.textContent.trim() : item.textContent.trim(),
+          completed: checked,
+          reminder: ''
+        };
+      });
+      return itemsList.slice(0, 3);
+    }
+    
+    textVal = tempDiv.textContent || tempDiv.innerText || '';
+  }
+
+  const lines = textVal
     .split('\n')
     .map(line => stripChecklistInlineReminder(line.replace(/^- \[(?: |x)\]\s*/, '')).trim())
     .filter(Boolean)
@@ -419,7 +463,7 @@ export function getAgendaPreviewLines(note, dateKey = '') {
     .map(label => ({ label: cleanTextTags(label), reminder: '' }));
 
   if (lines.length) return lines;
-  return [{ label: cleanTextTags(note?.text || '').trim() || 'No preview yet.', reminder: '' }];
+  return [{ label: cleanTextTags(textVal).trim() || 'No preview yet.', reminder: '' }];
 }
 
 export function createReminderPreviewCard(note, options = {}) {
@@ -468,7 +512,15 @@ export function createProductivityNoteCard(note, options = {}) {
   card.className = `productivity-note-card ${mode === 'task' ? 'task-card' : 'agenda-card'}`;
   card.setAttribute('data-note-kind', noteKind);
 
-  const previewText = cleanTextTags((note.text || '').replace(/^- \[(?: |x)\]\s*/gim, '')).replace(/\s+/g, ' ').trim();
+  let cleanText = note.text || '';
+  const isHtml = note.isRichText || /<[a-z][\s\S]*>/i.test(cleanText);
+  if (isHtml) {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = cleanText;
+    cleanText = tempDiv.textContent || tempDiv.innerText || '';
+  }
+
+  const previewText = cleanTextTags(cleanText.replace(/^- \[(?: |x)\]\s*/gim, '')).replace(/\s+/g, ' ').trim();
   const folderLabel = getFolderSummaryLabel(note, getVisualTypeLabel(noteKind));
   const reminderLabel = note.reminder ? formatReminderDate(note.reminder) : '';
   const progressLabel = stats.total > 0
