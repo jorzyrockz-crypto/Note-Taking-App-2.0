@@ -6311,33 +6311,45 @@ body.dark-theme .productivity-note-card[data-note-kind="image"] {
 @media (max-width: 600px) {
   .productivity-hero {
     flex-direction: column;
-    border-radius: 28px;
+    align-items: stretch;
+    gap: 16px;
+    border-radius: 20px;
+    padding: 20px 16px;
+    text-align: left;
   }
 
   .productivity-summary {
+    width: 100%;
     min-width: 0;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.1);
+  }
+
+  body.dark-theme .productivity-summary {
+    background: rgba(17, 24, 39, 0.35);
   }
 
   .productivity-stat {
-    min-height: 72px;
-    padding: 10px 8px 10px 36px;
+    min-height: 0;
+    padding: 4px;
+    min-width: 0;
   }
 
-  .productivity-stat-icon {
-    left: 8px;
-    width: 22px;
-    height: 22px;
-    border-radius: 9px;
+  .productivity-stat-value {
+    font-size: 24px;
   }
 
-  .productivity-stat strong {
-    font-size: 20px;
-  }
-
-  .productivity-stat span:not(.productivity-stat-icon) {
+  .productivity-stat-label {
     font-size: 11px;
+  }
+
+  .productivity-stat-divider {
+    display: none;
   }
 
   .productivity-layout {
@@ -6962,6 +6974,14 @@ body.card-style-glass .edit-modal-card textarea {
   }
   .settings-page .settings-section {
     padding: 16px;
+  }
+  .settings-page .settings-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  .settings-page .settings-select {
+    width: 100% !important;
   }
 }
 
@@ -10210,22 +10230,43 @@ body.dark-theme .glass-link-popover input {
 
 /* Responsive Floating Toolbar on Mobile */
 @media screen and (max-width: 500px) {
-  .glass-floating-toolbar {
-    padding: 6px 12px;
-    gap: 4px;
-    max-width: 90vw;
+  .glass-floating-toolbar,
+  .floating-toolbar,
+  .markdown-toolbar {
+    padding: 6px 10px !important;
+    gap: 6px !important;
+    max-width: 95vw !important;
+    overflow-x: auto !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important; /* Firefox */
   }
-  .glass-floating-toolbar .toolbar-btn {
-    width: 32px;
-    height: 32px;
+  
+  .glass-floating-toolbar::-webkit-scrollbar,
+  .floating-toolbar::-webkit-scrollbar,
+  .markdown-toolbar::-webkit-scrollbar {
+    display: none !important; /* Chrome, Safari, Opera */
   }
-  .glass-floating-toolbar .toolbar-btn svg {
-    width: 16px;
-    height: 16px;
+  
+  .glass-floating-toolbar .toolbar-btn,
+  .floating-toolbar .toolbar-btn,
+  .markdown-toolbar .toolbar-btn {
+    width: 34px !important;
+    height: 34px !important;
+    flex-shrink: 0 !important;
   }
+  
+  .glass-floating-toolbar .toolbar-btn svg,
+  .floating-toolbar .toolbar-btn svg,
+  .markdown-toolbar .toolbar-btn svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+  
   .color-popup,
   .glass-link-popover {
-    bottom: 64px;
+    bottom: 64px !important;
   }
 }
 

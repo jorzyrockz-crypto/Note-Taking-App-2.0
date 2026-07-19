@@ -2414,6 +2414,40 @@ function setupEventHandlers() {
     }
   });
 
+  // Mobile swipe gestures to toggle sidebar
+  let touchStartX = 0;
+  let touchStartY = 0;
+  
+  document.addEventListener('touchstart', (e) => {
+    if (window.innerWidth > 900) return;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    if (window.innerWidth > 900) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = touchEndY - touchStartY;
+
+    // Must be a horizontal swipe (deltaX must be significant, and deltaY relatively small)
+    if (Math.abs(deltaX) > 75 && Math.abs(deltaY) < 40) {
+      if (deltaX > 0 && touchStartX < 35) {
+        // Swipe right from the left edge of the screen (< 35px) to open the sidebar
+        if (sidebar && !sidebar.classList.contains('sidebar-open')) {
+          sidebar.classList.add('sidebar-open');
+          closeAllNoteCardMenus();
+        }
+      } else if (deltaX < 0) {
+        // Swipe left anywhere to close the sidebar
+        if (sidebar && sidebar.classList.contains('sidebar-open')) {
+          sidebar.classList.remove('sidebar-open');
+        }
+      }
+    }
+  }, { passive: true });
+
   themeBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     const isDark = document.body.classList.contains('dark-theme');
@@ -3026,7 +3060,7 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.3.2';
+  const CURRENT_VERSION = '2.3.3';
   const DEFAULT_CHANGELOG = [
     'Service worker update checking & prompt during splash screen loading and active background usage',
     'Instant dark/light theme detection on splash screen loading (preventing white flashing)',
@@ -3034,7 +3068,8 @@ function setupEventHandlers() {
     'Note background image upload button styled as a native card in the theme slider picker',
     'Productivity page hero banner horizontal gradient adapting to the active workspace theme background',
     'Productivity page todo widget surfacing individual unchecked checklist items across notes',
-    'Fixed raw HTML tag leak in productivity preview cards (agenda lines & todo list) by parsing rich text content'
+    'Fixed raw HTML tag leak in productivity preview cards (agenda lines & todo list) by parsing rich text content',
+    'Optimized mobile responsiveness: horizontally scrollable markdown toolbars, grid-aligned productivity stats, and touch swipe gestures to toggle the sidebar drawer'
   ];
 
   subscribeToVersionUpdates((serverConfig) => {
