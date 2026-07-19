@@ -127,6 +127,8 @@ export let appSettings = {
   welcomeNoteDismissed: false,
   welcomeNoteSeeded: false,
   appBgColor: 'base',
+  appBgType: 'preset',
+  appBgImage: null,
   reminderTimes: {
     morning: '08:00',
     afternoon: '13:00',
@@ -576,7 +578,7 @@ function applyCreatorAppearance() {
   });
 }
 
-function readFileAsDataUrl(file) {
+export function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
@@ -865,9 +867,69 @@ function buildCustomThemeFromImage(dataUrl) {
   });
 }
 
+function loadImageFromDataUrl(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Unable to load the selected image.'));
+    img.src = dataUrl;
+  });
+}
+
+function validateBackgroundImageFile(file) {
+  if (!file || !file.type || !file.type.startsWith('image/')) {
+    throw new Error('Please choose an image file.');
+  }
+
+  const maxSize = 12 * 1024 * 1024;
+  if (file.size > maxSize) {
+    throw new Error('Please choose an image smaller than 12 MB.');
+  }
+}
+
+export async function processUploadedBackgroundImage(file, options = {}) {
+  validateBackgroundImageFile(file);
+  const {
+    maxWidth = 1600,
+    maxHeight = 1600,
+    quality = 0.82,
+    type = 'image/jpeg'
+  } = options;
+
+  const originalDataUrl = await readFileAsDataUrl(file);
+  const img = await loadImageFromDataUrl(originalDataUrl);
+  const scale = Math.min(1, maxWidth / img.width, maxHeight / img.height);
+  const width = Math.max(1, Math.round(img.width * scale));
+  const height = Math.max(1, Math.round(img.height * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) {
+    throw new Error('Canvas is unavailable for image processing.');
+  }
+
+  context.drawImage(img, 0, 0, width, height);
+  const dataUrl = canvas.toDataURL(type, quality);
+
+  return {
+    src: dataUrl,
+    name: file.name || 'Custom background',
+    type,
+    width,
+    height,
+    originalSize: file.size
+  };
+}
+
 async function createCustomThemeFromFile(file) {
-  const dataUrl = await readFileAsDataUrl(file);
-  return buildCustomThemeFromImage(dataUrl);
+  const processed = await processUploadedBackgroundImage(file, {
+    maxWidth: 1200,
+    maxHeight: 1200,
+    quality: 0.78
+  });
+  return buildCustomThemeFromImage(processed.src);
 }
 
 export const STORAGE_KEYS = {
@@ -1879,10 +1941,24 @@ export function applyAppBgColor() {
   const bgColor = appSettings.appBgColor || 'base';
 
   // Toggle active preset classes on the body for styling isolation
-  const presets = ['base', 'sky', 'lilac', 'sage', 'peach', 'offwhite', 'white', 'coolgray'];
+  const presets = ['base', 'sky', 'lilac', 'sage', 'peach', 'offwhite', 'white', 'coolgray', 'custom'];
+  const hasCustomImage = appSettings.appBgType === 'custom-image' && appSettings.appBgImage?.src;
   presets.forEach(preset => {
-    document.body.classList.toggle(`bg-preset-${preset}`, bgColor === preset);
+    document.body.classList.toggle(`bg-preset-${preset}`, hasCustomImage ? preset === 'custom' : bgColor === preset);
   });
+
+  if (hasCustomImage) {
+    const overlayOpacity = clamp(numericSetting(appSettings.appBgImage.overlay, isDark ? 38 : 18), 0, 70) / 100;
+    const overlayColor = isDark ? `rgba(15, 23, 42, ${overlayOpacity})` : `rgba(255, 255, 255, ${overlayOpacity})`;
+    const imageUrl = escapeCssUrl(appSettings.appBgImage.src);
+    document.body.style.setProperty('--bg-app', `linear-gradient(${overlayColor}, ${overlayColor}), url("${imageUrl}")`, 'important');
+    document.body.style.setProperty('--bg-app-size', appSettings.appBgImage.fit || 'cover');
+    document.body.style.setProperty('--bg-app-position', appSettings.appBgImage.position || 'center center');
+    return;
+  }
+
+  document.body.style.removeProperty('--bg-app-size');
+  document.body.style.removeProperty('--bg-app-position');
 
   let bgValue = '';
   if (isDark) {

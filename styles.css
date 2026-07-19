@@ -10430,3 +10430,43 @@ body.dark-theme .glass-floating-toolbar .toolbar-btn.active {
 
 
 
+
+/* Custom uploaded app background controls */
+body {
+  background-size: var(--bg-app-size, auto) !important;
+  background-position: var(--bg-app-position, center center) !important;
+  background-repeat: no-repeat !important;
+}
+
+body.bg-preset-custom {
+  background-attachment: fixed !important;
+}
+
+body.bg-preset-custom .bg-shape {
+  opacity: 0.18;
+}
+
+.settings-app-bg-upload-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.settings-app-bg-upload-row .text-btn {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-app-bg-overlay-control {
+  margin-top: 12px;
+  max-width: 420px;
+}
+
+#settings-app-bg-remove:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}

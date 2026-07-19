@@ -15,6 +15,7 @@ import {
   saveSettingsAndSync,
   applyAppBgColor,
   saveCustomThemesAndSync,
+  processUploadedBackgroundImage,
   experimentalSkyTheme,
   setExperimentalSkyTheme,
   premiumSkyTheme,
@@ -55,6 +56,10 @@ let settingsReminderMorning;
 let settingsReminderAfternoon;
 let settingsReminderEvening;
 let settingsUiColorTheme;
+let settingsAppBgUpload;
+let settingsAppBgRemove;
+let settingsAppBgOverlay;
+let settingsAppBgOverlayVal;
 
 export function initSettings() {
   settingsPage = document.getElementById('settings-page');
@@ -85,6 +90,10 @@ export function initSettings() {
   settingsReminderAfternoon = document.getElementById('settings-reminder-afternoon');
   settingsReminderEvening = document.getElementById('settings-reminder-evening');
   settingsUiColorTheme = document.getElementById('settings-ui-color-theme');
+  settingsAppBgUpload = document.getElementById('settings-app-bg-upload');
+  settingsAppBgRemove = document.getElementById('settings-app-bg-remove');
+  settingsAppBgOverlay = document.getElementById('settings-app-bg-overlay');
+  settingsAppBgOverlayVal = document.getElementById('settings-app-bg-overlay-val');
 
   // Bind Event Handlers
   settingsBackBtn?.addEventListener('click', () => {
@@ -119,6 +128,25 @@ export function initSettings() {
     localStorage.setItem('paperuss_theme_premium_ambient', enabled ? 'true' : 'false');
   });
 
+  settingsAppBgUpload?.addEventListener('change', handleAppBackgroundUpload);
+  settingsAppBgRemove?.addEventListener('click', () => {
+    appSettings.appBgType = 'preset';
+    appSettings.appBgImage = null;
+    applyAppBgColor();
+    renderSettingsBgPicker();
+    saveSettingsAndSync();
+  });
+  settingsAppBgOverlay?.addEventListener('input', () => {
+    const overlay = Number(settingsAppBgOverlay.value);
+    if (settingsAppBgOverlayVal) settingsAppBgOverlayVal.textContent = `${overlay}%`;
+    if (appSettings.appBgImage) {
+      appSettings.appBgImage.overlay = overlay;
+      appSettings.appBgType = 'custom-image';
+      applyAppBgColor();
+    }
+  });
+  settingsAppBgOverlay?.addEventListener('change', saveSettingsAndSync);
+
   // Custom theme create
   settingsCustomThemeCreate?.addEventListener('click', createCustomEmojiTheme);
   settingsCustomThemeCreate?.removeAttribute('disabled');
@@ -129,6 +157,36 @@ export function initSettings() {
       settingsCustomThemeEmojis.value = emojis.slice(0, 3).join('');
     }
   });
+}
+
+
+async function handleAppBackgroundUpload() {
+  const [file] = Array.from(settingsAppBgUpload?.files || []);
+  if (!file) return;
+
+  try {
+    const processed = await processUploadedBackgroundImage(file, {
+      maxWidth: 1920,
+      maxHeight: 1920,
+      quality: 0.82
+    });
+    appSettings.appBgType = 'custom-image';
+    appSettings.appBgImage = {
+      ...processed,
+      fit: 'cover',
+      position: 'center center',
+      overlay: Number(settingsAppBgOverlay?.value || 18)
+    };
+    applyAppBgColor();
+    renderSettingsBgPicker();
+    saveSettingsAndSync();
+    showToast({ title: 'Background uploaded', text: 'Your custom app background is active.' });
+  } catch (error) {
+    console.warn('Unable to set app background:', error);
+    showToast({ title: 'Upload failed', text: error.message || 'Choose another image and try again.' });
+  } finally {
+    if (settingsAppBgUpload) settingsAppBgUpload.value = '';
+  }
 }
 
 export function renderSettingsPage() {
@@ -484,7 +542,11 @@ export function renderSettingsBgPicker() {
   if (!container) return;
   container.innerHTML = '';
 
-  const activeBg = appSettings.appBgColor || 'base';
+  const activeBg = appSettings.appBgType === 'custom-image' ? 'custom' : (appSettings.appBgColor || 'base');
+  const customBg = appSettings.appBgImage?.src ? appSettings.appBgImage : null;
+  if (settingsAppBgRemove) settingsAppBgRemove.disabled = !customBg;
+  if (settingsAppBgOverlay) settingsAppBgOverlay.value = customBg?.overlay ?? 18;
+  if (settingsAppBgOverlayVal) settingsAppBgOverlayVal.textContent = `${customBg?.overlay ?? 18}%`;
 
   const options = [
     { id: 'base', title: 'Default (Sky Match)', subtitle: 'Matches navigation bar', previewBg: 'linear-gradient(180deg, #e0f2fe 0%, #f0f9ff 100%)', previewBgDark: 'linear-gradient(180deg, #131e35 0%, #0d1424 100%)' },
@@ -498,6 +560,17 @@ export function renderSettingsBgPicker() {
   ];
 
   const isDark = document.body.classList.contains('dark-theme');
+
+  if (customBg) {
+    options.unshift({
+      id: 'custom',
+      title: 'Custom Image',
+      subtitle: customBg.name || 'Uploaded background',
+      previewBg: `linear-gradient(rgba(255,255,255,0.18), rgba(255,255,255,0.18)), url('${customBg.src}')`,
+      previewBgDark: `linear-gradient(rgba(15,23,42,0.35), rgba(15,23,42,0.35)), url('${customBg.src}')`,
+      isCustom: true
+    });
+  }
 
   options.forEach(opt => {
     const card = document.createElement('button');
@@ -517,7 +590,12 @@ export function renderSettingsBgPicker() {
     `;
 
     card.addEventListener('click', () => {
-      appSettings.appBgColor = opt.id;
+      if (opt.isCustom) {
+        appSettings.appBgType = 'custom-image';
+      } else {
+        appSettings.appBgType = 'preset';
+        appSettings.appBgColor = opt.id;
+      }
       applyAppBgColor();
       renderSettingsBgPicker();
       saveSettingsAndSync();
