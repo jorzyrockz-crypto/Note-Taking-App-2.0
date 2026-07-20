@@ -1,4 +1,4 @@
-const CACHE_NAME = 'paperuss-v57';
+const CACHE_NAME = 'paperuss-v58';
 // Static assets that never get hashed — safe to precache by path
 const APP_ASSETS = [
   './',
@@ -93,8 +93,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  const isNavigation = event.request.mode === 'navigate';
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
+    caches.match(event.request, { ignoreSearch: isNavigation }).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
@@ -128,31 +129,59 @@ async function handleShareTarget(event) {
     const title = formData.get('title') || '';
     const text = formData.get('text') || '';
     const url = formData.get('url') || '';
-    const file = formData.get('sharedFile');
+
+    // Dynamically find all valid Blobs/Files in the form data entries
+    const files = [];
+    for (const [key, value] of formData.entries()) {
+      if (value && value instanceof Blob && value.size > 0) {
+        files.push(value);
+      }
+    }
 
     const params = new URLSearchParams();
     if (title) params.set('title', title);
     if (text) params.set('text', text);
     if (url) params.set('url', url);
 
-    if (file && typeof file.size === 'number' && file.size > 0) {
+    if (files.length > 0) {
       const cache = await caches.open(SHARE_CACHE);
-      await cache.put(
-        'shared-file',
-        new Response(file, {
-          headers: {
-            'Content-Type': file.type || 'application/octet-stream',
-            'X-Paperuss-File-Name': encodeURIComponent(file.name || 'shared-file')
-          }
-        })
-      );
+      
+      // Clear any leftover temporary files to prevent conflicts
+      const existingKeys = await cache.keys();
+      for (const req of existingKeys) {
+        await cache.delete(req);
+      }
+
+      // Cache all incoming files
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileName = file.name || `shared-file-${i}`;
+        await cache.put(
+          `shared-file-${i}`,
+          new Response(file, {
+            headers: {
+              'Content-Type': file.type || 'application/octet-stream',
+              'X-Paperuss-File-Name': encodeURIComponent(fileName)
+            }
+          })
+        );
+      }
+
+      // Set backward compatible single file flag and list count for multi-file support
       params.set('sharedFile', '1');
-      params.set('sharedFileType', file.type || 'application/octet-stream');
-      params.set('sharedFileName', file.name || 'shared-file');
+      params.set('sharedFilesCount', files.length.toString());
+      if (files[0]) {
+        params.set('sharedFileType', files[0].type || 'application/octet-stream');
+        params.set('sharedFileName', files[0].name || 'shared-file');
+      }
     }
 
-    return Response.redirect('./?' + params.toString(), 303);
+    const redirectUrl = new URL('./', self.location.origin);
+    redirectUrl.search = params.toString();
+    return Response.redirect(redirectUrl.href, 303);
   } catch (error) {
-    return Response.redirect('./', 303);
+    console.error('Service Worker Share Target processing failed:', error);
+    const fallbackUrl = new URL('./', self.location.origin);
+    return Response.redirect(fallbackUrl.href, 303);
   }
 }

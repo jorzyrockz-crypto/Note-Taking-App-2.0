@@ -468,8 +468,10 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '2.4.1',
+        version: '2.4.2',
         changelog: [
+          'Robust Web Share Target: supports receiving multiple shared files and resolves query parameters correctly offline',
+          'Robust Note Sharing: wraps individual file preparation in try-catch to avoid crashes and falls back to clipboard copy if navigator.share fails',
           'Organized two-column tabbed settings layout (General, Appearance, Themes, Reminders, Notifications)',
           'Frosted glass translucent settings cards supporting both light and dark themes',
           'Notifications configuration panel: Quiet Hours time picker, Do Not Disturb, sound chimes, haptics, and a 2x3 toast position grid selector',

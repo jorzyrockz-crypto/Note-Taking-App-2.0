@@ -3118,8 +3118,10 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.4.1';
+  const CURRENT_VERSION = '2.4.2';
   const DEFAULT_CHANGELOG = [
+    'Robust Web Share Target: supports receiving multiple shared files and resolves query parameters correctly offline',
+    'Robust Note Sharing: wraps individual file formatting in try-catch to avoid crashes and falls back to clipboard copy if navigator.share fails',
     'Organized two-column tabbed settings layout (General, Appearance, Themes, Reminders, Notifications)',
     'Frosted glass translucent settings cards supporting both light and dark themes',
     'Notifications configuration panel: Quiet Hours time picker, Do Not Disturb, sound chimes, haptics, and a 2x3 toast position grid selector',
@@ -5297,10 +5299,13 @@ function buildNoteShareText(note) {
 async function shareNote(note) {
   const title = cleanTitleTags(note.title || 'Paperuss note');
   const text = buildNoteShareText(note);
+
   if (navigator.share) {
     try {
       const shareFiles = [];
       const attachments = normalizeNoteFiles(note.files);
+
+      // 1. Process attachments
       for (const file of attachments.slice(0, 6)) {
         try {
           const src = await getAttachmentSrc(file);
@@ -5311,20 +5316,36 @@ async function shareNote(note) {
           console.warn('Could not prepare attachment for sharing:', file.name, error);
         }
       }
+
+      // 2. Process image
       if (note.image) {
-        shareFiles.unshift(await dataUrlToFile(
-          note.image,
-          `${getSafeFileName(note.title || 'note-image')}.${getDataUrlExtension(note.image, 'jpg')}`,
-          'image/*'
-        ));
+        try {
+          const imageFile = await dataUrlToFile(
+            note.image,
+            `${getSafeFileName(note.title || 'note-image')}.${getDataUrlExtension(note.image, 'jpg')}`,
+            'image/*'
+          );
+          shareFiles.unshift(imageFile);
+        } catch (error) {
+          console.warn('Could not prepare image for sharing:', error);
+        }
       }
+
+      // 3. Process audio
       if (note.audio) {
-        shareFiles.push(await dataUrlToFile(
-          note.audio,
-          `${getSafeFileName(note.title || 'voice-note')}.${getDataUrlExtension(note.audio, 'webm')}`,
-          'audio/webm'
-        ));
+        try {
+          const audioFile = await dataUrlToFile(
+            note.audio,
+            `${getSafeFileName(note.title || 'voice-note')}.${getDataUrlExtension(note.audio, 'webm')}`,
+            'audio/webm'
+          );
+          shareFiles.push(audioFile);
+        } catch (error) {
+          console.warn('Could not prepare audio for sharing:', error);
+        }
       }
+
+      // 4. Process video
       if (note.videoId) {
         try {
           const blob = await getVideoBlob(note.videoId);
@@ -5336,19 +5357,50 @@ async function shareNote(note) {
           console.warn('Could not prepare video for sharing:', error);
         }
       }
+
       const payload = { title, text };
-      if (shareFiles.length && navigator.canShare?.({ files: shareFiles })) {
+
+      // Validate files with canShare
+      let canShareFiles = false;
+      if (shareFiles.length && navigator.canShare) {
+        try {
+          canShareFiles = navigator.canShare({ files: shareFiles });
+        } catch (e) {
+          canShareFiles = false;
+        }
+      }
+
+      if (canShareFiles) {
         payload.files = shareFiles;
       }
-      await navigator.share(payload);
-      return true;
-    } catch (error) {
-      if (error?.name === 'AbortError') return false;
-      console.warn('Native sharing failed, falling back to text copy:', error);
+
+      try {
+        await navigator.share(payload);
+        return true;
+      } catch (shareError) {
+        if (shareError?.name === 'AbortError') return false;
+        console.warn('Sharing with files failed, trying text-only share:', shareError);
+        try {
+          await navigator.share({ title, text });
+          return true;
+        } catch (textShareError) {
+          if (textShareError?.name === 'AbortError') return false;
+          console.warn('Text-only share failed too:', textShareError);
+        }
+      }
+    } catch (outerError) {
+      console.warn('Outer share preparation failed:', outerError);
     }
   }
-  await navigator.clipboard?.writeText(text);
-  showToast({ title: 'Note copied', text: 'Sharing is not available here, so the note text was copied.' });
+
+  // Final fallback to Clipboard Copy
+  try {
+    await navigator.clipboard?.writeText(text);
+    showToast({ title: 'Copied to Clipboard', text: 'Sharing is not supported on this browser, so note text was copied.' });
+    return true;
+  } catch (clipError) {
+    console.warn('Clipboard write failed:', clipError);
+  }
   return false;
 }
 
@@ -7646,7 +7698,7 @@ async function handleSharedLaunchData() {
   const sharedText = params.get('text') || '';
   const sharedUrl = params.get('url') || '';
   const sharedImage = params.get('image') || '';
-  const hasSharedFile = params.get('sharedFile') === '1';
+  const hasSharedFile = params.get('sharedFile') === '1' || params.has('sharedFilesCount');
   if (!sharedTitle && !sharedText && !sharedUrl && !hasSharedFile) return;
 
   expandCreator();
@@ -7669,42 +7721,49 @@ async function handleSharedLaunchData() {
   if (hasSharedFile && 'caches' in window) {
     try {
       const cache = await caches.open('paperuss-share-temp');
-      const response = await cache.match('shared-file');
-      if (response) {
-        const blob = await response.blob();
-        const dataUrl = await blobToDataUrl(blob);
-        const sharedType = response.headers.get('Content-Type') || params.get('sharedFileType') || blob.type || 'application/octet-stream';
-        const sharedName = decodeURIComponent(response.headers.get('X-Paperuss-File-Name') || params.get('sharedFileName') || 'shared-file');
-        if (sharedType.startsWith('image/') && !creatorImage) {
-          creatorImage = dataUrl;
-          creatorImageBanner.style.display = 'block';
-        } else {
-          const fileId = `file-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-          let finalDataUrl = dataUrl;
-          let storedInDB = false;
-          if (blob.size > 100 * 1024) {
-            await storeFileInDB(fileId, blob);
-            finalDataUrl = 'db';
-            storedInDB = true;
-          }
-          creatorFiles = [
-            ...normalizeNoteFiles(creatorFiles),
-            {
-              id: fileId,
-              name: sharedName,
-              type: sharedType,
-              size: blob.size,
-              dataUrl: finalDataUrl,
-              storedInDB,
-              addedAt: Date.now()
+      const keys = await cache.keys();
+      
+      for (const req of keys) {
+        if (req.url.includes('shared-file')) {
+          const response = await cache.match(req);
+          if (response) {
+            const blob = await response.blob();
+            const dataUrl = await blobToDataUrl(blob);
+            const sharedType = response.headers.get('Content-Type') || 'application/octet-stream';
+            const sharedName = decodeURIComponent(response.headers.get('X-Paperuss-File-Name') || 'shared-file');
+            
+            if (sharedType.startsWith('image/') && !creatorImage) {
+              creatorImage = dataUrl;
+              creatorImageBanner.style.display = 'block';
+            } else {
+              const fileId = `file-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+              let finalDataUrl = dataUrl;
+              let storedInDB = false;
+              if (blob.size > 100 * 1024) {
+                await storeFileInDB(fileId, blob);
+                finalDataUrl = 'db';
+                storedInDB = true;
+              }
+              creatorFiles = [
+                ...normalizeNoteFiles(creatorFiles),
+                {
+                  id: fileId,
+                  name: sharedName,
+                  type: sharedType,
+                  size: blob.size,
+                  dataUrl: finalDataUrl,
+                  storedInDB,
+                  addedAt: Date.now()
+                }
+              ];
             }
-          ];
-          renderCreatorFileAttachments();
+            await cache.delete(req);
+          }
         }
-        await cache.delete('shared-file');
       }
+      renderCreatorFileAttachments();
     } catch (error) {
-      console.warn('Could not read shared file from cache:', error);
+      console.warn('Could not read shared files from cache:', error);
     }
   } else if (sharedImage) {
     // Bookmarklet already supplied real scraped metadata (e.g. from a page
