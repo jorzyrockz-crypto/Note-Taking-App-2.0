@@ -468,8 +468,11 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '2.4.0',
+        version: '2.4.1',
         changelog: [
+          'Organized two-column tabbed settings layout (General, Appearance, Themes, Reminders, Notifications)',
+          'Frosted glass translucent settings cards supporting both light and dark themes',
+          'Notifications configuration panel: Quiet Hours time picker, Do Not Disturb, sound chimes, haptics, and a 2x3 toast position grid selector',
           'Dedicated Functional Search Page accessible from the side menu',
           'Spotify-inspired fluid genre cards (Checklists, Photos, Voice Memos, Bookmarks, Notebooks, Tags)',
           'Consolidated media hubs: full-bleed Photos gallery, Audio wave visualizer cards, and domain-rich Link tiles',

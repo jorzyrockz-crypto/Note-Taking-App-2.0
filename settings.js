@@ -62,6 +62,18 @@ let settingsAppBgOverlay;
 let settingsAppBgOverlayVal;
 let settingsAppBgFit;
 
+// Notification tab elements
+let settingsNotifEnabled;
+let settingsNotifReminders;
+let settingsNotifDnd;
+let settingsNotifQuietHours;
+let settingsQuietHoursRange;
+let settingsQuietFrom;
+let settingsQuietTo;
+let settingsNotifSound;
+let settingsNotifVibrate;
+
+
 export function initSettings() {
   settingsPage = document.getElementById('settings-page');
   settingsBackBtn = document.getElementById('settings-back-btn');
@@ -97,6 +109,73 @@ export function initSettings() {
   settingsAppBgOverlayVal = document.getElementById('settings-app-bg-overlay-val');
   settingsAppBgFit = document.getElementById('settings-app-bg-fit');
 
+  // Notification elements
+  settingsNotifEnabled = document.getElementById('settings-notif-enabled');
+  settingsNotifReminders = document.getElementById('settings-notif-reminders');
+  settingsNotifDnd = document.getElementById('settings-notif-dnd');
+  settingsNotifQuietHours = document.getElementById('settings-notif-quiet-hours');
+  settingsQuietHoursRange = document.getElementById('settings-quiet-hours-range');
+  settingsQuietFrom = document.getElementById('settings-quiet-from');
+  settingsQuietTo = document.getElementById('settings-quiet-to');
+  settingsNotifSound = document.getElementById('settings-notif-sound');
+  settingsNotifVibrate = document.getElementById('settings-notif-vibrate');
+
+  // Handle master switch dimming/disabling logic
+  settingsNotifEnabled?.addEventListener('change', () => {
+    const enabled = settingsNotifEnabled.checked;
+    if (enabled && 'Notification' in window && Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
+    updateNotifControlsDisabledState();
+  });
+
+  // Handle quiet hours range visibility
+  settingsNotifQuietHours?.addEventListener('change', () => {
+    if (settingsQuietHoursRange) {
+      settingsQuietHoursRange.style.display = settingsNotifQuietHours.checked ? 'flex' : 'none';
+    }
+  });
+
+  // Handle toast position grid button selections
+  const positionGrid = document.getElementById('settings-notif-position-grid');
+  positionGrid?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.notif-pos-btn');
+    if (!btn) return;
+    positionGrid.querySelectorAll('.notif-pos-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    appSettings.toastPosition = btn.dataset.pos;
+    saveSettingsAndSync();
+    showToast({ title: 'Position Updated', text: `Toasts will now appear here.` });
+  });
+
+  // ── Tab Navigation ──────────────────────────────────────────
+  initSettingsTabs();
+
+  // ── Segmented control (Card Layout) ─────────────────────────
+  const cardStyleSeg = document.getElementById('settings-card-style-seg');
+  cardStyleSeg?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.seg-btn');
+    if (!btn) return;
+    cardStyleSeg.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (settingsCardStyle) settingsCardStyle.value = btn.dataset.value;
+    applyCardLayoutStyle(btn.dataset.value);
+  });
+
+  // ── Accent Swatch Buttons ────────────────────────────────────
+  const swatchRow = document.getElementById('settings-accent-swatches');
+  swatchRow?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.accent-swatch-btn');
+    if (!btn) return;
+    swatchRow.querySelectorAll('.accent-swatch-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const val = btn.dataset.value;
+    if (settingsUiColorTheme) settingsUiColorTheme.value = val;
+    if (typeof applyUiColorThemeClass === 'function') applyUiColorThemeClass(val);
+    appSettings.uiColorTheme = val;
+    saveSettingsAndSync();
+  });
+
   // Bind Event Handlers
   settingsBackBtn?.addEventListener('click', () => {
     saveSettingsFromForm();
@@ -113,7 +192,7 @@ export function initSettings() {
     input?.addEventListener('input', updateSettingsLivePreview);
   });
 
-  // Card style live preview
+  // Card style live preview (from hidden select, keep for compat)
   settingsCardStyle?.addEventListener('change', () => {
     applyCardLayoutStyle(settingsCardStyle.value);
   });
@@ -165,6 +244,33 @@ export function initSettings() {
       settingsCustomThemeEmojis.value = emojis.slice(0, 3).join('');
     }
   });
+}
+
+/**
+ * Initialise the left-column tab navigation.
+ * Clicking a tab hides all panels and shows the matching one.
+ * Active tab is persisted in localStorage.
+ */
+function initSettingsTabs() {
+  const tabItems = document.querySelectorAll('.settings-tab-item');
+  const panels = document.querySelectorAll('.settings-tab-panel');
+
+  // Restore last active tab
+  const savedTab = localStorage.getItem('paperuss_settings_tab') || 'general';
+  activateTab(savedTab);
+
+  tabItems.forEach(item => {
+    item.addEventListener('click', () => {
+      const tab = item.dataset.tab;
+      activateTab(tab);
+      localStorage.setItem('paperuss_settings_tab', tab);
+    });
+  });
+
+  function activateTab(tabId) {
+    tabItems.forEach(t => t.classList.toggle('active', t.dataset.tab === tabId));
+    panels.forEach(p => p.classList.toggle('active', p.id === `settings-panel-${tabId}`));
+  }
 }
 
 
@@ -223,10 +329,23 @@ export function renderSettingsPage() {
   if (settingsNewBottom) settingsNewBottom.checked = appSettings.newChecklistItemsToBottom;
   if (settingsAdvancedEditor) settingsAdvancedEditor.checked = appSettings.advancedEditorEnabled;
   if (settingsModernGlassEditor) settingsModernGlassEditor.checked = appSettings.modernGlassEditorEnabled || false;
-  if (settingsCardStyle) settingsCardStyle.value = appSettings.cardLayoutStyle;
+
+  // Sync hidden select + segmented control for Card Layout
+  const cardStyle = appSettings.cardLayoutStyle || 'default';
+  if (settingsCardStyle) settingsCardStyle.value = cardStyle;
+  document.querySelectorAll('#settings-card-style-seg .seg-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === cardStyle);
+  });
+
   if (settingsExperimentalSkyTheme) settingsExperimentalSkyTheme.checked = experimentalSkyTheme;
   if (settingsPremiumSkyTheme) settingsPremiumSkyTheme.checked = premiumSkyTheme;
-  if (settingsUiColorTheme) settingsUiColorTheme.value = appSettings.uiColorTheme || 'auto';
+
+  // Sync hidden select + accent swatches
+  const accentVal = appSettings.uiColorTheme || 'auto';
+  if (settingsUiColorTheme) settingsUiColorTheme.value = accentVal;
+  document.querySelectorAll('#settings-accent-swatches .accent-swatch-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === accentVal);
+  });
 
   // Sliders
   const controls = getEmojiThemeControls();
@@ -247,6 +366,30 @@ export function renderSettingsPage() {
   if (settingsReminderMorning) settingsReminderMorning.value = appSettings.reminderTimes?.morning || '08:00';
   if (settingsReminderAfternoon) settingsReminderAfternoon.value = appSettings.reminderTimes?.afternoon || '13:00';
   if (settingsReminderEvening) settingsReminderEvening.value = appSettings.reminderTimes?.evening || '18:00';
+
+  // Notifications Panel Form Settings
+  if (settingsNotifEnabled) settingsNotifEnabled.checked = appSettings.notificationsEnabled !== false;
+  if (settingsNotifReminders) settingsNotifReminders.checked = appSettings.notificationsReminders !== false;
+  if (settingsNotifDnd) settingsNotifDnd.checked = !!appSettings.notificationsDnd;
+  if (settingsNotifQuietHours) settingsNotifQuietHours.checked = !!appSettings.notificationsQuietHours;
+  if (settingsQuietFrom) settingsQuietFrom.value = appSettings.quietHoursFrom || '22:00';
+  if (settingsQuietTo) settingsQuietTo.value = appSettings.quietHoursTo || '07:00';
+  if (settingsNotifSound) settingsNotifSound.checked = appSettings.notificationsSound !== false;
+  if (settingsNotifVibrate) settingsNotifVibrate.checked = appSettings.notificationsVibrate !== false;
+
+  // Render toast position button active states
+  const toastPos = appSettings.toastPosition || 'top-right';
+  document.querySelectorAll('#settings-notif-position-grid .notif-pos-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.pos === toastPos);
+  });
+
+  // Render quiet hours range sub-panel visibility
+  if (settingsQuietHoursRange) {
+    settingsQuietHoursRange.style.display = appSettings.notificationsQuietHours ? 'flex' : 'none';
+  }
+
+  // Update disabled/dimmed states
+  updateNotifControlsDisabledState();
 
   updateSettingsLivePreview();
   renderSettingsCustomThemesList();
@@ -514,7 +657,15 @@ export function saveSettingsFromForm() {
       afternoon: settingsReminderAfternoon.value,
       evening: settingsReminderEvening.value
     },
-    uiColorTheme: settingsUiColorTheme ? settingsUiColorTheme.value : 'auto'
+    uiColorTheme: settingsUiColorTheme ? settingsUiColorTheme.value : 'auto',
+    notificationsEnabled: settingsNotifEnabled ? settingsNotifEnabled.checked : true,
+    notificationsReminders: settingsNotifReminders ? settingsNotifReminders.checked : true,
+    notificationsDnd: settingsNotifDnd ? settingsNotifDnd.checked : false,
+    notificationsQuietHours: settingsNotifQuietHours ? settingsNotifQuietHours.checked : false,
+    quietHoursFrom: settingsQuietFrom ? settingsQuietFrom.value : '22:00',
+    quietHoursTo: settingsQuietTo ? settingsQuietTo.value : '07:00',
+    notificationsSound: settingsNotifSound ? settingsNotifSound.checked : true,
+    notificationsVibrate: settingsNotifVibrate ? settingsNotifVibrate.checked : true
   });
 
   if (settingsExperimentalSkyTheme) {
@@ -627,3 +778,32 @@ export function renderSettingsBgPicker() {
     container.appendChild(card);
   });
 }
+
+function updateNotifControlsDisabledState() {
+  const enabled = settingsNotifEnabled ? settingsNotifEnabled.checked : true;
+  [
+    settingsNotifReminders,
+    settingsNotifDnd,
+    settingsNotifQuietHours,
+    settingsQuietFrom,
+    settingsQuietTo,
+    settingsNotifSound,
+    settingsNotifVibrate
+  ].forEach(el => {
+    if (el) {
+      el.disabled = !enabled;
+      const row = el.closest('.settings-row');
+      if (row) {
+        row.style.opacity = enabled ? '1' : '0.5';
+        row.style.pointerEvents = enabled ? 'auto' : 'none';
+      }
+    }
+  });
+
+  const positionGrid = document.getElementById('settings-notif-position-grid');
+  if (positionGrid) {
+    positionGrid.style.opacity = enabled ? '1' : '0.5';
+    positionGrid.style.pointerEvents = enabled ? 'auto' : 'none';
+  }
+}
+

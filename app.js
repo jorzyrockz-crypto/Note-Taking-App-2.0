@@ -135,7 +135,16 @@ export let appSettings = {
     afternoon: '13:00',
     evening: '18:00'
   },
-  uiColorTheme: 'sky'
+  uiColorTheme: 'sky',
+  notificationsEnabled: true,
+  notificationsReminders: true,
+  notificationsDnd: false,
+  notificationsQuietHours: false,
+  quietHoursFrom: "22:00",
+  quietHoursTo: "07:00",
+  toastPosition: "top-right",
+  notificationsSound: true,
+  notificationsVibrate: true
 };
 export let experimentalSkyTheme = false;
 export let premiumSkyTheme = false;
@@ -3109,8 +3118,11 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.4.0';
+  const CURRENT_VERSION = '2.4.1';
   const DEFAULT_CHANGELOG = [
+    'Organized two-column tabbed settings layout (General, Appearance, Themes, Reminders, Notifications)',
+    'Frosted glass translucent settings cards supporting both light and dark themes',
+    'Notifications configuration panel: Quiet Hours time picker, Do Not Disturb, sound chimes, haptics, and a 2x3 toast position grid selector',
     'Dedicated Functional Search Page accessible from the side menu',
     'Spotify-inspired fluid genre cards (Checklists, Photos, Voice Memos, Bookmarks, Notebooks, Tags)',
     'Consolidated media hubs: full-bleed Photos gallery, Audio wave visualizer cards, and domain-rich Link tiles',
@@ -7966,8 +7978,100 @@ function buildReminderPicker(pickerContainer, currentReminder, onSave, onDelete)
   pickerContainer.appendChild(actions);
 }
 
+function isQuietHours() {
+  if (!appSettings.notificationsQuietHours) return false;
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const [fromH, fromM] = (appSettings.quietHoursFrom || "22:00").split(':').map(Number);
+  const [toH, toM] = (appSettings.quietHoursTo || "07:00").split(':').map(Number);
+
+  const fromMinutes = fromH * 60 + fromM;
+  const toMinutes = toH * 60 + toM;
+
+  if (fromMinutes <= toMinutes) {
+    return currentMinutes >= fromMinutes && currentMinutes <= toMinutes;
+  } else {
+    return currentMinutes >= fromMinutes || currentMinutes <= toMinutes;
+  }
+}
+
+function playNotificationChime() {
+  if (!appSettings.notificationsSound) return;
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const audioCtx = new AudioCtx();
+    const playNote = (freq, startTime, duration) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, startTime);
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.12, startTime + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    };
+    const now = audioCtx.currentTime;
+    playNote(523.25, now, 0.4); // C5
+    playNote(659.25, now + 0.12, 0.5); // E5
+  } catch (e) {
+    console.warn('Web Audio chime failed:', e);
+  }
+}
+
+function triggerNotificationVibrate() {
+  if (!appSettings.notificationsVibrate) return;
+  if ('vibrate' in navigator) {
+    try {
+      navigator.vibrate([100, 50, 100]);
+    } catch (e) {
+      console.warn('Vibration failed:', e);
+    }
+  }
+}
+
 function showToast(note) {
+  // 1. General notifications enable switch
+  if (appSettings.notificationsEnabled === false) {
+    return;
+  }
+
+  // 2. DND toggle
+  if (appSettings.notificationsDnd) {
+    return;
+  }
+
+  // 3. Quiet Hours check
+  if (isQuietHours()) {
+    return;
+  }
+
+  // 4. Note reminder filter
+  const isNoteReminder = !!(note && note.id && note.reminder);
+  if (isNoteReminder && appSettings.notificationsReminders === false) {
+    return;
+  }
+
   const container = document.getElementById('toast-container');
+  if (container) {
+    // Remove existing position classes
+    container.classList.forEach(className => {
+      if (className.startsWith('pos-')) {
+        container.classList.remove(className);
+      }
+    });
+    // Add current position class
+    const pos = appSettings.toastPosition || 'top-right';
+    container.classList.add(`pos-${pos}`);
+  }
+
+  // Play chime and vibrate if desired
+  playNotificationChime();
+  triggerNotificationVibrate();
 
   let actionBtnHtml = '';
   if (note.action) {
@@ -8000,7 +8104,9 @@ function showToast(note) {
     setTimeout(() => toast.remove(), 350);
   });
 
-  container.appendChild(toast);
+  if (container) {
+    container.appendChild(toast);
+  }
 
   if (note.duration !== 0) {
     setTimeout(() => {
