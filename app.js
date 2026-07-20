@@ -12,6 +12,7 @@ import {
   syncNoteTypeEditor
 } from './note-types/index.js';
 import { initModernGlassEditorListeners, saveGlassSelection, restoreGlassSelection } from './glass-editor.js';
+import { renderSearchPage, initSearch } from './search.js';
 
 import {
   isRealFirebase,
@@ -1196,6 +1197,7 @@ const othersSectionTitle = document.getElementById('others-section-title');
 const emptyState = document.getElementById('empty-state');
 let sidebarTagsList = null;
 const sidebarAllNotes = document.getElementById('sidebar-all-notes');
+const sidebarSearch = document.getElementById('sidebar-search');
 const creatorWrapper = document.querySelector('.creator-wrapper');
 const notesFeed = document.querySelector('.notes-feed');
 let sidebarFoldersList = null;
@@ -1536,18 +1538,20 @@ function clearSidebarActiveStates() {
   document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
 }
 
-function setActiveSidebarPage(page) {
+export function setActiveSidebarPage(pageId) {
   clearSidebarActiveStates();
-    if (page === 'settings') {
+    if (pageId === 'settings') {
       sidebarSettings?.classList.add('active');
       return;
     }
-  if (page === 'productivity') {
+  if (pageId === 'productivity') {
     sidebarProductivity?.classList.add('active');
-  } else if (page === 'archive') {
+  } else if (pageId === 'archive') {
     sidebarArchive?.classList.add('active');
-  } else if (page === 'deleted') {
+  } else if (pageId === 'deleted') {
     sidebarDeleted?.classList.add('active');
+  } else if (pageId === 'search') {
+    sidebarSearch?.classList.add('active');
   } else {
     sidebarAllNotes?.classList.add('active');
   }
@@ -1630,6 +1634,8 @@ function renderAppView() {
     renderProductivityPage();
   } else if (currentPage === 'settings') {
     renderSettingsPage();
+  } else if (currentPage === 'search') {
+    renderSearchPage();
   } else {
     renderNotesPage();
   }
@@ -1647,7 +1653,7 @@ function isActiveNote(note) {
   return !isArchivedNote(note) && !isDeletedNote(note);
 }
 
-function getPageNotes(page) {
+export function getPageNotes(page) {
   if (page === 'archive') {
     return notes.filter(note => isArchivedNote(note));
   }
@@ -1885,6 +1891,8 @@ function handleTextareaTabKey(e) {
 // ==========================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
+  initSettingsCloudSync(null); // Load local preferences initially
+  initSearch();
   loadSettings();
   enhanceShell();
   initTheme();
@@ -2504,11 +2512,31 @@ function setupEventHandlers() {
   });
 
   // Sidebar navigation resets hashtag filter
-  sidebarAllNotes.addEventListener('click', () => {
-    selectedTagFilter = null;
-    selectedFolderFilter = null;
-    setActivePage('notes');
-  });
+  if (sidebarAllNotes) {
+    sidebarAllNotes.addEventListener('click', () => {
+      currentPage = 'notes';
+      selectedFolderFilter = null;
+      selectedTagFilter = null;
+      document.getElementById('search-input').value = '';
+      document.getElementById('search-clear').style.display = 'none';
+      renderNotesPage();
+      if (window.innerWidth <= 768) {
+        appLayout.classList.remove('sidebar-open');
+      }
+    });
+  }
+
+  if (sidebarSearch) {
+    sidebarSearch.addEventListener('click', () => {
+      currentPage = 'search';
+      selectedFolderFilter = null;
+      selectedTagFilter = null;
+      renderSearchPage();
+      if (window.innerWidth <= 768) {
+        appLayout.classList.remove('sidebar-open');
+      }
+    });
+  }
 
   sidebarProductivity?.addEventListener('click', () => {
     ensureCalendarSelection();
@@ -3081,18 +3109,18 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.3.5';
+  const CURRENT_VERSION = '2.4.0';
   const DEFAULT_CHANGELOG = [
+    'Dedicated Functional Search Page accessible from the side menu',
+    'Spotify-inspired fluid genre cards (Checklists, Photos, Voice Memos, Bookmarks, Notebooks, Tags)',
+    'Consolidated media hubs: full-bleed Photos gallery, Audio wave visualizer cards, and domain-rich Link tiles',
+    'Redesigned Quick Launch note creator-styled Search Bar with floating glass, Ctrl+K shortcut, and crisp inner background',
     'Service worker update checking & prompt during splash screen loading and active background usage',
     'Instant dark/light theme detection on splash screen loading (preventing white flashing)',
     'Workspace background image fitting settings (Fill, Fit, Stretch, Tile, Center) in Appearance settings',
     'Note background image upload button styled as a native card in the theme slider picker',
     'Productivity page hero banner horizontal gradient adapting to the active workspace theme background',
-    'Productivity page todo widget surfacing individual unchecked checklist items across notes',
-    'Fixed raw HTML tag leak in productivity preview cards (agenda lines & todo list) by parsing rich text content',
-    'Optimized mobile responsiveness: horizontally scrollable markdown toolbars, grid-aligned productivity stats, and touch swipe gestures to toggle the sidebar drawer',
-    'Dynamic Workspace Tint System: accent color now generates a subtle wallpaper tint overlay, glass surface tints, ambient glow blobs, and accent-driven focus rings across the entire workspace',
-    'Fixed custom app background image fitting (sizing, repetition, positioning) and resolved issue where note custom theme background uploads were visually overridden by glassmorphism overrides'
+    'Productivity page todo widget surfacing individual unchecked checklist items across notes'
   ];
 
   subscribeToVersionUpdates((serverConfig) => {
@@ -5856,9 +5884,11 @@ function renderNotesPage() {
   updatePageActionBar();
   const settingsPageEl = document.getElementById('settings-page');
   const prodPageEl = document.getElementById('productivity-page');
+  const searchPageEl = document.getElementById('search-page');
 
   if (settingsPageEl) settingsPageEl.style.display = 'none';
   if (prodPageEl) prodPageEl.style.display = 'none';
+  if (searchPageEl) searchPageEl.style.display = 'none';
 
   if (creatorWrapper) {
     creatorWrapper.style.display = (currentPage === 'notes') ? '' : 'none';
@@ -6157,7 +6187,7 @@ function getTaskPreviewSchedule(note, dateKey = '') {
 
 
 
-function renderGrid(gridContainer, notesArray) {
+export function renderGrid(gridContainer, notesArray) {
   gridContainer.innerHTML = '';
 
   const validNotes = (notesArray || []).filter(note => note !== null && typeof note === 'object' && note.id);
@@ -8908,8 +8938,7 @@ export {
   formatCardTimestamp,
   escapeHtml,
   getChecklistStats,
-  isTaskNote,
-  setActiveSidebarPage
+  isTaskNote
 };
 
 // ─────────────────────────────────────────────────────────────

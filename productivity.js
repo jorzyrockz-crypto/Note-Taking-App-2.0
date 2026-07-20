@@ -194,11 +194,13 @@ export function ensureProductivityPage() {
 export function renderProductivityPage() {
   ensureProductivityPage();
   const settingsPage = document.getElementById('settings-page');
+  const searchPage = document.getElementById('search-page');
   const creatorWrapper = document.querySelector('.creator-wrapper');
   const feedFilterRow = document.getElementById('feed-filter-row');
   const notesFeed = document.getElementById('notes-feed');
 
   if (settingsPage) settingsPage.style.display = 'none';
+  if (searchPage) searchPage.style.display = 'none';
   if (creatorWrapper) creatorWrapper.style.display = 'none';
   if (feedFilterRow) feedFilterRow.style.display = 'none';
   if (notesFeed) notesFeed.style.display = 'none';

@@ -179,6 +179,7 @@ async function handleAppBackgroundUpload() {
       quality: 0.82
     });
     appSettings.appBgType = 'custom-image';
+    appSettings.autoExtractedTheme = processed.extractedTheme || 'sky';
     appSettings.appBgImage = {
       ...processed,
       fit: 'cover',
@@ -186,6 +187,9 @@ async function handleAppBackgroundUpload() {
       overlay: Number(settingsAppBgOverlay?.value || 18)
     };
     applyAppBgColor();
+    if (appSettings.uiColorTheme === 'auto' && typeof applyUiColorThemeClass === 'function') {
+      applyUiColorThemeClass('auto');
+    }
     renderSettingsBgPicker();
     saveSettingsAndSync();
     showToast({ title: 'Background uploaded', text: 'Your custom app background is active.' });
@@ -204,11 +208,13 @@ export function renderSettingsPage() {
   const feedFilterRow = document.getElementById('feed-filter-row');
   const notesFeed = document.getElementById('notes-feed');
   const productivityPage = document.getElementById('productivity-page');
+  const searchPage = document.getElementById('search-page');
 
   if (creatorWrapper) creatorWrapper.style.display = 'none';
   if (feedFilterRow) feedFilterRow.style.display = 'none';
   if (notesFeed) notesFeed.style.display = 'none';
   if (productivityPage) productivityPage.style.display = 'none';
+  if (searchPage) searchPage.style.display = 'none';
   settingsPage.style.display = 'flex';
 
   // Populate form
@@ -220,7 +226,7 @@ export function renderSettingsPage() {
   if (settingsCardStyle) settingsCardStyle.value = appSettings.cardLayoutStyle;
   if (settingsExperimentalSkyTheme) settingsExperimentalSkyTheme.checked = experimentalSkyTheme;
   if (settingsPremiumSkyTheme) settingsPremiumSkyTheme.checked = premiumSkyTheme;
-  if (settingsUiColorTheme) settingsUiColorTheme.value = appSettings.uiColorTheme || 'sky';
+  if (settingsUiColorTheme) settingsUiColorTheme.value = appSettings.uiColorTheme || 'auto';
 
   // Sliders
   const controls = getEmojiThemeControls();
@@ -508,7 +514,7 @@ export function saveSettingsFromForm() {
       afternoon: settingsReminderAfternoon.value,
       evening: settingsReminderEvening.value
     },
-    uiColorTheme: settingsUiColorTheme ? settingsUiColorTheme.value : 'sky'
+    uiColorTheme: settingsUiColorTheme ? settingsUiColorTheme.value : 'auto'
   });
 
   if (settingsExperimentalSkyTheme) {
@@ -536,7 +542,7 @@ export function saveSettingsFromForm() {
 
   // Apply UI Accent color theme
   if (typeof applyUiColorThemeClass === 'function') {
-    applyUiColorThemeClass(appSettings.uiColorTheme || 'sky');
+    applyUiColorThemeClass(appSettings.uiColorTheme || 'auto');
   }
 
   // Sync presentation and notes grid
@@ -611,6 +617,9 @@ export function renderSettingsBgPicker() {
         appSettings.appBgColor = opt.id;
       }
       applyAppBgColor();
+      if (appSettings.uiColorTheme === 'auto' && typeof applyUiColorThemeClass === 'function') {
+        applyUiColorThemeClass('auto');
+      }
       renderSettingsBgPicker();
       saveSettingsAndSync();
     });

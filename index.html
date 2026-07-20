@@ -51,6 +51,7 @@
   <link rel="icon" href="icons/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="search.css">
 </head>
 <body class="theme-light light-theme">
   <script>
@@ -164,13 +165,23 @@
           <div class="profile-divider"></div>
           <div class="profile-version-section">
             <div class="version-header">
-              <span class="version-label">Version 2.3.5</span>
+              <span class="version-label">Version 2.4.0</span>
               <button class="update-btn" id="app-update-btn" type="button">Update</button>
             </div>
             <div class="changelog-container">
               <div class="changelog-title">What's New</div>
               <ul class="changelog-list">
-                 <li>Service worker update checking & prompt during splash screen loading and active background usage</li>
+                <li>Dedicated Functional Search Page accessible from the side menu</li>
+                <li>Spotify-inspired fluid genre cards (Checklists, Photos, Voice Memos, Bookmarks, Notebooks, Tags)</li>
+                <li>Consolidated media hubs: full-bleed Photos gallery, Audio wave visualizer cards, and domain-rich Link tiles</li>
+                <li>Redesigned Quick Launch note creator-styled Search Bar with floating glass, Ctrl+K shortcut, and crisp inner background</li>
+                <li>Added "Auto" tint color option which automatically selects an appropriate workspace accent color matching your background</li>
+              <li>Accent color now syncs with the Windows title bar and Android status bar for installed PWAs</li>
+              <li>Fixed productivity page panels being transparent in light mode</li>
+              <li>Fixed mobile portrait UI layout issues with workspace tint overlay breaking the sidebar and header z-index stack</li>
+              <li>Improved mobile portrait note sizing by allowing auto-height and min-height expansion for list view</li>
+              <li>Fixed bug where custom note background images were visually overridden by glassmorphism repeating pattern styles</li>
+              <li>Service worker update checking & prompt during splash screen loading and active background usage</li>
                  <li>Instant dark/light theme detection on splash screen loading (preventing white flashing)</li>
                  <li>Workspace background image fitting settings (Fill, Fit, Stretch, Tile, Center) in Appearance settings</li>
                  <li>Note background image upload button styled as a native card in the theme slider picker</li>
@@ -205,6 +216,10 @@
     <div class="sidebar-item active" id="sidebar-all-notes" title="All Notes" aria-label="All Notes">
       <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M5 4h11a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm2 4v2h7V8H7zm0 4v2h7v-2H7zm10-7.5L20.5 8 17 11.5V9h-2V7h2V4.5z"/></svg>
       <span class="sidebar-label">All Notes</span>
+    </div>
+    <div class="sidebar-item" id="sidebar-search" title="Search" aria-label="Search">
+      <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <span class="sidebar-label">Search</span>
     </div>
   </aside>
 
@@ -667,6 +682,96 @@
     </div>
     
     <!-- Settings Page Container -->
+    <!-- Dedicated Search Page -->
+    <section class="search-page-container" id="search-page" style="display: none;">
+      <div class="search-page-header">
+        <div class="search-page-input-wrapper">
+          <svg class="search-page-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="dedicated-search-input" placeholder="What do you want to find?" autocomplete="off">
+          <span class="search-kbd-badge" id="dedicated-search-kbd"><kbd>Ctrl</kbd> <kbd>K</kbd></span>
+          <button class="icon-btn clear-search-btn" id="dedicated-search-clear" aria-label="Clear search" style="display: none;">
+            <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="search-page-body">
+        <!-- Browse All Section -->
+        <div class="search-browse-section" id="search-browse-section">
+          <h3>Browse all</h3>
+          <div class="search-browse-grid">
+            <div class="fluid-genre-card card-checklists" data-search-filter="kind:checklist">
+              <span class="genre-card-title">Checklists</span>
+              <svg class="genre-card-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+            </div>
+            <div class="fluid-genre-card card-photos" data-search-filter="kind:image">
+              <span class="genre-card-title">Photos</span>
+              <svg class="genre-card-icon" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+            </div>
+            <div class="fluid-genre-card card-voice" data-search-filter="kind:voice">
+              <span class="genre-card-title">Voice Memos</span>
+              <svg class="genre-card-icon" viewBox="0 0 24 24"><path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+            </div>
+            <div class="fluid-genre-card card-bookmarks" data-search-filter="kind:link">
+              <span class="genre-card-title">Bookmarks</span>
+              <svg class="genre-card-icon" viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+            </div>
+            <div class="fluid-genre-card card-notebooks" data-search-filter="folder:">
+              <span class="genre-card-title">Notebooks</span>
+              <svg class="genre-card-icon" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+            </div>
+            <div class="fluid-genre-card card-tags" data-search-filter="tag:">
+              <span class="genre-card-title">Tags</span>
+              <svg class="genre-card-icon" viewBox="0 0 24 24"><path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/></svg>
+            </div>
+          </div>
+          
+          <!-- Consolidated Media Sections -->
+          <div class="search-media-consolidation" id="search-media-consolidation">
+            
+            <div class="media-section" id="search-photos-section" style="display: none;">
+              <h3 class="section-title">
+                <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                PHOTOS
+              </h3>
+              <div class="notes-grid" id="search-photos-grid"></div>
+            </div>
+
+            <div class="media-section" id="search-files-section" style="display: none;">
+              <h3 class="section-title">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                FILES & VOICE
+              </h3>
+              <div class="notes-grid" id="search-files-grid"></div>
+            </div>
+
+            <div class="media-section" id="search-links-section" style="display: none;">
+              <h3 class="section-title">
+                <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+                LINKS
+              </h3>
+              <div class="notes-grid" id="search-links-grid"></div>
+            </div>
+            
+          </div>
+        </div>
+
+        <!-- Search Results Section -->
+        <div class="search-results-section" id="search-results-section" style="display: none;">
+          <div class="search-results-filters" id="search-results-filters">
+            <button class="search-filter-pill active" data-filter="all">All</button>
+            <button class="search-filter-pill" data-filter="notes">Notes</button>
+            <button class="search-filter-pill" data-filter="folders">Notebooks</button>
+            <button class="search-filter-pill" data-filter="tags">Tags</button>
+          </div>
+          <!-- We can reuse .notes-feed layout here, but let's give it an id -->
+          <div class="notes-feed" id="dedicated-search-results-grid" style="display: grid; padding: 0; margin-top: 16px;">
+            <!-- Results populated here -->
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="settings-page" id="settings-page" style="display: none;">
       <div class="settings-page-header">
         <button class="icon-btn" id="settings-back-btn" aria-label="Back to Notes" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
@@ -760,6 +865,7 @@
               <span>Select the color accent theme for the app workspace</span>
             </div>
             <select id="settings-ui-color-theme" class="settings-select">
+              <option value="auto">Auto (Match Background)</option>
               <option value="lavender">Lavender</option>
               <option value="sky">Sky Blue</option>
               <option value="aqua">Aqua</option>

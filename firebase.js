@@ -468,8 +468,18 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '2.3.5',
+        version: '2.4.0',
         changelog: [
+          'Dedicated Functional Search Page accessible from the side menu',
+          'Spotify-inspired fluid genre cards (Checklists, Photos, Voice Memos, Bookmarks, Notebooks, Tags)',
+          'Consolidated media hubs: full-bleed Photos gallery, Audio wave visualizer cards, and domain-rich Link tiles',
+          'Redesigned Quick Launch note creator-styled Search Bar with floating glass, Ctrl+K shortcut, and crisp inner background',
+          'Added "Auto" tint color option which automatically selects an appropriate workspace accent color matching your background (works for custom uploads too)',
+          'Accent color now syncs with the Windows title bar and Android status bar for installed PWAs',
+          'Fixed productivity page panels being transparent in light mode',
+          'Fixed mobile portrait UI layout issues with workspace tint overlay breaking the sidebar and header z-index stack',
+          'Improved mobile portrait note sizing by allowing auto-height and min-height expansion for list view',
+          'Fixed bug where custom note background images were visually overridden by glassmorphism repeating pattern styles',
           'Service worker update checking & prompt during splash screen loading and active background usage',
           'Instant dark/light theme detection on splash screen loading (preventing white flashing)',
           'Workspace background image fitting settings (Fill, Fit, Stretch, Tile, Center) in Appearance settings',

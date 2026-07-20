@@ -1,4 +1,4 @@
-const CACHE_NAME = 'paperuss-v53';
+const CACHE_NAME = 'paperuss-v56';
 // Static assets that never get hashed — safe to precache by path
 const APP_ASSETS = [
   './',
