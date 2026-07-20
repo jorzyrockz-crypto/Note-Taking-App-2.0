@@ -468,10 +468,11 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '2.4.2',
+        version: '2.4.3',
         changelog: [
+          'Fixed modern glass editor modal opening empty note when receiving shared PWA launch data (loads data directly into modal note draft and enriches website metadata in modal)',
           'Robust Web Share Target: supports receiving multiple shared files and resolves query parameters correctly offline',
-          'Robust Note Sharing: wraps individual file preparation in try-catch to avoid crashes and falls back to clipboard copy if navigator.share fails',
+          'Robust Note Sharing: wraps individual file formatting in try-catch to avoid crashes and falls back to clipboard copy if navigator.share fails',
           'Organized two-column tabbed settings layout (General, Appearance, Themes, Reminders, Notifications)',
           'Frosted glass translucent settings cards supporting both light and dark themes',
           'Notifications configuration panel: Quiet Hours time picker, Do Not Disturb, sound chimes, haptics, and a 2x3 toast position grid selector',

@@ -3118,8 +3118,9 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.4.2';
+  const CURRENT_VERSION = '2.4.3';
   const DEFAULT_CHANGELOG = [
+    'Fixed modern glass editor modal opening empty note when receiving shared PWA launch data (loads data directly into modal note draft and enriches website metadata in modal)',
     'Robust Web Share Target: supports receiving multiple shared files and resolves query parameters correctly offline',
     'Robust Note Sharing: wraps individual file formatting in try-catch to avoid crashes and falls back to clipboard copy if navigator.share fails',
     'Organized two-column tabbed settings layout (General, Appearance, Themes, Reminders, Notifications)',
@@ -7701,23 +7702,10 @@ async function handleSharedLaunchData() {
   const hasSharedFile = params.get('sharedFile') === '1' || params.has('sharedFilesCount');
   if (!sharedTitle && !sharedText && !sharedUrl && !hasSharedFile) return;
 
-  expandCreator();
-  if (!creatorTitle.value.trim() && sharedTitle) {
-    creatorTitle.value = sharedTitle;
-  }
-
-  const url = getFirstUrlFromSharedText(sharedUrl, sharedText);
-  const bodyParts = [];
-  if (sharedText && sharedText !== sharedTitle) bodyParts.push(sharedText);
-  if (sharedUrl && !sharedText.includes(sharedUrl)) bodyParts.push(sharedUrl);
-  if (!creatorText.value.trim()) {
-    creatorText.value = bodyParts.join('\n\n').trim();
-  }
-
-  syncCreatorInputs();
-  syncCreatorFolderInput(true);
-  autoGrowTextarea.call(creatorText);
-
+  // Gather files/images from cache first if any
+  let sharedImageBanner = null;
+  const sharedNoteFiles = [];
+  
   if (hasSharedFile && 'caches' in window) {
     try {
       const cache = await caches.open('paperuss-share-temp');
@@ -7732,9 +7720,8 @@ async function handleSharedLaunchData() {
             const sharedType = response.headers.get('Content-Type') || 'application/octet-stream';
             const sharedName = decodeURIComponent(response.headers.get('X-Paperuss-File-Name') || 'shared-file');
             
-            if (sharedType.startsWith('image/') && !creatorImage) {
-              creatorImage = dataUrl;
-              creatorImageBanner.style.display = 'block';
+            if (sharedType.startsWith('image/') && !sharedImageBanner) {
+              sharedImageBanner = dataUrl;
             } else {
               const fileId = `file-${Date.now()}-${Math.random().toString(16).slice(2)}`;
               let finalDataUrl = dataUrl;
@@ -7744,45 +7731,157 @@ async function handleSharedLaunchData() {
                 finalDataUrl = 'db';
                 storedInDB = true;
               }
-              creatorFiles = [
-                ...normalizeNoteFiles(creatorFiles),
-                {
-                  id: fileId,
-                  name: sharedName,
-                  type: sharedType,
-                  size: blob.size,
-                  dataUrl: finalDataUrl,
-                  storedInDB,
-                  addedAt: Date.now()
-                }
-              ];
+              sharedNoteFiles.push({
+                id: fileId,
+                name: sharedName,
+                type: sharedType,
+                size: blob.size,
+                dataUrl: finalDataUrl,
+                storedInDB,
+                addedAt: Date.now()
+              });
             }
             await cache.delete(req);
           }
         }
       }
-      renderCreatorFileAttachments();
     } catch (error) {
       console.warn('Could not read shared files from cache:', error);
     }
   } else if (sharedImage) {
-    // Bookmarklet already supplied real scraped metadata (e.g. from a page
-    // that blocks server-side fetches, like Facebook/Instagram). Apply it
-    // directly instead of re-fetching via the backend, which would fail.
-    if (!creatorImage) {
-      creatorImage = sharedImage;
+    sharedImageBanner = sharedImage;
+  }
+
+  const url = getFirstUrlFromSharedText(sharedUrl, sharedText);
+  const bodyParts = [];
+  if (sharedText && sharedText !== sharedTitle) bodyParts.push(sharedText);
+  if (sharedUrl && !sharedText.includes(sharedUrl)) bodyParts.push(sharedUrl);
+  const finalBodyText = bodyParts.join('\n\n').trim();
+
+  if (appSettings.modernGlassEditorEnabled) {
+    // Construct note object directly with all shared parameters pre-populated!
+    const newNote = {
+      id: 'note-' + Date.now(),
+      title: sharedTitle,
+      text: finalBodyText,
+      image: sharedImageBanner,
+      files: sharedNoteFiles,
+      pinned: false,
+      color: 'default',
+      folder: 'Personal',
+      status: 'active',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      isRichText: true,
+      editorMode: 'glass',
+      isNewDraft: true
+    };
+    
+    // Unshift to notes list
+    notes.unshift(newNote);
+    saveToLocalStorage();
+    renderNotes();
+    
+    // Open in full-screen modal editor overlay directly!
+    openEditModal(newNote, true);
+    
+    // Fetch website metadata and enrich note in modal in background
+    if (url) {
+      fetchModalLinkPreview(newNote, url);
+    }
+  } else {
+    // Fallback: Populate Quick Launch composer inline
+    expandCreator();
+    if (!creatorTitle.value.trim() && sharedTitle) {
+      creatorTitle.value = sharedTitle;
+    }
+    if (!creatorText.value.trim()) {
+      creatorText.value = finalBodyText;
+    }
+    if (sharedImageBanner && !creatorImage) {
+      creatorImage = sharedImageBanner;
       creatorImageBanner.style.display = 'block';
+    }
+    if (sharedNoteFiles.length > 0) {
+      creatorFiles = [
+        ...normalizeNoteFiles(creatorFiles),
+        ...sharedNoteFiles
+      ];
+    }
+    syncCreatorInputs();
+    syncCreatorFolderInput(true);
+    autoGrowTextarea.call(creatorText);
+    renderCreatorFileAttachments();
+    
+    if (url && !hasSharedFile && !sharedImage) {
+      creatorLinkPreviewUrl = null;
+      fetchCreatorLinkPreview(url);
+    } else if (url) {
+      creatorLinkPreviewUrl = url;
     }
   }
 
-  if (url && !hasSharedFile && !sharedImage) {
-    creatorLinkPreviewUrl = null;
-    fetchCreatorLinkPreview(url);
-  } else if (url) {
-    creatorLinkPreviewUrl = url;
-  }
-
   window.history.replaceState({}, document.title, window.location.pathname);
+}
+
+async function fetchModalLinkPreview(note, url) {
+  try {
+    const preview = await fetchLinkPreviewMetadata(url);
+    if (!preview) return;
+
+    // Verify user is still editing this same note in the modal
+    if (currentEditingNoteId === note.id) {
+      const glassTitle = document.getElementById('modal-glass-title');
+      const glassEditor = document.getElementById('modal-glass-editor');
+
+      const intent = preview.intent || {};
+      if (!note.title && preview.title) {
+        note.title = preview.title;
+        if (glassTitle) {
+          glassTitle.innerHTML = preview.title;
+          window.updateGlassEmptyState(glassTitle);
+        }
+        modalTitle.value = preview.title;
+      }
+
+      const previewText = buildAutofillTextFromPreview(preview, url);
+      if ((!note.text || note.text.trim() === url) && previewText) {
+        note.text = previewText;
+        if (glassEditor) {
+          glassEditor.innerHTML = previewText;
+          window.updateGlassEmptyState(glassEditor);
+        }
+        modalText.value = previewText;
+      }
+
+      if (!note.image && preview.image) {
+        note.image = preview.image;
+        applyNoteAppearance(editModalCard, note);
+      }
+
+      if (intent.folder) {
+        const folders = getNoteFolders(note);
+        if (!folders.includes(intent.folder)) {
+          folders.push(intent.folder);
+          setNoteFolders(note, folders);
+          setModalFolderValue(folders);
+        }
+      }
+
+      if (intent.theme && note.color === 'default' && !note.theme) {
+        note.theme = intent.theme;
+        applyNoteAppearance(editModalCard, note);
+      }
+
+      // Save changes and update notes list
+      saveToLocalStorage();
+      renderNotes();
+
+      showToast({ title: 'Link parsed', text: 'The note was enriched with website metadata.' });
+    }
+  } catch (error) {
+    console.warn('Failed to fetch link preview for modal:', error);
+  }
 }
 
 function blobToDataUrl(blob) {
