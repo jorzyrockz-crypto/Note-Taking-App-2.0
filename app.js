@@ -176,6 +176,7 @@ let creatorFolders = [];
 let creatorAutoFolder = '';
 let creatorIntentType = null;
 let creatorLinkPreviewUrl = null;
+let creatorLinkPreviewData = null;
 let creatorLinkPreviewTimer = null;
 let creatorLinkPreviewAbort = null;
 let selectedTagFilter = null; // Sidebar selected filter tag
@@ -3118,8 +3119,9 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.4.3';
+  const CURRENT_VERSION = '2.4.4';
   const DEFAULT_CHANGELOG = [
+    'Upgraded social link parsing with clean canonical URLs, official previews where available, safe fallbacks, and stronger redirect protection',
     'Fixed modern glass editor modal opening empty note when receiving shared PWA launch data (loads data directly into modal note draft and enriches website metadata in modal)',
     'Robust Web Share Target: supports receiving multiple shared files and resolves query parameters correctly offline',
     'Robust Note Sharing: wraps individual file formatting in try-catch to avoid crashes and falls back to clipboard copy if navigator.share fails',
@@ -3490,6 +3492,7 @@ function collapseCreator() {
   creatorText.value = '';
   creatorText.style.height = 'auto';
   creatorLinkPreviewUrl = null;
+  creatorLinkPreviewData = null;
   clearTimeout(creatorLinkPreviewTimer);
   creatorLinkPreviewAbort?.abort();
   creatorLinkPreviewAbort = null;
@@ -3588,6 +3591,7 @@ function saveCreatorNoteDraft() {
       deleted: false,
       deletedAt: null,
       image: creatorImage,
+      linkPreview: creatorLinkPreviewData,
       files: normalizeNoteFiles(creatorFiles),
       createdAt: Date.now(),
       updatedAt: Date.now()
@@ -3615,6 +3619,7 @@ function saveCreatorNoteDraft() {
     note.archived = creatorArchived;
     note.archivedAt = creatorArchived ? (note.archivedAt || Date.now()) : null;
     note.image = creatorImage;
+    note.linkPreview = creatorLinkPreviewData;
     note.files = normalizeNoteFiles(creatorFiles);
     note.updatedAt = Date.now();
     setNoteFolders(note, selectedFolders);
@@ -4559,6 +4564,7 @@ function saveCreatorNote() {
     deleted: false,
     deletedAt: null,
     image: creatorImage,
+    linkPreview: creatorLinkPreviewData,
     files: normalizeNoteFiles(creatorFiles),
     createdAt: Date.now(),
     updatedAt: Date.now()
@@ -7517,7 +7523,18 @@ function legacyRenderFormattedText(text) {
 function getFirstUrlInText(text) {
   if (!text) return null;
   const matches = text.match(URL_REGEX);
-  return matches ? matches[0] : null;
+  return matches ? trimTrailingUrlPunctuation(matches[0]) : null;
+}
+
+function trimTrailingUrlPunctuation(value = '') {
+  let result = value.replace(/[.,!?;:]+$/u, '');
+  while (
+    result.endsWith(')') &&
+    (result.match(/\(/g)?.length || 0) < (result.match(/\)/g)?.length || 0)
+  ) {
+    result = result.slice(0, -1);
+  }
+  return result;
 }
 
 function getFirstUrlFromSharedText(...values) {
@@ -7535,8 +7552,21 @@ function extractDomain(urlStr) {
 function buildAutofillTextFromPreview(preview, url) {
   const parts = [];
   if (preview?.description) parts.push(preview.description);
-  if (url) parts.push(url);
+  const cleanUrl = preview?.canonicalUrl || preview?.url || url;
+  if (cleanUrl) parts.push(cleanUrl);
   return parts.join('\n\n').trim();
+}
+
+function buildStoredLinkPreview(preview, sourceUrl) {
+  if (!preview) return null;
+  return {
+    sourceUrl,
+    canonicalUrl: preview.canonicalUrl || preview.url || sourceUrl,
+    platform: preview.social?.platform || 'website',
+    kind: preview.social?.kind || preview.intent?.kind || 'bookmark',
+    provider: preview.previewProvider || 'fallback',
+    updatedAt: Date.now()
+  };
 }
 
 function shouldApplyLinkPreview(url) {
@@ -7548,6 +7578,7 @@ function applyCreatorLinkPreview(preview, sourceUrl) {
   if (!preview || sourceUrl !== getFirstUrlFromSharedText(creatorTitle.value, creatorText.value)) return;
 
   const intent = preview.intent || {};
+  creatorLinkPreviewData = buildStoredLinkPreview(preview, sourceUrl);
   if (!creatorTitle.value.trim() && preview.title) {
     creatorTitle.value = preview.title;
   }
@@ -7643,6 +7674,7 @@ async function parseCreatorLinkManually() {
 function applyLinkPreviewToNote(note, preview, sourceUrl) {
   if (!note || !preview) return;
   const intent = preview.intent || {};
+  note.linkPreview = buildStoredLinkPreview(preview, sourceUrl);
   const previewText = buildAutofillTextFromPreview(preview, sourceUrl);
 
   if (!note.title?.trim() && preview.title) {
@@ -7835,10 +7867,11 @@ async function fetchModalLinkPreview(note, url) {
       const glassEditor = document.getElementById('modal-glass-editor');
 
       const intent = preview.intent || {};
+      note.linkPreview = buildStoredLinkPreview(preview, url);
       if (!note.title && preview.title) {
         note.title = preview.title;
         if (glassTitle) {
-          glassTitle.innerHTML = preview.title;
+          glassTitle.textContent = preview.title;
           window.updateGlassEmptyState(glassTitle);
         }
         modalTitle.value = preview.title;
@@ -7848,7 +7881,7 @@ async function fetchModalLinkPreview(note, url) {
       if ((!note.text || note.text.trim() === url) && previewText) {
         note.text = previewText;
         if (glassEditor) {
-          glassEditor.innerHTML = previewText;
+          glassEditor.innerText = previewText;
           window.updateGlassEmptyState(glassEditor);
         }
         modalText.value = previewText;
