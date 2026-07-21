@@ -3199,11 +3199,8 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.6.0';
+  const CURRENT_VERSION = '2.5.1';
   const DEFAULT_CHANGELOG = [
-    'Refactored the Paperuss editor into a cleaner primary toolbar with progressive Add and More menus while preserving every existing editing command',
-    'Added context-aware text, image, link, and checklist toolbars with viewport-safe positioning, Escape/outside-click dismissal, and focused relevant actions',
-    'Improved phone and tablet editing with 44px touch targets, compact responsive controls, subtle reduced-motion-aware transitions, and off-screen popover protection',
     'Added Workspace Density settings with Auto, Compact, Comfortable, Touch, and Spacious modes plus an optional Tablet-first Navigation testing feature',
     'Tablet-first workspace with an adaptive portrait dock, landscape navigation rail, roomier note grid, and touch-friendly controls',
     'Upgraded tablet editor to a focused near-full-screen canvas with safer spacing, sticky actions, and better portrait/landscape behavior',

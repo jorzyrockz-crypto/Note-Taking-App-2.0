@@ -165,15 +165,12 @@
           <div class="profile-divider"></div>
           <div class="profile-version-section">
             <div class="version-header">
-              <span class="version-label">Version 2.6.0</span>
+              <span class="version-label">Version 2.5.1</span>
               <button class="update-btn" id="app-update-btn" type="button">Update</button>
             </div>
             <div class="changelog-container">
               <div class="changelog-title">What's New</div>
               <ul class="changelog-list">
-                <li>Refactored the Paperuss editor into a cleaner primary toolbar with progressive Add and More menus while preserving every existing editing command</li>
-                <li>Added context-aware text, image, link, and checklist toolbars with viewport-safe positioning, Escape/outside-click dismissal, and focused relevant actions</li>
-                <li>Improved phone and tablet editing with 44px touch targets, compact responsive controls, subtle reduced-motion-aware transitions, and off-screen popover protection</li>
                 <li>Added Workspace Density settings with Auto, Compact, Comfortable, Touch, and Spacious modes plus an optional Tablet-first Navigation testing feature</li>
                 <li>Tablet-first workspace with an adaptive portrait dock, landscape navigation rail, roomier note grid, and touch-friendly controls</li>
                 <li>Upgraded tablet editor to a focused near-full-screen canvas with safer spacing, sticky actions, and better portrait/landscape behavior</li>
@@ -564,39 +561,47 @@
           </div>
           
           <!-- Glass Editor Floating formatting toolbar -->
-          <div class="glass-floating-toolbar glass-primary-toolbar" id="creator-glass-floating-toolbar" style="display: none;" role="toolbar" aria-label="Editor formatting">
-            <button class="toolbar-btn" data-cmd="bold" onmousedown="event.preventDefault(); execGlassCmd('bold')" title="Bold (Ctrl+B)" aria-label="Bold"><span class="btn-text">B</span></button>
-            <button class="toolbar-btn" data-cmd="italic" onmousedown="event.preventDefault(); execGlassCmd('italic')" title="Italic (Ctrl+I)" aria-label="Italic"><span class="btn-text" style="font-style:italic;">I</span></button>
-            <button class="toolbar-btn" data-cmd="underline" onmousedown="event.preventDefault(); execGlassCmd('underline')" title="Underline (Ctrl+U)" aria-label="Underline"><span class="btn-text" style="text-decoration:underline;">U</span></button>
-            <button class="toolbar-btn" id="creator-glass-heading-btn" onmousedown="event.preventDefault(); execGlassHeading('creator')" title="Heading style" aria-label="Heading style"><span class="btn-text" id="creator-glass-heading-label">H</span></button>
+          <div class="glass-floating-toolbar" id="creator-glass-floating-toolbar" style="display: none;">
+            <button class="toolbar-btn" data-cmd="bold" onmousedown="event.preventDefault(); execGlassCmd('bold')" title="Bold">
+              <svg viewBox="0 0 24 24"><path d="M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-3v-3zm3.5 9H10v-3h3.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5z"/></svg>
+            </button>
+            <button class="toolbar-btn" data-cmd="italic" onmousedown="event.preventDefault(); execGlassCmd('italic')" title="Italic">
+              <svg viewBox="0 0 24 24"><path d="M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z"/></svg>
+            </button>
+            <button class="toolbar-btn" data-cmd="underline" onmousedown="event.preventDefault(); execGlassCmd('underline')" title="Underline">
+              <svg viewBox="0 0 24 24"><path d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z"/></svg>
+            </button>
+            <button class="toolbar-btn" data-cmd="strikeThrough" onmousedown="event.preventDefault(); execGlassCmd('strikeThrough')" title="Strikethrough">
+              <span class="btn-text" style="text-decoration: line-through;">S</span>
+            </button>
             <div class="toolbar-divider"></div>
-            <button class="toolbar-btn" data-cmd="insertUnorderedList" onmousedown="event.preventDefault(); execGlassCmd('insertUnorderedList')" title="Bulleted list" aria-label="Bulleted list"><span class="btn-text">•</span></button>
-            <button class="toolbar-btn" data-cmd="insertOrderedList" onmousedown="event.preventDefault(); execGlassCmd('insertOrderedList')" title="Numbered list" aria-label="Numbered list"><span class="btn-text">1.</span></button>
-            <button class="toolbar-btn" onmousedown="event.preventDefault(); addGlassChecklist('creator')" title="Checklist" aria-label="Checklist"><span class="btn-text">☑</span></button>
-            <button class="toolbar-btn" onmousedown="event.preventDefault(); toggleGlassLinkPopover('creator')" title="Insert link" aria-label="Insert link"><svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg></button>
-            <button class="toolbar-btn toolbar-add-btn" aria-expanded="false" onmousedown="event.preventDefault(); toggleGlassToolbarPopover('creator', 'add', this)" title="Add content" aria-label="Add content"><span class="btn-text">+</span></button>
-            <button class="toolbar-btn toolbar-more-btn" aria-expanded="false" onmousedown="event.preventDefault(); toggleGlassToolbarPopover('creator', 'more', this)" title="More formatting" aria-label="More formatting"><span class="btn-text">•••</span></button>
-            <div class="glass-toolbar-popover glass-add-menu" id="creator-glass-add-menu" role="menu" aria-label="Add content">
-              <button type="button" data-glass-add="image" role="menuitem"><span>🖼️</span> Image</button>
-              <button type="button" data-glass-add="camera" role="menuitem"><span>📷</span> Camera</button>
-              <button type="button" data-glass-add="voice" role="menuitem"><span>🎙️</span> Voice recording</button>
-              <button type="button" data-glass-add="scheduler" role="menuitem"><span>⏰</span> Scheduler</button>
-              <button type="button" data-glass-add="attachment" role="menuitem"><span>📎</span> Attachment</button>
-            </div>
-            <div class="glass-toolbar-popover glass-more-menu" id="creator-glass-more-menu" role="menu" aria-label="More formatting">
-              <button type="button" class="glass-mobile-more-action" data-glass-more="underline" role="menuitem">Underline</button>
-              <button type="button" class="glass-mobile-more-action" data-glass-more="heading" role="menuitem">Heading</button>
-              <button type="button" class="glass-mobile-more-action" data-glass-more="bullet" role="menuitem">Bulleted list</button>
-              <button type="button" class="glass-mobile-more-action" data-glass-more="number" role="menuitem">Numbered list</button>
-              <button type="button" data-glass-more="strike" role="menuitem">Strikethrough</button>
-              <button type="button" data-glass-more="size" role="menuitem"><span id="creator-glass-size-label">A</span> Text size</button>
-              <button type="button" data-glass-more="color" role="menuitem">Highlight &amp; color</button>
-              <button type="button" data-glass-more="clear" role="menuitem">Clear formatting</button>
-            </div>
+            <button class="toolbar-btn" id="creator-glass-heading-btn" onmousedown="event.preventDefault(); execGlassHeading('creator')" title="Heading style">
+              <span class="btn-text" id="creator-glass-heading-label">H</span>
+            </button>
+            <button class="toolbar-btn" id="creator-glass-size-btn" onmousedown="event.preventDefault(); execGlassFontSize('creator')" title="Font size">
+              <span class="btn-text" id="creator-glass-size-label">A↑</span>
+            </button>
+            <div class="toolbar-divider"></div>
+            <button class="toolbar-btn" data-cmd="insertUnorderedList" onmousedown="event.preventDefault(); execGlassCmd('insertUnorderedList')" title="Bulleted list">
+              <svg viewBox="0 0 24 24"><path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"/></svg>
+            </button>
+            <button class="toolbar-btn" data-cmd="insertOrderedList" onmousedown="event.preventDefault(); execGlassCmd('insertOrderedList')" title="Numbered list">
+              <svg viewBox="0 0 24 24"><path d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z"/></svg>
+            </button>
+            <button class="toolbar-btn" onmousedown="event.preventDefault(); toggleGlassColorPopup('creator')" title="Highlight & Text color">
+              <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+            </button>
+            <button class="toolbar-btn" onmousedown="event.preventDefault(); addGlassChecklist('creator')" title="Add checklist item">
+              <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+            </button>
+            <button class="toolbar-btn" onmousedown="event.preventDefault(); toggleGlassLinkPopover('creator')" title="Insert link">
+              <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+            </button>
+            <button class="toolbar-btn" onmousedown="event.preventDefault(); document.getElementById('creator-glass-img-upload').click()" title="Insert image">
+              <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+            </button>
             <input type="file" id="creator-glass-img-upload" accept="image/*" style="display:none" onchange="handleGlassImage(this, 'creator')">
-            <input type="file" id="creator-glass-camera-upload" accept="image/*" capture="environment" style="display:none" onchange="handleGlassImage(this, 'creator')">
           </div>
-          <div class="glass-context-toolbar" id="creator-glass-context-toolbar" role="toolbar" aria-label="Selection actions"></div>
 
           <div id="creator-glass-link-popover" class="glass-link-popover" onmousedown="event.preventDefault()">
             <input type="text" id="creator-glass-link-input" placeholder="Paste or type link...">
@@ -1619,39 +1624,47 @@
       </div>
       
       <!-- Glass Editor Floating formatting toolbar -->
-      <div class="glass-floating-toolbar glass-primary-toolbar" id="modal-glass-floating-toolbar" style="display: none;" role="toolbar" aria-label="Editor formatting">
-        <button class="toolbar-btn" data-cmd="bold" onmousedown="event.preventDefault(); execGlassCmd('bold')" title="Bold (Ctrl+B)" aria-label="Bold"><span class="btn-text">B</span></button>
-        <button class="toolbar-btn" data-cmd="italic" onmousedown="event.preventDefault(); execGlassCmd('italic')" title="Italic (Ctrl+I)" aria-label="Italic"><span class="btn-text" style="font-style:italic;">I</span></button>
-        <button class="toolbar-btn" data-cmd="underline" onmousedown="event.preventDefault(); execGlassCmd('underline')" title="Underline (Ctrl+U)" aria-label="Underline"><span class="btn-text" style="text-decoration:underline;">U</span></button>
-        <button class="toolbar-btn" id="modal-glass-heading-btn" onmousedown="event.preventDefault(); execGlassHeading('modal')" title="Heading style" aria-label="Heading style"><span class="btn-text" id="modal-glass-heading-label">H</span></button>
+      <div class="glass-floating-toolbar" id="modal-glass-floating-toolbar" style="display: none;">
+        <button class="toolbar-btn" data-cmd="bold" onmousedown="event.preventDefault(); execGlassCmd('bold')" title="Bold">
+          <svg viewBox="0 0 24 24"><path d="M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-3v-3zm3.5 9H10v-3h3.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5z"/></svg>
+        </button>
+        <button class="toolbar-btn" data-cmd="italic" onmousedown="event.preventDefault(); execGlassCmd('italic')" title="Italic">
+          <svg viewBox="0 0 24 24"><path d="M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z"/></svg>
+        </button>
+        <button class="toolbar-btn" data-cmd="underline" onmousedown="event.preventDefault(); execGlassCmd('underline')" title="Underline">
+          <svg viewBox="0 0 24 24"><path d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z"/></svg>
+        </button>
+        <button class="toolbar-btn" data-cmd="strikeThrough" onmousedown="event.preventDefault(); execGlassCmd('strikeThrough')" title="Strikethrough">
+          <span class="btn-text" style="text-decoration: line-through;">S</span>
+        </button>
         <div class="toolbar-divider"></div>
-        <button class="toolbar-btn" data-cmd="insertUnorderedList" onmousedown="event.preventDefault(); execGlassCmd('insertUnorderedList')" title="Bulleted list" aria-label="Bulleted list"><span class="btn-text">•</span></button>
-        <button class="toolbar-btn" data-cmd="insertOrderedList" onmousedown="event.preventDefault(); execGlassCmd('insertOrderedList')" title="Numbered list" aria-label="Numbered list"><span class="btn-text">1.</span></button>
-        <button class="toolbar-btn" onmousedown="event.preventDefault(); addGlassChecklist('modal')" title="Checklist" aria-label="Checklist"><span class="btn-text">☑</span></button>
-        <button class="toolbar-btn" onmousedown="event.preventDefault(); toggleGlassLinkPopover('modal')" title="Insert link" aria-label="Insert link"><svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg></button>
-        <button class="toolbar-btn toolbar-add-btn" aria-expanded="false" onmousedown="event.preventDefault(); toggleGlassToolbarPopover('modal', 'add', this)" title="Add content" aria-label="Add content"><span class="btn-text">+</span></button>
-        <button class="toolbar-btn toolbar-more-btn" aria-expanded="false" onmousedown="event.preventDefault(); toggleGlassToolbarPopover('modal', 'more', this)" title="More formatting" aria-label="More formatting"><span class="btn-text">•••</span></button>
-        <div class="glass-toolbar-popover glass-add-menu" id="modal-glass-add-menu" role="menu" aria-label="Add content">
-          <button type="button" data-glass-add="image" role="menuitem"><span>🖼️</span> Image</button>
-          <button type="button" data-glass-add="camera" role="menuitem"><span>📷</span> Camera</button>
-          <button type="button" data-glass-add="voice" role="menuitem"><span>🎙️</span> Voice recording</button>
-          <button type="button" data-glass-add="scheduler" role="menuitem"><span>⏰</span> Scheduler</button>
-          <button type="button" data-glass-add="attachment" role="menuitem"><span>📎</span> Attachment</button>
-        </div>
-        <div class="glass-toolbar-popover glass-more-menu" id="modal-glass-more-menu" role="menu" aria-label="More formatting">
-          <button type="button" class="glass-mobile-more-action" data-glass-more="underline" role="menuitem">Underline</button>
-          <button type="button" class="glass-mobile-more-action" data-glass-more="heading" role="menuitem">Heading</button>
-          <button type="button" class="glass-mobile-more-action" data-glass-more="bullet" role="menuitem">Bulleted list</button>
-          <button type="button" class="glass-mobile-more-action" data-glass-more="number" role="menuitem">Numbered list</button>
-          <button type="button" data-glass-more="strike" role="menuitem">Strikethrough</button>
-          <button type="button" data-glass-more="size" role="menuitem"><span id="modal-glass-size-label">A</span> Text size</button>
-          <button type="button" data-glass-more="color" role="menuitem">Highlight &amp; color</button>
-          <button type="button" data-glass-more="clear" role="menuitem">Clear formatting</button>
-        </div>
+        <button class="toolbar-btn" id="modal-glass-heading-btn" onmousedown="event.preventDefault(); execGlassHeading('modal')" title="Heading style">
+          <span class="btn-text" id="modal-glass-heading-label">H</span>
+        </button>
+        <button class="toolbar-btn" id="modal-glass-size-btn" onmousedown="event.preventDefault(); execGlassFontSize('modal')" title="Font size">
+          <span class="btn-text" id="modal-glass-size-label">A↑</span>
+        </button>
+        <div class="toolbar-divider"></div>
+        <button class="toolbar-btn" data-cmd="insertUnorderedList" onmousedown="event.preventDefault(); execGlassCmd('insertUnorderedList')" title="Bulleted list">
+          <svg viewBox="0 0 24 24"><path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"/></svg>
+        </button>
+        <button class="toolbar-btn" data-cmd="insertOrderedList" onmousedown="event.preventDefault(); execGlassCmd('insertOrderedList')" title="Numbered list">
+          <svg viewBox="0 0 24 24"><path d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z"/></svg>
+        </button>
+        <button class="toolbar-btn" onmousedown="event.preventDefault(); toggleGlassColorPopup('modal')" title="Highlight & Text color">
+          <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+        </button>
+        <button class="toolbar-btn" onmousedown="event.preventDefault(); addGlassChecklist('modal')" title="Add checklist item">
+          <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+        </button>
+        <button class="toolbar-btn" onmousedown="event.preventDefault(); toggleGlassLinkPopover('modal')" title="Insert link">
+          <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+        </button>
+        <button class="toolbar-btn" onmousedown="event.preventDefault(); document.getElementById('modal-glass-img-upload').click()" title="Insert image">
+          <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+        </button>
         <input type="file" id="modal-glass-img-upload" accept="image/*" style="display:none" onchange="handleGlassImage(this, 'modal')">
-        <input type="file" id="modal-glass-camera-upload" accept="image/*" capture="environment" style="display:none" onchange="handleGlassImage(this, 'modal')">
       </div>
-      <div class="glass-context-toolbar" id="modal-glass-context-toolbar" role="toolbar" aria-label="Selection actions"></div>
 
       <div id="modal-glass-link-popover" class="glass-link-popover" onmousedown="event.preventDefault()">
         <input type="text" id="modal-glass-link-input" placeholder="Paste or type link...">
