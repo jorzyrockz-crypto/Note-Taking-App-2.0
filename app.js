@@ -8,8 +8,7 @@ import {
   plainToChecklist,
   stripChecklistInlineReminder,
   renderNoteContent,
-  renderTextWithLinks,
-  syncNoteTypeEditor
+  renderTextWithLinks
 } from './note-types/index.js';
 import { initModernGlassEditorListeners, saveGlassSelection, restoreGlassSelection } from './glass-editor.js';
 import { renderSearchPage, initSearch } from './search.js';
@@ -172,8 +171,7 @@ let creatorTheme = null; // Pattern theme preset
 let creatorCustomTheme = null;
 let activeThemePickerContext = null;
 let creatorReminder = null; // Target ISO datetime string
-let creatorAudio = null;
-let creatorAudioDuration = null;
+let creatorAudioClips = []; // Array<{id, data, duration, createdAt}>
 let creatorPinned = false;
 let creatorFavorite = false;
 let creatorArchived = false;
@@ -1188,8 +1186,20 @@ const themeBtn = document.getElementById('theme-btn');
 const noteCreator = document.getElementById('note-creator');
 const creatorCollapsed = document.getElementById('creator-collapsed');
 const creatorExpanded = document.getElementById('creator-expanded');
-const creatorTitle = document.getElementById('creator-title');
-const creatorText = document.getElementById('creator-text');
+const creatorTitle = {
+  get value() { const el = document.getElementById('creator-glass-title'); return el ? el.innerText : ''; },
+  set value(v) { const el = document.getElementById('creator-glass-title'); if (el) el.innerText = v; },
+  style: { set display(v) {}, get display() { return ''; } },
+  addEventListener: () => {},
+  setAttribute: () => {}
+};
+const creatorText = {
+  get value() { const el = document.getElementById('creator-glass-editor'); return el ? el.innerHTML : ''; },
+  set value(v) { const el = document.getElementById('creator-glass-editor'); if (el) el.innerHTML = v; },
+  style: { set display(v) {}, get display() { return ''; }, set height(v) {}, get height() { return ''; } },
+  addEventListener: () => {},
+  focus: () => { const el = document.getElementById('creator-glass-editor'); if (el) el.focus(); }
+};
 const creatorAdvancedHeader = document.getElementById('creator-advanced-header');
 const creatorBackBtn = document.getElementById('creator-back-btn');
 const creatorBreadcrumb = document.getElementById('creator-breadcrumb');
@@ -1248,8 +1258,20 @@ let productivityPage = null;
 
 const editModal = document.getElementById('edit-modal');
 const editModalCard = document.getElementById('edit-modal-card');
-const modalTitle = document.getElementById('modal-title');
-const modalText = document.getElementById('modal-text');
+const modalTitle = {
+  get value() { const el = document.getElementById('modal-glass-title'); return el ? el.innerText : ''; },
+  set value(v) { const el = document.getElementById('modal-glass-title'); if (el) el.innerText = v; },
+  style: { set display(v) {}, get display() { return ''; } },
+  addEventListener: () => {},
+  setAttribute: () => {}
+};
+const modalText = {
+  get value() { const el = document.getElementById('modal-glass-editor'); return el ? el.innerHTML : ''; },
+  set value(v) { const el = document.getElementById('modal-glass-editor'); if (el) el.innerHTML = v; },
+  style: { set display(v) {}, get display() { return ''; }, set height(v) {}, get height() { return ''; } },
+  addEventListener: () => {},
+  focus: () => { const el = document.getElementById('modal-glass-editor'); if (el) el.focus(); }
+};
 const modalPin = document.getElementById('modal-pin');
 const modalDelete = document.getElementById('modal-delete');
 const modalClose = document.getElementById('modal-close');
@@ -1924,6 +1946,67 @@ function handleTextareaTabKey(e) {
   }
 }
 
+// ─── Legacy Compatibility & Sync Shims ─────────────────────────────────────
+function autoGrowTextarea() {
+  if (this && this.style) {
+    this.style.height = 'auto';
+    this.style.height = (this.scrollHeight || 0) + 'px';
+  }
+}
+
+function updateEditorMirror(textarea, mirror) {
+  // No-op for legacy mirror elements
+}
+
+function applyMarkdownFormat(textarea, format) {
+  // No-op for legacy markdown toolbar formatting
+}
+
+function setupFloatingSelectionToolbar() {
+  // No-op for legacy floating toolbar
+}
+
+function syncCreatorInputs() {
+  const creatorTitleEl = document.getElementById('creator-title');
+  const creatorTextEl = document.getElementById('creator-text');
+  const glassTitle = document.getElementById('creator-glass-title');
+  const glassEditor = document.getElementById('creator-glass-editor');
+  if (glassTitle && creatorTitleEl) {
+    if (glassTitle.textContent !== creatorTitleEl.value) glassTitle.textContent = creatorTitleEl.value || '';
+  }
+  if (glassEditor && creatorTextEl) {
+    if (glassEditor.innerHTML !== creatorTextEl.value) glassEditor.innerHTML = creatorTextEl.value || '';
+  }
+  if (typeof renderCreatorReminderChip === 'function') renderCreatorReminderChip();
+  if (typeof renderCreatorAudioPreview === 'function') renderCreatorAudioPreview();
+}
+
+function syncModalInputs(note) {
+  if (!note) return;
+  const modalTitleEl = document.getElementById('modal-title');
+  const modalTextEl = document.getElementById('modal-text');
+  if (modalTitleEl) modalTitleEl.value = note.title || '';
+  if (modalTextEl) modalTextEl.value = note.text || '';
+
+  const glassTitle = document.getElementById('modal-glass-title');
+  const glassEditor = document.getElementById('modal-glass-editor');
+  if (glassTitle) glassTitle.textContent = note.title || '';
+  if (glassEditor) {
+    if (typeof isSupportedSocialPlatform === 'function' && isSupportedSocialPlatform(note.linkPreview?.platform)) {
+      if (typeof cleanTextTags === 'function') {
+        glassEditor.innerText = cleanTextTags(note.text || '');
+      } else {
+        glassEditor.innerText = note.text || '';
+      }
+    } else {
+      glassEditor.innerHTML = note.text || '';
+    }
+  }
+  if (typeof renderModalReminderChip === 'function') renderModalReminderChip(note);
+  if (typeof renderModalAudioPreview === 'function') renderModalAudioPreview(note);
+  if (typeof renderModalLinkPreview === 'function') renderModalLinkPreview(note);
+}
+
 // ==========================================================================
 // 3. Core Initialization & Event Listeners
 // ==========================================================================
@@ -1952,11 +2035,16 @@ document.addEventListener('DOMContentLoaded', () => {
   registerServiceWorker();
   updateOnlineStatusUI();
 
-  creatorText.addEventListener('keydown', handleTextareaTabKey);
-  modalText.addEventListener('keydown', handleTextareaTabKey);
+  creatorText?.addEventListener('keydown', handleTextareaTabKey);
+  modalText?.addEventListener('keydown', handleTextareaTabKey);
 
   // Start background checks for note reminders
   setInterval(checkReminders, 10000);
+
+  // Request browser notification permission (non-blocking, once)
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
 
   // Pre-load dynamic modules asynchronously in the background for instant transitions
   loadSettingsModule().catch(err => console.warn('Failed to pre-load settings module:', err));
@@ -2427,6 +2515,17 @@ function initData() {
     return normalizeNoteAppearance(note);
   });
 
+  // Migrate legacy single audio -> audioClips array
+  loadedNotes.forEach(note => {
+    if (note.audio && !Array.isArray(note.audioClips)) {
+      note.audioClips = [{ id: Date.now() + Math.random(), data: note.audio, duration: note.audioDuration || '0:05', createdAt: note.createdAt || Date.now() }];
+      delete note.audio;
+      delete note.audioDuration;
+    } else if (!Array.isArray(note.audioClips)) {
+      note.audioClips = [];
+    }
+  });
+
   loadedNotes.forEach((note, index) => {
     setNoteFolders(note, getNoteFolders(note, inferDefaultFolder(note, index)));
   });
@@ -2442,7 +2541,7 @@ function initData() {
 
 function setupEventHandlers() {
 
-  setupMarkdownKeydownHandlers();
+
 
   settingsBtn = document.getElementById('settings-btn');
   settingsBtn?.addEventListener('click', () => setActivePage('settings'));
@@ -2729,44 +2828,6 @@ function setupEventHandlers() {
     openDrawingWorkspace('creator');
   });
 
-  // Auto-grow textareas
-  creatorText.addEventListener('input', () => {
-    autoGrowTextarea.call(creatorText);
-    if (creatorText.value.startsWith('- [ ] ') || creatorText.value.startsWith('- [x] ')) {
-      syncCreatorInputs();
-    }
-    syncCreatorFolderInput();
-    scheduleCreatorLinkPreview();
-    triggerAutosave();
-    updateEditorMirror(creatorText, document.getElementById('creator-text-mirror'));
-  });
-  creatorTitle.addEventListener('input', () => {
-    syncCreatorFolderInput();
-    scheduleCreatorLinkPreview();
-    triggerAutosave();
-  });
-  creatorText.addEventListener('paste', (event) => {
-    if (handleCreatorClipboardPaste(event)) return;
-    expandCreator();
-    setTimeout(() => scheduleCreatorLinkPreview(80), 0);
-  });
-  creatorTitle.addEventListener('paste', (event) => {
-    if (handleCreatorClipboardPaste(event)) return;
-    expandCreator();
-    setTimeout(() => scheduleCreatorLinkPreview(80), 0);
-  });
-  document.addEventListener('paste', handleGlobalClipboardPaste);
-  creatorText.addEventListener('keydown', handleRichListEditing);
-  modalText.addEventListener('input', function() {
-    autoGrowTextarea.call(modalText);
-    updateEditorMirror(modalText, document.getElementById('modal-text-mirror'));
-    saveModalNoteDraft();
-  });
-  modalTitle.addEventListener('input', function() {
-    saveModalNoteDraft();
-  });
-  modalText.addEventListener('keydown', handleRichListEditing);
-
   // Creator pin state
   creatorPin.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -2790,34 +2851,13 @@ function setupEventHandlers() {
       if (p !== creatorReminderPicker) p.classList.remove('visible');
     });
 
-    const creatorChecklistEditor = document.getElementById('creator-checklist-editor');
-    const activeChecklistIndex = creatorChecklistEditor?.style.display !== 'none'
-      ? getActiveChecklistRowIndex(creatorChecklistEditor)
-      : -1;
-    const activeChecklistLine = activeChecklistIndex >= 0
-      ? (creatorText.value.split('\n')[activeChecklistIndex] || '')
-      : '';
-    const activeChecklistReminder = activeChecklistIndex >= 0
-      ? extractChecklistInlineReminder(activeChecklistLine.substring(6))
-      : '';
-
-    buildReminderPicker(creatorReminderPicker, activeChecklistReminder || creatorReminder, (dateTime) => {
-      if (activeChecklistIndex >= 0) {
-        creatorText.value = applyInlineReminderToChecklistText(creatorText.value, activeChecklistIndex, dateTime);
-        syncCreatorInputs();
-      } else {
-        creatorReminder = dateTime;
-        renderCreatorReminderChip();
-      }
+    buildReminderPicker(creatorReminderPicker, creatorReminder, (dateTime) => {
+      creatorReminder = dateTime;
+      renderCreatorReminderChip();
       creatorReminderPicker.classList.remove('visible');
     }, () => {
-      if (activeChecklistIndex >= 0) {
-        creatorText.value = applyInlineReminderToChecklistText(creatorText.value, activeChecklistIndex, '');
-        syncCreatorInputs();
-      } else {
-        creatorReminder = null;
-        renderCreatorReminderChip();
-      }
+      creatorReminder = null;
+      renderCreatorReminderChip();
       creatorReminderPicker.classList.remove('visible');
     });
     creatorReminderPicker.classList.toggle('visible');
@@ -2825,14 +2865,7 @@ function setupEventHandlers() {
 
   // Creator checklists convert trigger
   creatorListBtn.addEventListener('click', () => {
-    const isList = isChecklistFormat(creatorText.value);
-    if (isList) {
-      creatorText.value = checklistToPlain(creatorText.value);
-    } else {
-      creatorText.value = plainToChecklist(creatorText.value);
-    }
-    syncCreatorInputs();
-    autoGrowTextarea.call(creatorText);
+    window.execGlassCmd('insertUnorderedList', null, 'creator');
   });
 
   // Creator Drawing Canvas trigger
@@ -3199,8 +3232,18 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.5.1';
+  const CURRENT_VERSION = '2.6.9';
   const DEFAULT_CHANGELOG = [
+    'Scheduler Overhaul: Fixed glass reminder popover hidden behind modal (z-index), added multi-clip audio recording, browser push notifications, snooze (5m/15m/1h), per-line inline reminder chips, and whole-note+inline reminder co-existence',
+    'Voice Recording Fix: Disabled automatic SpeechRecognition live typing so voice recording solely records audio clips without modifying note text',
+    'Cleaned up UI: Removed redundant floating voice recording overlay pill in favor of the clean top banner indicator',
+    'Bug Fix: Fixed floating Voice Recording overlay indicator staying visible permanently due to conflicting inline CSS styles',
+    'Glass UI Enhancements: Restored chip visibility for voice recordings and reminders in the Glass Editor, and upgraded voice note chips with playable HTML5 audio controls',
+    'Bug Fix: Added null checks when referencing deleted legacy editor-textarea-wrap elements in openEditModal and expandCreator',
+    'Bug Fix: Added compatibility shims for syncModalInputs, syncCreatorInputs, and legacy text functions to prevent startup ReferenceError crashes',
+    'Glass UI Enhancements: Voice Recording now uses a sleek global floating indicator, and the Reminder Scheduler is now a floating context menu integrated directly into the new UI',
+    'Legacy Editor Cleanup: Removed legacy textarea editor code to finalize transition to the rich text Glass Editor',
+    'Toolbar Refactor (Phases 1–7): Simplified glass editor toolbar to core tools (Bold, Italic, Underline, Heading, Lists, Link, Checklist) with a new Add (+) content insertion menu and a context-aware floating toolbar appearing on text selection, image click, link hover, and checklist focus',
     'Added Workspace Density settings with Auto, Compact, Comfortable, Touch, and Spacious modes plus an optional Tablet-first Navigation testing feature',
     'Tablet-first workspace with an adaptive portrait dock, landscape navigation rail, roomier note grid, and touch-friendly controls',
     'Upgraded tablet editor to a focused near-full-screen canvas with safer spacing, sticky actions, and better portrait/landscape behavior',
@@ -3284,37 +3327,6 @@ function setupEventHandlers() {
   initAdvancedEditorHandlers();
   initModalAdvancedEditorHandlers();
 
-  // Set up Emoji Picker Popovers
-  const creatorEmojiPopover = document.getElementById('creator-emoji-popover');
-  const modalEmojiPopover = document.getElementById('modal-emoji-popover');
-
-  // Close popovers on click outside
-  document.addEventListener('click', () => {
-    if (creatorEmojiPopover) creatorEmojiPopover.style.display = 'none';
-    if (modalEmojiPopover) modalEmojiPopover.style.display = 'none';
-  });
-
-  // Wire emojis inside popovers
-  document.querySelectorAll('.emoji-popover').forEach(popover => {
-    const isModal = popover.id === 'modal-emoji-popover';
-    const formatFunc = isModal ? formatModalText : formatSelectedText;
-
-    popover.querySelectorAll('.emoji-item').forEach(item => {
-      item.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const emojiValue = item.textContent;
-        formatFunc(emojiValue);
-        popover.style.display = 'none';
-
-        if (isModal) {
-          debouncedSave();
-        } else {
-          syncCreatorInputs();
-          triggerAutosave();
-        }
-      });
-    });
-  });
 
   // Set macOS command key text on the paste hint badge if present
   const shortcut = navigator.platform?.toLowerCase().includes('mac') ? '⌘V' : 'Ctrl+V';
@@ -3505,34 +3517,23 @@ function expandCreator() {
     return;
   }
 
-  // Fallback / Standard Plain Text Editor inline expansion
   creatorCollapsed.style.display = 'none';
   creatorExpanded.style.display = 'flex';
 
-  creatorWrapper.classList.remove('modern-glass-editor-active');
-  document.getElementById('creator-glass-workspace').style.display = 'none';
-  document.getElementById('creator-glass-floating-toolbar').style.display = 'none';
-  creatorTitle.style.display = 'block';
-  creatorWrapper.querySelector('.editor-textarea-wrap').style.display = 'block';
-
-  creatorWrapper.classList.remove('advanced-editor-active');
-  document.body.classList.remove('advanced-editor-open');
-  document.body.classList.remove('editor-focus-mode');
-  if (creatorAdvancedHeader) creatorAdvancedHeader.style.display = 'none';
-  if (creatorMetadata) creatorMetadata.style.display = 'none';
-  if (creatorFloatingToolbar) creatorFloatingToolbar.style.display = 'none';
-
-  const creatorToolbar = document.getElementById('creator-markdown-toolbar');
-  if (creatorToolbar) creatorToolbar.style.display = 'none';
-
+  creatorWrapper.classList.add('modern-glass-editor-active');
+  document.getElementById('creator-glass-workspace').style.display = 'block';
+  document.getElementById('creator-glass-floating-toolbar').style.display = 'flex';
+  
+  if (creatorTitle) creatorTitle.style.display = 'none';
+  const creatorTextWrap = creatorWrapper.querySelector('.editor-textarea-wrap');
+  if (creatorTextWrap) creatorTextWrap.style.display = 'none';
   creatorPin.style.display = 'flex';
-  creatorTitle.placeholder = 'Title';
-  creatorText.placeholder = 'Take a note...';
 
-  syncCreatorInputs();
-  syncCreatorFolderInput(true);
-
-  creatorText.focus();
+  // Make sure dynamic layout adjustments run once visible
+  requestAnimationFrame(() => {
+    document.getElementById('creator-glass-editor').focus();
+    syncCreatorFolderInput(true);
+  });
 }
 
 function collapseCreator() {
@@ -3540,41 +3541,21 @@ function collapseCreator() {
   creatorExpanded.style.display = 'none';
   creatorPin.style.display = 'none';
 
-  const creatorToolbar = document.getElementById('creator-markdown-toolbar');
-  if (creatorToolbar) creatorToolbar.style.display = 'none';
+  creatorWrapper.classList.remove('modern-glass-editor-active');
+  document.body.classList.remove('advanced-editor-open');
+  document.body.classList.remove('editor-focus-mode');
+  
+  if (creatorAdvancedHeader) creatorAdvancedHeader.style.display = 'none';
+  if (creatorMetadata) creatorMetadata.style.display = 'none';
+  document.getElementById('creator-glass-workspace').style.display = 'none';
+  document.getElementById('creator-glass-floating-toolbar').style.display = 'none';
+  const glassColorPopup = document.getElementById('creator-glass-color-popup');
+  if (glassColorPopup) glassColorPopup.style.display = 'none';
+  creatorMorePopover.style.display = 'none';
+  creatorActiveNoteId = null;
 
-  if (appSettings.modernGlassEditorEnabled) {
-    creatorWrapper.classList.remove('modern-glass-editor-active');
-    document.body.classList.remove('advanced-editor-open');
-    document.body.classList.remove('editor-focus-mode');
-    if (creatorAdvancedHeader) creatorAdvancedHeader.style.display = 'none';
-    if (creatorMetadata) creatorMetadata.style.display = 'none';
-    document.getElementById('creator-glass-workspace').style.display = 'none';
-    document.getElementById('creator-glass-floating-toolbar').style.display = 'none';
-    const glassColorPopup = document.getElementById('creator-glass-color-popup');
-    if (glassColorPopup) glassColorPopup.style.display = 'none';
-    creatorMorePopover.style.display = 'none';
-    creatorActiveNoteId = null;
-
-    document.getElementById('creator-glass-title').innerHTML = '';
-    document.getElementById('creator-glass-editor').innerHTML = '';
-  } else if (appSettings.advancedEditorEnabled) {
-    creatorWrapper.classList.remove('advanced-editor-active');
-    document.body.classList.remove('advanced-editor-open');
-    document.body.classList.remove('editor-focus-mode');
-    creatorAdvancedHeader.style.display = 'none';
-    creatorMetadata.style.display = 'none';
-    creatorFloatingToolbar.style.display = 'none';
-    creatorMorePopover.style.display = 'none';
-
-    creatorTitle.placeholder = 'Title';
-    creatorText.placeholder = 'Take a note...';
-    creatorActiveNoteId = null;
-  }
-
-  creatorTitle.value = '';
-  creatorText.value = '';
-  creatorText.style.height = 'auto';
+  document.getElementById('creator-glass-title').innerHTML = '';
+  document.getElementById('creator-glass-editor').innerHTML = '';
   creatorLinkPreviewUrl = null;
   creatorLinkPreviewData = null;
   clearTimeout(creatorLinkPreviewTimer);
@@ -3585,12 +3566,11 @@ function collapseCreator() {
   creatorTheme = null;
   creatorCustomTheme = null;
   creatorReminder = null;
-  creatorAudio = null;
+  creatorAudioClips = [];
   creatorFolder = '';
   creatorFolders = [];
   creatorAutoFolder = '';
   creatorIntentType = null;
-  creatorAudioDuration = null;
   creatorPinned = false;
   creatorImage = null;
   creatorFiles = [];
@@ -3627,17 +3607,13 @@ function collapseCreator() {
 }
 
 function saveCreatorNoteDraft() {
-  if ((!appSettings.advancedEditorEnabled && !appSettings.modernGlassEditorEnabled) || !creatorActiveNoteId) return;
+  if (!creatorActiveNoteId) return;
 
-  const title = appSettings.modernGlassEditorEnabled
-    ? document.getElementById('creator-glass-title').innerText.trim()
-    : creatorTitle.value.trim();
-  const text = appSettings.modernGlassEditorEnabled
-    ? document.getElementById('creator-glass-editor').innerHTML.trim()
-    : creatorText.value.trim();
+  const title = document.getElementById('creator-glass-title').innerText.trim();
+  const text = document.getElementById('creator-glass-editor').innerHTML.trim();
 
   // If empty, and it was previously saved, we should remove it from notes
-  if (isNoteEffectivelyEmpty(title, text, creatorImage, creatorAudio, creatorFiles)) {
+  if (isNoteEffectivelyEmpty(title, text, creatorImage, creatorAudioClips.length ? creatorAudioClips[0].data : null, creatorFiles)) {
     const idx = notes.findIndex(n => n.id === creatorActiveNoteId);
     if (idx !== -1) {
       notes.splice(idx, 1);
@@ -3659,15 +3635,14 @@ function saveCreatorNoteDraft() {
       type: creatorIntentType || getNoteType(text),
       title: title,
       text: text,
-      isRichText: appSettings.modernGlassEditorEnabled ? true : false,
-      editorMode: appSettings.modernGlassEditorEnabled ? 'glass' : null,
+      isRichText: true,
+      editorMode: 'glass',
       color: creatorColor,
       theme: creatorTheme,
       customTheme: creatorTheme === CUSTOM_THEME_ID ? creatorCustomTheme : null,
       reminder: creatorReminder,
       reminderTriggered: false,
-      audio: creatorAudio,
-      audioDuration: creatorAudioDuration,
+      audioClips: [...creatorAudioClips],
       pinned: creatorPinned,
       favorite: creatorFavorite,
       archived: creatorArchived,
@@ -3687,17 +3662,14 @@ function saveCreatorNoteDraft() {
     // Update existing note
     note.title = title;
     note.text = text;
-    if (appSettings.modernGlassEditorEnabled) {
-      note.isRichText = true;
-      note.editorMode = 'glass';
-    }
+    note.isRichText = true;
+    note.editorMode = 'glass';
     note.type = creatorIntentType || getNoteType(text);
     note.color = creatorColor;
     note.theme = creatorTheme;
     note.customTheme = creatorTheme === CUSTOM_THEME_ID ? creatorCustomTheme : null;
     note.reminder = creatorReminder;
-    note.audio = creatorAudio;
-    note.audioDuration = creatorAudioDuration;
+    note.audioClips = [...creatorAudioClips];
     note.pinned = creatorPinned;
     note.favorite = creatorFavorite;
     note.archived = creatorArchived;
@@ -3721,12 +3693,8 @@ export function saveModalNoteDraft() {
   const note = notes.find(n => n.id === currentEditingNoteId);
   if (note) {
     setAutosaveStatus('saving');
-    const title = appSettings.modernGlassEditorEnabled
-      ? document.getElementById('modal-glass-title').innerText.trim()
-      : modalTitle.value.trim();
-    const text = appSettings.modernGlassEditorEnabled
-      ? document.getElementById('modal-glass-editor').innerHTML.trim()
-      : modalText.value.trim();
+    const title = document.getElementById('modal-glass-title').innerText.trim();
+    const text = document.getElementById('modal-glass-editor').innerHTML.trim();
 
     note.title = title;
     note.text = text;
@@ -3882,128 +3850,6 @@ function initModalPopoverReminder(note) {
   } else {
     input.value = '';
   }
-}
-
-function applyMarkdownFormat(textarea, format) {
-  if (!textarea) return;
-  const start = textarea.selectionStart;
-  const end = textarea.selectionEnd;
-  const text = textarea.value;
-  const selectedText = text.substring(start, end);
-
-  let formatted = '';
-  let cursorOffsetStart = 0;
-  let cursorOffsetEnd = 0;
-
-  switch (format) {
-    case 'bold':
-      formatted = `**${selectedText || 'bold text'}**`;
-      cursorOffsetStart = selectedText ? 0 : 2;
-      cursorOffsetEnd = selectedText ? 0 : -2;
-      break;
-    case 'italic':
-      formatted = `*${selectedText || 'italic text'}*`;
-      cursorOffsetStart = selectedText ? 0 : 1;
-      cursorOffsetEnd = selectedText ? 0 : -1;
-      break;
-    case 'h1':
-      formatted = `\n# ${selectedText || 'Heading 1'}\n`;
-      break;
-    case 'h2':
-      formatted = `\n## ${selectedText || 'Heading 2'}\n`;
-      break;
-    case 'link':
-      const url = prompt("Enter Link URL:", "https://");
-      if (!url) return;
-      formatted = `[${selectedText || 'link text'}](${url})`;
-      break;
-    case 'code':
-      formatted = `\`${selectedText || 'code'}\``;
-      cursorOffsetStart = selectedText ? 0 : 1;
-      cursorOffsetEnd = selectedText ? 0 : -1;
-      break;
-    case 'quote':
-      formatted = `\n> ${selectedText || 'Quote'}\n`;
-      break;
-    case 'tasklist':
-      formatted = `\n- [ ] ${selectedText || 'Task'}\n`;
-      break;
-    case 'bullet':
-      formatted = `\n- ${selectedText || 'List item'}\n`;
-      break;
-    default:
-      return;
-  }
-
-  textarea.value = text.substring(0, start) + formatted + text.substring(end);
-  textarea.focus();
-  const newSelectionStart = start + cursorOffsetStart;
-  const newSelectionEnd = start + formatted.length + cursorOffsetEnd;
-  textarea.setSelectionRange(newSelectionStart, newSelectionEnd);
-
-  textarea.dispatchEvent(new Event('input', { bubbles: true }));
-}
-
-function setupFloatingSelectionToolbar(textarea, toolbar) {
-  if (!textarea || !toolbar) return;
-
-  const handleSelection = () => {
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-
-    if (start !== end && start !== undefined && end !== undefined && (end - start) > 0) {
-      const textBeforeSelection = textarea.value.substring(0, start);
-      const lineNumber = textBeforeSelection.split('\n').length;
-      const lineHeight = 24;
-
-      let topPosition = (lineNumber * lineHeight) - textarea.scrollTop - 44;
-      if (topPosition < 10) {
-        topPosition = (lineNumber * lineHeight) - textarea.scrollTop + 28;
-      }
-
-      toolbar.style.top = `${topPosition}px`;
-      toolbar.style.display = 'flex';
-      setTimeout(() => {
-        toolbar.classList.add('visible');
-      }, 10);
-    } else {
-      toolbar.classList.remove('visible');
-      setTimeout(() => {
-        if (!toolbar.classList.contains('visible')) {
-          toolbar.style.display = 'none';
-        }
-      }, 200);
-    }
-  };
-
-  textarea.addEventListener('mouseup', handleSelection);
-  textarea.addEventListener('keyup', handleSelection);
-  textarea.addEventListener('select', handleSelection);
-  textarea.addEventListener('scroll', handleSelection);
-
-  document.addEventListener('mousedown', (e) => {
-    if (!toolbar.contains(e.target) && e.target !== textarea) {
-      toolbar.classList.remove('visible');
-      toolbar.style.display = 'none';
-    }
-  });
-}
-
-function setupMarkdownKeydownHandlers() {
-  const handleEditorKeydown = (e) => {
-    if (e.ctrlKey || e.metaKey) {
-      if (e.key.toLowerCase() === 'b') {
-        e.preventDefault();
-        applyMarkdownFormat(e.target, 'bold');
-      } else if (e.key.toLowerCase() === 'i') {
-        e.preventDefault();
-        applyMarkdownFormat(e.target, 'italic');
-      }
-    }
-  };
-
-  creatorText?.addEventListener('keydown', handleEditorKeydown);
-  document.getElementById('modal-text')?.addEventListener('keydown', handleEditorKeydown);
 }
 
 function initAdvancedEditorHandlers() {
@@ -4482,110 +4328,8 @@ function initModalAdvancedEditorHandlers() {
     }
   });
 
-  // Modal Formatting toolbar bindings
-  document.getElementById('modal-tb-bold')?.addEventListener('click', () => formatModalText('**', '**'));
-  document.getElementById('modal-tb-italic')?.addEventListener('click', () => formatModalText('*', '*'));
-  document.getElementById('modal-tb-underline')?.addEventListener('click', () => formatModalText('<u>', '</u>'));
-  document.getElementById('modal-tb-bullet')?.addEventListener('click', () => {
-    const pos = modalText.selectionStart;
-    const text = modalText.value;
-    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
-    modalText.value = text.substring(0, lineStart) + '• ' + text.substring(lineStart);
-    modalText.selectionStart = modalText.selectionEnd = pos + 2;
-    modalText.focus();
-    debouncedSave();
-  });
-  document.getElementById('modal-tb-number')?.addEventListener('click', () => {
-    const pos = modalText.selectionStart;
-    const text = modalText.value;
-    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
-    modalText.value = text.substring(0, lineStart) + '1. ' + text.substring(lineStart);
-    modalText.selectionStart = modalText.selectionEnd = pos + 3;
-    modalText.focus();
-    debouncedSave();
-  });
-  document.getElementById('modal-tb-link')?.addEventListener('click', () => {
-    const link = prompt("Enter Link URL:", "https://");
-    if (link) formatModalText('[', `](${link})`);
-  });
-  const modalEmojiBtn = document.getElementById('modal-tb-emoji');
-  const modalEmojiPopover = document.getElementById('modal-emoji-popover');
-  modalEmojiBtn?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const isVisible = modalEmojiPopover.style.display === 'block';
-    modalEmojiPopover.style.display = isVisible ? 'none' : 'block';
-  });
-  document.getElementById('modal-tb-code')?.addEventListener('click', () => {
-    const start = modalText.selectionStart;
-    const end = modalText.selectionEnd;
-    const isMultiLine = modalText.value.substring(start, end).includes('\n');
-    if (isMultiLine) {
-      formatModalText('```\n', '\n```');
-    } else {
-      formatModalText('`', '`');
-    }
-  });
-  document.getElementById('modal-tb-quote')?.addEventListener('click', () => {
-    const pos = modalText.selectionStart;
-    const text = modalText.value;
-    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
-    modalText.value = text.substring(0, lineStart) + '> ' + text.substring(lineStart);
-    modalText.selectionStart = modalText.selectionEnd = pos + 2;
-    modalText.focus();
-    debouncedSave();
-  });
-
-  // Modal Markdown Formatting Toolbar Event Listeners
-  const modalToolbar = document.getElementById('modal-markdown-toolbar');
-  modalToolbar?.querySelectorAll('.toolbar-btn').forEach(btn => {
-    btn.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const format = btn.getAttribute('data-format');
-      const mText = document.getElementById('modal-text');
-      applyMarkdownFormat(mText, format);
-    });
-  });
-  setupFloatingSelectionToolbar(modalText, modalToolbar);
 }
 
-function formatModalText(syntaxStart, syntaxEnd = '') {
-  const start = modalText.selectionStart;
-  const end = modalText.selectionEnd;
-  const val = modalText.value;
-
-  const selectedText = val.substring(start, end);
-  const replacement = syntaxStart + selectedText + syntaxEnd;
-
-  modalText.value = val.substring(0, start) + replacement + val.substring(end);
-  modalText.focus();
-
-  modalText.selectionStart = start + syntaxStart.length;
-  modalText.selectionEnd = start + syntaxStart.length + selectedText.length;
-
-  debouncedSave();
-  autoGrowTextarea.call(modalText);
-  updateEditorMirror(modalText, document.getElementById('modal-text-mirror'));
-}
-
-function formatSelectedText(syntaxStart, syntaxEnd = '') {
-  const start = creatorText.selectionStart;
-  const end = creatorText.selectionEnd;
-  const val = creatorText.value;
-
-  const selectedText = val.substring(start, end);
-  const replacement = syntaxStart + selectedText + syntaxEnd;
-
-  creatorText.value = val.substring(0, start) + replacement + val.substring(end);
-  creatorText.focus();
-
-  creatorText.selectionStart = start + syntaxStart.length;
-  creatorText.selectionEnd = start + syntaxStart.length + selectedText.length;
-
-  triggerAutosave();
-  autoGrowTextarea.call(creatorText);
-  updateEditorMirror(creatorText, document.getElementById('creator-text-mirror'));
-}
 
 function setAutosaveStatus(status) {
   const isModalOpen = editModal && editModal.classList.contains('visible');
@@ -4625,7 +4369,7 @@ function saveCreatorNote() {
   const text = creatorText.value.trim();
 
   // Don't save if completely empty (allow save when audio or image exists)
-  if (isNoteEffectivelyEmpty(title, text, creatorImage, creatorAudio, creatorFiles)) {
+  if (isNoteEffectivelyEmpty(title, text, creatorImage, creatorAudioClips.length ? creatorAudioClips[0].data : null, creatorFiles)) {
     return;
   }
 
@@ -4640,8 +4384,7 @@ function saveCreatorNote() {
     customTheme: creatorTheme === CUSTOM_THEME_ID ? creatorCustomTheme : null,
     reminder: creatorReminder,
     reminderTriggered: false,
-    audio: creatorAudio,
-    audioDuration: creatorAudioDuration,
+    audioClips: [...creatorAudioClips],
     pinned: creatorPinned,
     archived: false,
     archivedAt: null,
@@ -6939,8 +6682,9 @@ function openEditModal(note, autoFocus = false) {
 
     document.getElementById('modal-glass-workspace').style.display = 'block';
     document.getElementById('modal-glass-floating-toolbar').style.display = 'flex';
-    modalTitle.style.display = 'none';
-    editModalCard.querySelector('.editor-textarea-wrap').style.display = 'none';
+    if (modalTitle) modalTitle.style.display = 'none';
+    const modalTextWrap = editModalCard.querySelector('.editor-textarea-wrap');
+    if (modalTextWrap) modalTextWrap.style.display = 'none';
 
     const glassTitle = document.getElementById('modal-glass-title');
     const glassEditor = document.getElementById('modal-glass-editor');
@@ -6966,8 +6710,9 @@ function openEditModal(note, autoFocus = false) {
     editModalCard.classList.remove('modern-glass-editor-active');
     document.getElementById('modal-glass-workspace').style.display = 'none';
     document.getElementById('modal-glass-floating-toolbar').style.display = 'none';
-    modalTitle.style.display = 'block';
-    editModalCard.querySelector('.editor-textarea-wrap').style.display = 'block';
+    if (modalTitle) modalTitle.style.display = 'block';
+    const modalTextWrap = editModalCard.querySelector('.editor-textarea-wrap');
+    if (modalTextWrap) modalTextWrap.style.display = 'block';
 
     if (appSettings.advancedEditorEnabled) {
       editModalCard.classList.add('advanced-editor-active');
@@ -7105,8 +6850,10 @@ function openEditModal(note, autoFocus = false) {
   renderModalTags(note);
   renderModalReminderChip(note);
   renderModalAudioPreview(note);
+  renderModalInlineReminderChips(note);
   renderModalFileAttachments(note);
   renderSocialCapturePanel(note);
+
 
   // Seed the live markdown mirror
   requestAnimationFrame(() => {
@@ -7364,79 +7111,6 @@ function toggleViewLayout() {
 
 
 
-function autoGrowTextarea() {
-  this.style.height = 'auto';
-  this.style.height = this.scrollHeight + 'px';
-}
-
-// ── Live Markdown Mirror ──────────────────────────────────────────────────────
-function parseInlineMarkdown(raw) {
-  if (!raw) return '';
-  const lines = raw.split('\n');
-  const htmlLines = lines.map(line => {
-    // Headings
-    if (/^### /.test(line)) return `<h3>${escapeHtml(line.slice(4))}</h3>`;
-    if (/^## /.test(line))  return `<h2>${escapeHtml(line.slice(3))}</h2>`;
-    if (/^# /.test(line))   return `<h1>${escapeHtml(line.slice(2))}</h1>`;
-    // Blockquote
-    if (/^> /.test(line))   return `<blockquote>${applyInline(line.slice(2))}</blockquote>`;
-    // Bullet list (-, *, •)
-    if (/^[-*•] /.test(line)) return `<span class="mirror-bullet">${applyInline(line.slice(2))}</span>`;
-    // Numbered list
-    const numMatch = line.match(/^(\d+)\. (.*)/);
-    if (numMatch) return `<span class="mirror-num">${numMatch[1]}. ${applyInline(numMatch[2])}</span>`;
-    // Code block fence (single line pass-through handled in multi-line below)
-    if (/^```/.test(line)) return `<code>${escapeHtml(line.slice(3))}</code>`;
-    // Empty line becomes visible space
-    if (line.trim() === '') return '\n';
-    return applyInline(line);
-  });
-  return htmlLines.join('\n');
-}
-
-function applyInline(text) {
-  if (!text) return '';
-  // Escape HTML first, then re-apply tags
-  let s = escapeHtml(text);
-  // Bold-italic ***text***
-  s = s.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-  // Bold **text**
-  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  // Italic *text* or _text_
-  s = s.replace(/(?<![*])\*([^*]+?)\*(?![*])/g, '<em>$1</em>');
-  s = s.replace(/_([^_]+?)_/g, '<em>$1</em>');
-  // Inline code `text`
-  s = s.replace(/`([^`]+?)`/g, '<code>$1</code>');
-  // Underline <u>text</u> (HTML passthrough — already escaped, re-open)
-  s = s.replace(/&lt;u&gt;(.+?)&lt;\/u&gt;/g, '<u>$1</u>');
-  // Strikethrough ~~text~~
-  s = s.replace(/~~(.+?)~~/g, '<del>$1</del>');
-  // Links [text](url)
-  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-  return s;
-}
-
-
-function updateEditorMirror(textarea, mirror) {
-  if (!mirror) return;
-  const raw = textarea.value;
-  // Sync scroll position
-  mirror.scrollTop = textarea.scrollTop;
-  // Handle fenced code blocks as a unit
-  let html = '';
-  const segments = raw.split(/(```[\s\S]*?```)/g);
-  segments.forEach(seg => {
-    if (seg.startsWith('```') && seg.endsWith('```')) {
-      const inner = seg.slice(3, -3).replace(/^\n/, '').replace(/\n$/, '');
-      html += `<pre><code>${escapeHtml(inner)}</code></pre>`;
-    } else {
-      html += parseInlineMarkdown(seg);
-    }
-  });
-  // Trailing newline keeps mirror same height as textarea
-  if (raw.endsWith('\n')) html += '\n';
-  mirror.innerHTML = html;
-}
 
 // ── Portrait Tablet: Virtual Keyboard Height Compensation ─────────────────────
 function onViewportResize() {
@@ -8274,7 +7948,7 @@ function formatReminderDate(dateStr) {
 
 function renderCreatorReminderChip() {
   const container = document.getElementById('creator-chips-container');
-  container.innerHTML = '';
+  container.querySelectorAll('.reminder-chip').forEach(el => el.remove());
   if (creatorReminder) {
     const chip = document.createElement('div');
     chip.className = 'reminder-chip';
@@ -8291,8 +7965,7 @@ function renderCreatorReminderChip() {
     chip.addEventListener('click', (e) => {
       if (e.target.classList.contains('reminder-chip-delete')) return;
       e.stopPropagation();
-      const picker = document.getElementById('creator-reminder-picker');
-      picker.classList.toggle('visible');
+      document.getElementById('creator-add-reminder')?.click();
     });
     container.appendChild(chip);
   }
@@ -8316,6 +7989,11 @@ function renderModalReminderChip(note) {
       saveToLocalStorage();
       renderNotes();
       renderModalReminderChip(note);
+    });
+    chip.addEventListener('click', (e) => {
+      if (e.target.classList.contains('reminder-chip-delete')) return;
+      e.stopPropagation();
+      document.getElementById('modal-add-reminder')?.click();
     });
     container.appendChild(chip);
   }
@@ -8512,18 +8190,105 @@ function showToast(note) {
   }
 }
 
+function fireReminderNotification(note, bodyText) {
+  // In-app toast with snooze buttons
+  const snoozeOptions = [{ label: '5m', ms: 5 * 60000 }, { label: '15m', ms: 15 * 60000 }, { label: '1h', ms: 60 * 60000 }];
+  const snoozeBtns = snoozeOptions.map(o =>
+    `<button class="toast-snooze-btn" data-snooze="${o.ms}">${o.label}</button>`
+  ).join('');
+  const snoozeNote = {
+    title: `⏰ ${note.title || 'Reminder'}`,
+    text: bodyText || note.text?.slice(0, 80) || 'You have a scheduled reminder.',
+    duration: 0, // keep until manually dismissed
+    action: null,
+    // We'll inject snooze HTML after creation via a custom property
+    _isReminder: true,
+    _noteId: note.id,
+    _snoozeBtns: snoozeBtns
+  };
+  showToast(snoozeNote);
+
+  // After showToast appends the DOM element, add snooze buttons
+  requestAnimationFrame(() => {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const toasts = container.querySelectorAll('.toast-notification');
+    const last = toasts[toasts.length - 1];
+    if (!last) return;
+    const row = document.createElement('div');
+    row.className = 'toast-snooze-row';
+    row.innerHTML = `<span style="font-size:11px;opacity:0.75;">Snooze:</span>${snoozeBtns}`;
+    row.querySelectorAll('.toast-snooze-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const ms = parseInt(btn.dataset.snooze, 10);
+        const n = notes.find(n => n.id === note.id);
+        if (n) {
+          n.reminder = Date.now() + ms;
+          n.reminderTriggered = false;
+          n.lineReminderTriggered = {};
+          saveToLocalStorage();
+        }
+        last.classList.add('hide');
+        setTimeout(() => last.remove(), 350);
+        showToast({ title: '⏰ Snoozed', text: `Reminder snoozed for ${btn.textContent}.` });
+      });
+    });
+    const content = last.querySelector('.toast-content');
+    if (content) content.appendChild(row);
+  });
+
+  // Browser push notification
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      const n = new Notification(`⏰ ${note.title || 'Reminder'}`, {
+        body: bodyText || note.text?.slice(0, 100) || 'You have a scheduled reminder.',
+        icon: '/icons/icon-192.png',
+        tag: `reminder-${note.id}`,
+        renotify: false,
+        silent: false
+      });
+      n.onclick = () => {
+        window.focus();
+        if (typeof openEditModal === 'function') openEditModal(note.id);
+      };
+    } catch (e) {
+      console.warn('Browser notification failed:', e);
+    }
+  }
+}
+
 function checkReminders() {
-  const now = new Date();
+  const now = Date.now();
   let changed = false;
 
   notes.forEach(note => {
+    // 1. Whole-note reminder
     if (note.reminder && !note.reminderTriggered) {
-      const reminderTime = new Date(note.reminder);
+      const reminderTime = new Date(note.reminder).getTime();
       if (now >= reminderTime) {
         note.reminderTriggered = true;
-        showToast(note);
+        fireReminderNotification(note, null);
         changed = true;
       }
+    }
+
+    // 2. Per-line inline @remind() reminders
+    if (note.text && typeof note.text === 'string') {
+      if (!note.lineReminderTriggered) note.lineReminderTriggered = {};
+      const lines = note.text.split('\n');
+      lines.forEach((line, idx) => {
+        if (note.lineReminderTriggered[idx]) return;
+        const inlineVal = extractChecklistInlineReminder(line);
+        if (!inlineVal) return;
+        const t = new Date(inlineVal).getTime();
+        if (!isNaN(t) && now >= t) {
+          note.lineReminderTriggered[idx] = true;
+          const cleanLine = line.replace(/@remind\([^)]*\)/gi, '').trim();
+          fireReminderNotification(note, `📌 ${cleanLine || 'A checklist item is due.'}`);
+          changed = true;
+        }
+      });
     }
   });
 
@@ -8715,6 +8480,11 @@ function toggleVoiceRecording(target) {
     startVoiceRecording(target);
   }
 }
+window.toggleVoiceRecording = toggleVoiceRecording;
+
+document.getElementById('glass-recording-stop-btn')?.addEventListener('click', () => {
+  stopVoiceRecording();
+});
 
 function startVoiceRecording(target) {
   activeVoiceTarget = target;
@@ -8761,56 +8531,15 @@ function startVoiceRecording(target) {
       updateVoiceButtonsVisuals(true);
       updateVoiceRecordingIndicators();
 
-      // Real-time elapsed counter displayed on buttons
+      // Real-time elapsed counter displayed on overlay
       voiceRecordingTimer = setInterval(() => {
         voiceRecordingElapsedSeconds++;
         const m = Math.floor(voiceRecordingElapsedSeconds / 60);
         const s = (voiceRecordingElapsedSeconds % 60).toString().padStart(2, '0');
-        const btns = [document.getElementById('creator-voice-btn'), document.getElementById('modal-voice-btn')];
-        btns.forEach(btn => {
-          if (btn) btn.setAttribute('title', `Recording ${m}:${s} — Click to stop`);
-        });
         updateVoiceRecordingIndicators();
       }, 1000);
 
-      if (SpeechRecognition) {
-        voiceRecognition = new SpeechRecognition();
-        voiceRecognition.continuous = true;
-        voiceRecognition.interimResults = true;
 
-        const targetTextarea = target === 'creator' ? creatorText : modalText;
-        let startText = targetTextarea.value;
-        if (startText.trim() !== '') startText += '\n';
-
-        voiceRecognition.onresult = (event) => {
-          let interimTranscript = '';
-          let finalTranscript = '';
-
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-              finalTranscript += event.results[i][0].transcript;
-            } else {
-              interimTranscript += event.results[i][0].transcript;
-            }
-          }
-
-          targetTextarea.value = startText + finalTranscript + interimTranscript;
-          autoGrowTextarea.call(targetTextarea);
-
-          if (target === 'creator') {
-            syncCreatorInputs();
-          } else {
-            const note = notes.find(n => n.id === currentEditingNoteId);
-            if (note) {
-              note.text = targetTextarea.value;
-              saveToLocalStorage();
-              renderNotes();
-            }
-          }
-        };
-
-        voiceRecognition.start();
-      }
     })
     .catch(err => {
       console.warn("Audio recording not supported or permitted:", err);
@@ -8835,115 +8564,156 @@ function stopVoiceRecording() {
 }
 
 function updateVoiceButtonsVisuals(active) {
-  const btns = [
-    { el: document.getElementById('creator-voice-btn'), target: 'creator' },
-    { el: document.getElementById('modal-voice-btn'), target: 'modal' }
-  ];
-  btns.forEach(({ el, target }) => {
-    const btn = el;
-    if (!btn) return;
-
-    const isActiveTarget = active && activeVoiceTarget === target;
-    btn.classList.toggle('voice-recording-active', isActiveTarget);
-    btn.classList.toggle('voice-recording-idle', active && !isActiveTarget);
-
-    if (isActiveTarget) {
-      btn.style.color = '#ea4335';
-      btn.style.animation = 'bellWobble 1s infinite ease-in-out';
-      btn.setAttribute('aria-pressed', 'true');
-      return;
-    }
-
-    btn.style.color = '';
-    btn.style.animation = '';
-    btn.setAttribute('aria-pressed', 'false');
-    if (!active) {
-      btn.setAttribute('title', 'Record Voice');
-    }
-  });
+  // Visual state handled by inline recording indicators banner
 }
 
 function saveVoiceNoteAudio(base64Audio, duration) {
   const dur = duration || '0:05';
+  const clip = { id: Date.now(), data: base64Audio, duration: dur, createdAt: Date.now() };
   if (activeVoiceTarget === 'creator') {
-    creatorAudio = base64Audio;
-    creatorAudioDuration = dur;
+    creatorAudioClips.push(clip);
     renderCreatorAudioPreview();
     syncCreatorFolderInput();
-    showToast({ title: '🎙️ Voice note recorded', text: `Duration: ${dur}` });
+    showToast({ title: '🎙️ Voice note recorded', text: `Clip ${creatorAudioClips.length} — Duration: ${dur}` });
   } else {
     const note = notes.find(n => n.id === currentEditingNoteId);
     if (note) {
-      note.audio = base64Audio;
-      note.audioDuration = dur;
+      if (!Array.isArray(note.audioClips)) note.audioClips = [];
+      note.audioClips.push(clip);
       saveToLocalStorage();
       renderNotes();
       renderModalAudioPreview(note);
-      showToast({ title: '🎙️ Voice note recorded', text: `Duration: ${dur}` });
+      showToast({ title: '🎙️ Voice note recorded', text: `Clip ${note.audioClips.length} — Duration: ${dur}` });
     }
   }
 }
 
+function renderAudioClipChip(clip, index, onDelete, onDownload) {
+  const chip = document.createElement('div');
+  chip.className = 'audio-player-chip';
+  chip.dataset.clipId = clip.id;
+  chip.style.cssText = 'display:inline-flex;align-items:center;gap:8px;padding:4px 10px;border-radius:20px;background:var(--surface-variant,rgba(0,0,0,0.06));border:1px solid var(--border-light,rgba(0,0,0,0.1));margin-top:4px;flex-wrap:wrap;';
+  const dlId = `dl-audio-${clip.id}`;
+  const delId = `del-audio-${clip.id}`;
+  chip.innerHTML = `
+    <span style="font-size:12px;font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:4px;">🎙️ Voice ${index + 1} (${clip.duration || '0:05'})</span>
+    <audio controls src="${clip.data}" style="height:28px;max-width:180px;outline:none;"></audio>
+    <button type="button" class="media-action-btn" data-dl="${dlId}" style="font-size:11px;padding:2px 6px;">Download</button>
+    <span class="reminder-chip-delete" data-del="${delId}" title="Delete clip" style="margin-left:4px;font-size:14px;cursor:pointer;opacity:0.7;">✕</span>
+  `;
+  chip.querySelector(`[data-dl="${dlId}"]`).addEventListener('click', (e) => {
+    e.stopPropagation();
+    onDownload(clip);
+  });
+  chip.querySelector(`[data-del="${delId}"]`).addEventListener('click', (e) => {
+    e.stopPropagation();
+    onDelete(clip.id);
+  });
+  return chip;
+}
+
 function renderCreatorAudioPreview() {
   const container = document.getElementById('creator-chips-container');
+  if (!container) return;
   container.querySelectorAll('.audio-player-chip').forEach(el => el.remove());
-  if (creatorAudio) {
-    const chip = document.createElement('div');
-    chip.className = 'audio-player-chip';
-    chip.style.marginTop = '0';
-    chip.style.padding = '4px 8px';
-    chip.innerHTML = `
-      <span style="font-size: 11px; font-weight: bold; color: var(--accent-color);">🎙️ Voice Clip (${creatorAudioDuration || '0:05'})</span>
-      <button type="button" class="media-action-btn" id="download-creator-audio">Download</button>
-      <span class="reminder-chip-delete" id="delete-creator-audio" title="Delete voice clip" style="margin-left: 6px; font-size: 12px; cursor: pointer; opacity: 0.6;">✕</span>
-    `;
-    chip.querySelector('#download-creator-audio').addEventListener('click', (e) => {
-      e.stopPropagation();
-      downloadDataUrl(creatorAudio, `voice-note.${getDataUrlExtension(creatorAudio, 'webm')}`);
-    });
-    chip.querySelector('#delete-creator-audio').addEventListener('click', (e) => {
-      e.stopPropagation();
-      creatorAudio = null;
-      creatorAudioDuration = null;
-      renderCreatorAudioPreview();
-      syncCreatorFolderInput();
-    });
-    container.appendChild(chip);
-  }
+  creatorAudioClips.forEach((clip, i) => {
+    const ch = renderAudioClipChip(clip, i,
+      (clipId) => {
+        creatorAudioClips = creatorAudioClips.filter(c => c.id !== clipId);
+        renderCreatorAudioPreview();
+        syncCreatorFolderInput();
+      },
+      (c) => downloadDataUrl(c.data, `voice-note-${i + 1}.${getDataUrlExtension(c.data, 'webm')}`)
+    );
+    container.appendChild(ch);
+  });
 }
 
 function renderModalAudioPreview(note) {
   const container = document.getElementById('modal-tags-container');
+  if (!container) return;
   container.querySelectorAll('.audio-player-chip').forEach(el => el.remove());
-  if (note.audio) {
+  const clips = Array.isArray(note?.audioClips) ? note.audioClips : [];
+  clips.forEach((clip, i) => {
+    const ch = renderAudioClipChip(clip, i,
+      (clipId) => {
+        note.audioClips = note.audioClips.filter(c => c.id !== clipId);
+        saveToLocalStorage();
+        renderNotes();
+        renderModalAudioPreview(note);
+      },
+      (c) => downloadDataUrl(c.data, `${getSafeFileName(note.title || 'voice-note')}-${i + 1}.${getDataUrlExtension(c.data, 'webm')}`)
+    );
+    container.appendChild(ch);
+  });
+}
+
+function renderModalInlineReminderChips(note) {
+  const container = document.getElementById('modal-tags-container');
+  if (!container || !note?.text) return;
+  container.querySelectorAll('.inline-reminder-chip').forEach(el => el.remove());
+
+  const lines = note.text.split('\n');
+  lines.forEach((line, idx) => {
+    const inlineVal = extractChecklistInlineReminder(line);
+    if (!inlineVal) return;
+    const when = new Date(inlineVal);
+    const isValid = !isNaN(when.getTime());
+    const cleanLine = line.replace(/@remind\([^)]*\)/gi, '').replace(/^[-*]\s*\[[ x]\]\s*/i, '').trim();
+    const label = isValid
+      ? `📌 Line ${idx + 1}: "${cleanLine.slice(0, 30) || '…'}" — ${when.toLocaleDateString([], { month:'short', day:'numeric' })} ${when.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' })}`
+      : `📌 Line ${idx + 1}: "${cleanLine.slice(0, 30) || '…'}" (invalid date)`;
+
     const chip = document.createElement('div');
-    chip.className = 'audio-player-chip';
-    chip.style.marginTop = '0';
-    chip.style.padding = '4px 8px';
-    chip.innerHTML = `
-      <span style="font-size: 11px; font-weight: bold; color: var(--accent-color);">🎙️ Voice Clip (${note.audioDuration || '0:05'})</span>
-      <button type="button" class="media-action-btn" id="download-modal-audio">Download</button>
-      <span class="reminder-chip-delete" id="delete-modal-audio" title="Delete voice clip" style="margin-left: 6px; font-size: 12px; cursor: pointer; opacity: 0.6;">✕</span>
-    `;
-    chip.querySelector('#download-modal-audio').addEventListener('click', (e) => {
-      e.stopPropagation();
-      downloadDataUrl(note.audio, `${getSafeFileName(note.title || 'voice-note')}.${getDataUrlExtension(note.audio, 'webm')}`);
+    chip.className = 'inline-reminder-chip';
+    chip.title = 'Click to edit this inline reminder';
+    chip.innerHTML = `<span>${label}</span><span style="opacity:0.5;font-size:11px;margin-left:4px;">✎</span><span class="reminder-chip-delete" title="Clear inline reminder" style="font-size:13px;cursor:pointer;opacity:0.6;margin-left:6px;">✕</span>`;
+
+    chip.addEventListener('click', (e) => {
+      if (e.target.classList.contains('reminder-chip-delete')) return;
+      openGlassReminderPopover('modal', chip, isValid ? when.getTime() : null,
+        (timeMs) => {
+          const newDateStr = new Date(timeMs).toISOString();
+          note.text = note.text.split('\n').map((l, i) => {
+            if (i !== idx) return l;
+            if (/@remind\([^)]*\)/i.test(l)) return l.replace(/@remind\([^)]*\)/gi, `@remind(${newDateStr})`);
+            return l.trimEnd() + ` @remind(${newDateStr})`;
+          }).join('\n');
+          if (typeof modalText !== 'undefined') modalText.value = note.text;
+          if (typeof debouncedSave === 'function') debouncedSave();
+          renderModalInlineReminderChips(note);
+        },
+        () => {
+          note.text = note.text.split('\n').map((l, i) =>
+            i === idx ? l.replace(/@remind\([^)]*\)/gi, '').trimEnd() : l
+          ).join('\n');
+          if (typeof modalText !== 'undefined') modalText.value = note.text;
+          if (typeof debouncedSave === 'function') debouncedSave();
+          renderModalInlineReminderChips(note);
+        }
+      );
     });
-    chip.querySelector('#delete-modal-audio').addEventListener('click', (e) => {
+
+    chip.querySelector('.reminder-chip-delete').addEventListener('click', (e) => {
       e.stopPropagation();
-      note.audio = null;
-      note.audioDuration = null;
-      saveToLocalStorage();
-      renderNotes();
-      renderModalAudioPreview(note);
+      note.text = note.text.split('\n').map((l, i) =>
+        i === idx ? l.replace(/@remind\([^)]*\)/gi, '').trimEnd() : l
+      ).join('\n');
+      if (!note.lineReminderTriggered) note.lineReminderTriggered = {};
+      note.lineReminderTriggered[idx] = false;
+      if (typeof modalText !== 'undefined') modalText.value = note.text;
+      if (typeof debouncedSave === 'function') debouncedSave();
+      renderModalInlineReminderChips(note);
     });
+
     container.appendChild(chip);
-  }
+  });
 }
 
 /* ==========================================================================
    Upgraded Interactive Checklist Editor logic
    ========================================================================== */
+
 let checklistFocusIndex = null;
 let checklistFocusCursorPos = null;
 let checklistFocusIsNew = false;
@@ -9141,45 +8911,6 @@ function legacyRenderInteractiveChecklistEditor(container, rawText, onChange) {
   }
 }
 
-function syncCreatorInputs() {
-  const creatorText = document.getElementById('creator-text');
-  const creatorChecklistEditor = document.getElementById('creator-checklist-editor');
-
-  syncNoteTypeEditor({
-    textareaEl: creatorText,
-    checklistEditorEl: creatorChecklistEditor,
-    rawText: creatorText.value,
-    onChange: (newText, skipRedraw) => {
-      creatorText.value = newText;
-      if (!skipRedraw) {
-        syncCreatorInputs();
-      }
-    }
-  });
-}
-
-function syncModalInputs(note) {
-  const modalText = document.getElementById('modal-text');
-  const modalChecklistEditor = document.getElementById('modal-checklist-editor');
-
-  syncNoteTypeEditor({
-    textareaEl: modalText,
-    checklistEditorEl: modalChecklistEditor,
-    rawText: note.text,
-    type: note.type,
-    onChange: (newText, skipRedraw) => {
-      note.text = newText;
-      note.type = note.recipeData ? 'recipe' : getNoteType(newText);
-      note.updatedAt = Date.now();
-      modalText.value = newText;
-      saveToLocalStorage();
-      renderNotes();
-      if (!skipRedraw) {
-        syncModalInputs(note);
-      }
-    }
-  });
-}
 
 
 // ==========================================================================
@@ -9916,3 +9647,562 @@ function getAuthFriendlyError(code) {
   }
   return code || 'An error occurred during authentication.';
 }
+
+// ==========================================================================
+// Paperuss Toolbar Refactor — Phases 2, 3 & 4
+// NEW: Content Add Menu + Contextual Floating Toolbar
+// ==========================================================================
+
+// ─── Phase 2: Add (+) Content Menu ─────────────────────────────────────────
+
+/**
+ * Toggles the Add (+) content insertion menu for the given editor surface.
+ * @param {string} mode - 'creator' or 'modal'
+ */
+function toggleGlassAddMenu(mode) {
+  const menu = document.getElementById(`${mode}-add-menu`);
+  const btn  = document.getElementById(`${mode}-glass-add-btn`);
+  if (!menu) return;
+
+  const isOpen = menu.classList.contains('open');
+  // Close any other open add menus first
+  document.querySelectorAll('.glass-add-menu.open').forEach(m => {
+    m.classList.remove('open');
+    m.setAttribute('aria-hidden', 'true');
+  });
+  document.querySelectorAll('.glass-add-btn.active').forEach(b => b.classList.remove('active'));
+
+  if (!isOpen) {
+    menu.classList.add('open');
+    menu.setAttribute('aria-hidden', 'false');
+    btn?.classList.add('active');
+
+    // Dynamic viewport positioning to guarantee 100% responsiveness & no clipping
+    if (btn) {
+      const rect = btn.getBoundingClientRect();
+      menu.style.position = 'fixed';
+      menu.style.top = 'auto';
+      menu.style.bottom = `${Math.max(12, window.innerHeight - rect.top + 10)}px`;
+      
+      const menuW = menu.offsetWidth || 196;
+      let left = rect.left + (rect.width / 2);
+      const margin = 12;
+      const clampedLeft = Math.max(menuW / 2 + margin, Math.min(left, window.innerWidth - menuW / 2 - margin));
+      
+      menu.style.left = `${clampedLeft}px`;
+      menu.style.right = 'auto';
+      menu.style.transform = 'translateX(-50%) translateY(0) scale(1)';
+    }
+  }
+}
+window.toggleGlassAddMenu = toggleGlassAddMenu;
+
+/**
+ * Closes the Add (+) content insertion menu for the given editor surface.
+ * @param {string} mode - 'creator' or 'modal'
+ */
+function closeGlassAddMenu(mode) {
+  const menu = document.getElementById(`${mode}-add-menu`);
+  const btn  = document.getElementById(`${mode}-glass-add-btn`);
+  if (!menu) return;
+  menu.classList.remove('open');
+  menu.setAttribute('aria-hidden', 'true');
+  btn?.classList.remove('active');
+}
+window.closeGlassAddMenu = closeGlassAddMenu;
+
+/**
+ * Initialises the Add (+) menu for a given editor surface.
+ * Binds outside-click to dismiss, and wires the reminder button for modal.
+ * @param {string} mode - 'creator' or 'modal'
+ */
+function initGlassAddMenu(mode) {
+  const menu = document.getElementById(`${mode}-add-menu`);
+  if (!menu) return;
+
+  // Dismiss when clicking anywhere outside the menu or the add button
+  document.addEventListener('mousedown', (e) => {
+    const btn = document.getElementById(`${mode}-glass-add-btn`);
+    if (menu.classList.contains('open') && !menu.contains(e.target) && e.target !== btn && !btn?.contains(e.target)) {
+      closeGlassAddMenu(mode);
+    }
+  }, true);
+
+  // Dismiss on Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && menu.classList.contains('open')) {
+      closeGlassAddMenu(mode);
+    }
+  });
+
+  // Wire modal reminder (no standalone reminder btn in the glass modal footer)
+  if (mode === 'modal') {
+    const reminderItem = document.getElementById('modal-add-reminder');
+    if (reminderItem) {
+      reminderItem.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        closeGlassAddMenu('modal');
+        // Trigger the compact reminder card if it exists, otherwise the picker
+        const compactCard = document.getElementById('modal-reminder-compact-card');
+        if (compactCard) {
+          compactCard.click();
+        } else {
+          const reminderBtn = document.querySelector('#edit-modal-card .creator-reminder-trigger');
+          reminderBtn?.click();
+        }
+      });
+    }
+  }
+}
+
+// ─── Phase 3 & 4: Contextual Floating Toolbar ──────────────────────────────
+
+/**
+ * Positions the context toolbar above/below a given viewport rect.
+ * Never goes off-screen and never overlaps the primary toolbar.
+ * @param {HTMLElement} toolbar
+ * @param {DOMRect} anchorRect - bounding rect of the selection or element
+ */
+function positionContextToolbar(toolbar, anchorRect) {
+  toolbar.style.display = 'flex'; // measure height
+  const tbH = toolbar.offsetHeight || 46;
+  const tbW = toolbar.offsetWidth  || 200;
+  const margin = 8;
+  const viewW = window.innerWidth;
+  const viewH = window.innerHeight;
+
+  // Prefer above selection
+  let top = anchorRect.top - tbH - margin;
+  if (top < margin) {
+    // Flip below if too close to top
+    top = anchorRect.bottom + margin;
+  }
+  // Clamp to viewport
+  top = Math.max(margin, Math.min(top, viewH - tbH - margin));
+
+  // Horizontally centre on selection, clamped to viewport
+  let left = anchorRect.left + (anchorRect.width / 2);
+  left = Math.max(tbW / 2 + margin, Math.min(left, viewW - tbW / 2 - margin));
+
+  toolbar.style.top  = `${top}px`;
+  toolbar.style.left = `${left}px`;
+}
+
+/**
+ * Hides the context toolbar with the CSS transition.
+ * @param {HTMLElement} toolbar
+ */
+function hideContextToolbar(toolbar) {
+  if (!toolbar) return;
+  toolbar.classList.remove('visible');
+  // After transition, reset display so it doesn't intercept pointer events
+  setTimeout(() => {
+    if (!toolbar.classList.contains('visible')) {
+      toolbar.style.display = 'none';
+      toolbar.setAttribute('aria-hidden', 'true');
+    }
+  }, 220);
+}
+
+/**
+ * Shows the correct context group inside the toolbar and positions it.
+ * @param {HTMLElement} toolbar
+ * @param {string} contextMode - 'text' | 'image' | 'link' | 'checklist'
+ * @param {DOMRect} anchorRect
+ * @param {string} mode - 'creator' | 'modal'
+ */
+function showContextToolbar(toolbar, contextMode, anchorRect, mode) {
+  // Hide all groups first
+  ['text', 'image', 'link', 'checklist'].forEach(m => {
+    const g = document.getElementById(`${mode}-ctx-${m}`);
+    if (g) g.style.display = 'none';
+  });
+
+  // Show the correct group
+  const activeGroup = document.getElementById(`${mode}-ctx-${contextMode}`);
+  if (activeGroup) activeGroup.style.display = 'flex';
+
+  positionContextToolbar(toolbar, anchorRect);
+  toolbar.setAttribute('aria-hidden', 'false');
+  toolbar.classList.add('visible');
+}
+
+/**
+ * Initialises the contextual floating toolbar for a given editor surface.
+ * Detects text selection, image clicks, link cursor, and checklist focus.
+ * @param {string} mode - 'creator' or 'modal'
+ */
+function initGlassContextToolbar(mode) {
+  const editorId = mode === 'creator' ? 'creator-glass-editor' : 'modal-glass-editor';
+  const toolbarId = `${mode}-context-toolbar`;
+  const toolbar = document.getElementById(toolbarId);
+  if (!toolbar) return;
+
+  let contextMode = null;
+  let selectedImage = null;
+  let selectedLinkEl = null;
+  let selectedChecklistItem = null;
+
+  // ── Text selection detection ──────────────────────────────────────────────
+  document.addEventListener('selectionchange', () => {
+    const editor = document.getElementById(editorId);
+    if (!editor) return;
+
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+
+    const range = sel.getRangeAt(0);
+    // Check if selection is inside our editor
+    if (!editor.contains(range.commonAncestorContainer)) {
+      // Not in editor — don't hide here, handled by blur/click-outside
+      return;
+    }
+
+    const text = sel.toString();
+    if (text.length > 0) {
+      // We have a text selection
+      const rect = range.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) return; // collapsed
+
+      contextMode = 'text';
+      showContextToolbar(toolbar, 'text', rect, mode);
+    } else {
+      // No selection — check if cursor is inside a link
+      const anchorNode = sel.anchorNode;
+      const parentEl = anchorNode?.nodeType === Node.TEXT_NODE
+        ? anchorNode.parentElement
+        : anchorNode;
+      const linkEl = parentEl?.closest('a');
+
+      if (linkEl && editor.contains(linkEl)) {
+        selectedLinkEl = linkEl;
+        contextMode = 'link';
+        const rect = linkEl.getBoundingClientRect();
+        showContextToolbar(toolbar, 'link', rect, mode);
+      } else {
+        // Cursor not in link, not in text selection — hide context bar
+        if (contextMode === 'text' || contextMode === 'link') {
+          contextMode = null;
+          hideContextToolbar(toolbar);
+        }
+      }
+    }
+  });
+
+  // ── Image click detection ─────────────────────────────────────────────────
+  const editorEl = document.getElementById(editorId);
+  editorEl?.addEventListener('click', (e) => {
+    if (e.target.tagName === 'IMG') {
+      selectedImage = e.target;
+      contextMode = 'image';
+      const rect = e.target.getBoundingClientRect();
+      showContextToolbar(toolbar, 'image', rect, mode);
+    } else {
+      // Clicked somewhere other than an image
+      if (contextMode === 'image') {
+        contextMode = null;
+        selectedImage = null;
+        hideContextToolbar(toolbar);
+      }
+    }
+  });
+
+  // ── Checklist focus detection ─────────────────────────────────────────────
+  editorEl?.addEventListener('focusin', (e) => {
+    const checklistItem = e.target.closest?.('.checklist-item');
+    if (checklistItem) {
+      selectedChecklistItem = checklistItem;
+      contextMode = 'checklist';
+      const rect = checklistItem.getBoundingClientRect();
+      showContextToolbar(toolbar, 'checklist', rect, mode);
+    }
+  });
+
+  // ── Escape key to dismiss ─────────────────────────────────────────────────
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && toolbar.classList.contains('visible')) {
+      contextMode = null;
+      selectedImage = null;
+      selectedLinkEl = null;
+      selectedChecklistItem = null;
+      hideContextToolbar(toolbar);
+    }
+  });
+
+  // ── Outside-click to dismiss ──────────────────────────────────────────────
+  document.addEventListener('mousedown', (e) => {
+    if (toolbar.classList.contains('visible') && !toolbar.contains(e.target)) {
+      // Only dismiss image/checklist context on outside click;
+      // text/link context is managed by selectionchange
+      if (contextMode === 'image' || contextMode === 'checklist') {
+        contextMode = null;
+        selectedImage = null;
+        selectedChecklistItem = null;
+        hideContextToolbar(toolbar);
+      }
+    }
+  });
+
+  // ── Image context actions ─────────────────────────────────────────────────
+  document.getElementById(`${mode}-ctx-replace-img`)?.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    if (!selectedImage) return;
+    const uploadInput = document.getElementById(`${mode}-glass-img-upload`);
+    if (!uploadInput) return;
+    // Store reference so handleGlassImage can replace this specific img
+    uploadInput.dataset.replaceTarget = 'pending';
+    // Save reference to selected image for replacement
+    window[`_glassReplaceImg_${mode}`] = selectedImage;
+    uploadInput.click();
+    hideContextToolbar(toolbar);
+  });
+
+  document.getElementById(`${mode}-ctx-resize-img`)?.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    if (!selectedImage) return;
+    // Cycle through sizes: no class → small → medium → large → no class
+    const sizes = ['glass-editor-img--small', 'glass-editor-img--medium', 'glass-editor-img--large'];
+    const current = sizes.find(s => selectedImage.classList.contains(s));
+    sizes.forEach(s => selectedImage.classList.remove(s));
+    if (!current) {
+      selectedImage.classList.add('glass-editor-img--small');
+    } else {
+      const next = sizes[(sizes.indexOf(current) + 1) % sizes.length];
+      if (next !== sizes[0] || current !== sizes[sizes.length - 1]) {
+        selectedImage.classList.add(next);
+      }
+      // If we cycled back past large, remove all (original size)
+    }
+  });
+
+  document.getElementById(`${mode}-ctx-caption-img`)?.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    if (!selectedImage) return;
+    // Insert or focus caption element below image
+    let caption = selectedImage.nextElementSibling;
+    if (!caption || !caption.classList.contains('glass-img-caption')) {
+      caption = document.createElement('span');
+      caption.className = 'glass-img-caption';
+      caption.contentEditable = 'true';
+      caption.textContent = 'Add caption...';
+      selectedImage.parentNode.insertBefore(caption, selectedImage.nextSibling);
+    }
+    caption.focus();
+    // Select placeholder text
+    const range = document.createRange();
+    range.selectNodeContents(caption);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(range);
+    hideContextToolbar(toolbar);
+  });
+
+  document.getElementById(`${mode}-ctx-delete-img`)?.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    if (!selectedImage) return;
+    // Remove caption too if present
+    const caption = selectedImage.nextElementSibling;
+    if (caption?.classList.contains('glass-img-caption')) caption.remove();
+    selectedImage.remove();
+    selectedImage = null;
+    contextMode = null;
+    hideContextToolbar(toolbar);
+  });
+
+  // ── Link context actions ──────────────────────────────────────────────────
+  document.getElementById(`${mode}-ctx-open-link`)?.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    if (selectedLinkEl?.href) {
+      window.open(selectedLinkEl.href, '_blank', 'noopener,noreferrer');
+    }
+    hideContextToolbar(toolbar);
+  });
+
+  // ── Checklist context actions ─────────────────────────────────────────────
+  document.getElementById(`${mode}-ctx-indent`)?.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    if (!selectedChecklistItem) return;
+    const currentPl = parseInt(selectedChecklistItem.style.paddingLeft || '0', 10);
+    selectedChecklistItem.style.paddingLeft = `${currentPl + 20}px`;
+  });
+
+  document.getElementById(`${mode}-ctx-outdent`)?.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    if (!selectedChecklistItem) return;
+    const currentPl = parseInt(selectedChecklistItem.style.paddingLeft || '0', 10);
+    selectedChecklistItem.style.paddingLeft = `${Math.max(0, currentPl - 20)}px`;
+  });
+
+  document.getElementById(`${mode}-ctx-move-up`)?.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    if (!selectedChecklistItem) return;
+    const prev = selectedChecklistItem.previousElementSibling;
+    if (prev && prev.classList.contains('checklist-item')) {
+      selectedChecklistItem.parentNode.insertBefore(selectedChecklistItem, prev);
+    }
+  });
+
+  document.getElementById(`${mode}-ctx-move-down`)?.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    if (!selectedChecklistItem) return;
+    const next = selectedChecklistItem.nextElementSibling;
+    if (next && next.classList.contains('checklist-item')) {
+      selectedChecklistItem.parentNode.insertBefore(next, selectedChecklistItem);
+    }
+  });
+
+  document.getElementById(`${mode}-ctx-delete-item`)?.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    if (!selectedChecklistItem) return;
+    selectedChecklistItem.remove();
+    selectedChecklistItem = null;
+    contextMode = null;
+    hideContextToolbar(toolbar);
+  });
+}
+
+// ─── Auto-init both surfaces when glass editor is available ────────────────
+
+/**
+ * Called after the glass editor is ready for a given surface.
+ * Initialises the Add Menu and Contextual Toolbar subsystems.
+ * @param {string} mode - 'creator' or 'modal'
+ */
+function initGlassToolbarExtensions(mode) {
+  initGlassAddMenu(mode);
+  initGlassContextToolbar(mode);
+}
+
+// Initialise both surfaces on DOMContentLoaded (safe no-op if not in glass mode)
+document.addEventListener('DOMContentLoaded', () => {
+  // Small defer to ensure glass editor elements are in the DOM
+  setTimeout(() => {
+    initGlassToolbarExtensions('creator');
+    initGlassToolbarExtensions('modal');
+  }, 0);
+
+  // Bind new Glass Reminder Popover to Add menus
+  document.getElementById('creator-add-reminder')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openGlassReminderPopover('creator', e.currentTarget, creatorReminder, 
+      (timeMs) => {
+        creatorReminder = timeMs;
+        renderCreatorReminderChip();
+        saveCreatorNoteDraft();
+      }, 
+      () => {
+        creatorReminder = null;
+        renderCreatorReminderChip();
+        saveCreatorNoteDraft();
+      }
+    );
+  });
+
+  document.getElementById('modal-add-reminder')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const note = notes.find(n => n.id === currentEditingNoteId);
+    if (!note) return;
+    openGlassReminderPopover('modal', e.currentTarget, note.reminder, 
+      (timeMs) => {
+        note.reminder = timeMs;
+        note.reminderTriggered = false;
+        saveToLocalStorage();
+        renderNotes();
+        renderModalReminderChip(note);
+      }, 
+      () => {
+        note.reminder = null;
+        note.reminderTriggered = false;
+        saveToLocalStorage();
+        renderNotes();
+        renderModalReminderChip(note);
+      }
+    );
+  });
+});
+
+
+let currentReminderTarget = null;
+let currentReminderCallback = null;
+let currentReminderClearCallback = null;
+
+function closeGlassReminderPopover() {
+  const popover = document.getElementById('glass-reminder-popover');
+  if (!popover) return;
+  popover.classList.remove('visible');
+}
+window.closeGlassReminderPopover = closeGlassReminderPopover;
+
+function openGlassReminderPopover(target, anchorEl, currentVal, onSave, onClear) {
+  const popover = document.getElementById('glass-reminder-popover');
+  const input = document.getElementById('glass-reminder-input');
+  if (!popover || !input) return;
+
+  currentReminderTarget = target;
+  currentReminderCallback = onSave;
+  currentReminderClearCallback = onClear;
+
+  if (currentVal) {
+    const d = new Date(currentVal);
+    const pad = n => n.toString().padStart(2, '0');
+    input.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } else {
+    input.value = '';
+  }
+
+  // Show first so dimensions are available in rAF
+  popover.classList.add('visible');
+  popover.style.top = '';
+  popover.style.left = '';
+  popover.style.transform = '';
+
+  requestAnimationFrame(() => {
+    if (!anchorEl) {
+      // Center of screen fallback
+      popover.style.top = '50%';
+      popover.style.left = '50%';
+      popover.style.transform = 'translate(-50%, -50%) scale(1)';
+      return;
+    }
+    const rect = anchorEl.getBoundingClientRect();
+    const pw = popover.offsetWidth || 300;
+    const ph = popover.offsetHeight || 200;
+    let top = rect.top - ph - 12;
+    let left = rect.left + rect.width / 2 - pw / 2;
+
+    if (top < 10) top = rect.bottom + 12;
+    if (left < 10) left = 10;
+    if (left + pw > window.innerWidth - 10) left = window.innerWidth - pw - 10;
+
+    popover.style.top = top + 'px';
+    popover.style.left = left + 'px';
+  });
+}
+
+document.getElementById('glass-reminder-close')?.addEventListener('click', () => {
+  closeGlassReminderPopover();
+});
+
+document.getElementById('glass-reminder-save')?.addEventListener('click', () => {
+  const input = document.getElementById('glass-reminder-input');
+  if (!input.value) return;
+  const timeMs = new Date(input.value).getTime();
+  if (Number.isNaN(timeMs)) return;
+  if (currentReminderCallback) currentReminderCallback(timeMs);
+  closeGlassReminderPopover();
+  showToast({ title: '⏰ Reminder Set', text: 'Note reminder updated successfully.' });
+});
+
+document.getElementById('glass-reminder-clear')?.addEventListener('click', () => {
+  if (currentReminderClearCallback) currentReminderClearCallback();
+  closeGlassReminderPopover();
+  showToast({ title: 'Reminder Cleared', text: 'Note reminder removed.' });
+});
+
+// Close popover when clicking outside
+document.addEventListener('click', (e) => {
+  const popover = document.getElementById('glass-reminder-popover');
+  if (popover && popover.classList.contains('visible') && !popover.contains(e.target)) {
+    closeGlassReminderPopover();
+  }
+}, true);
+

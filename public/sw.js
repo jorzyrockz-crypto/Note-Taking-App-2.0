@@ -1,4 +1,4 @@
-const CACHE_NAME = 'paperuss-v63';
+const CACHE_NAME = 'paperuss-v73';
 // Files available at the same paths in both source and Vite production builds.
 // Hashed JS/CSS dependencies are cached on first controlled fetch below.
 const APP_ASSETS = [
@@ -12,6 +12,7 @@ const APP_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_ASSETS))
   );

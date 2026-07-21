@@ -8714,7 +8714,11 @@ body.dark-theme .floating-toolbar {
 /* Hide legacy chips and tag listings from the main scroll container to keep document clean */
 .modal-tags-container,
 .creator-chips-container {
-  display: none !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  margin-top: 10px !important;
+  align-items: center !important;
 }
 
 /* Workspace Wrapper - Houses scrollable content and properties panel side-by-side */
@@ -9328,65 +9332,6 @@ body.editor-focus-mode:not(.advanced-editor-open) .main-content-area {
   margin-bottom: 2px;
 }
 
-/* ==========================================================================
-   Markdown Formatting Toolbar
-   ========================================================================== */
-.markdown-toolbar {
-  position: absolute !important;
-  left: 50% !important;
-  transform: translateX(-50%) scale(0.95);
-  background: rgba(15, 23, 42, 0.92) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  border-radius: 999px !important;
-  padding: 4px 6px !important;
-  margin-bottom: 0 !important;
-  width: max-content;
-  max-width: 90%;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
-  z-index: 100 !important;
-  opacity: 0;
-  pointer-events: none;
-  display: none;
-  transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
-}
-
-.markdown-toolbar.visible {
-  opacity: 1 !important;
-  pointer-events: auto !important;
-  transform: translateX(-50%) scale(1) !important;
-}
-
-body.dark-theme .markdown-toolbar {
-  background: rgba(30, 41, 59, 0.94) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45) !important;
-}
-
-.markdown-toolbar .toolbar-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px !important;
-  height: 30px !important;
-  border: none;
-  background: transparent !important;
-  border-radius: 999px !important;
-  color: rgba(255, 255, 255, 0.72) !important;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.markdown-toolbar .toolbar-btn:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
-  color: #38bdf8 !important;
-}
-
-body.dark-theme .markdown-toolbar .toolbar-btn:hover {
-  background: rgba(255, 255, 255, 0.08) !important;
-  color: #38bdf8 !important;
-}
 
 /* ==========================================================================
    PWA Splash Screen
@@ -10697,7 +10642,7 @@ body.dark-theme .checklist-delete-btn {
   flex-direction: column;
   gap: 8px;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.1);
-  z-index: 1001;
+  z-index: 99999;
   border: 1px solid rgba(0, 0, 0, 0.08);
   min-width: 190px;
 }
@@ -10766,7 +10711,7 @@ body.dark-theme .color-swatch.text-swatch {
   display: none;
   gap: 8px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  z-index: 1001;
+  z-index: 99999;
   align-items: center;
 }
 
@@ -10825,8 +10770,7 @@ body.dark-theme .glass-link-popover input {
 /* Responsive Floating Toolbar on Mobile */
 @media screen and (max-width: 500px) {
   .glass-floating-toolbar,
-  .floating-toolbar,
-  .markdown-toolbar {
+  .floating-toolbar {
     padding: 6px 10px !important;
     gap: 6px !important;
     max-width: 95vw !important;
@@ -10838,22 +10782,19 @@ body.dark-theme .glass-link-popover input {
   }
   
   .glass-floating-toolbar::-webkit-scrollbar,
-  .floating-toolbar::-webkit-scrollbar,
-  .markdown-toolbar::-webkit-scrollbar {
+  .floating-toolbar::-webkit-scrollbar {
     display: none !important; /* Chrome, Safari, Opera */
   }
   
   .glass-floating-toolbar .toolbar-btn,
-  .floating-toolbar .toolbar-btn,
-  .markdown-toolbar .toolbar-btn {
+  .floating-toolbar .toolbar-btn {
     width: 34px !important;
     height: 34px !important;
     flex-shrink: 0 !important;
   }
   
   .glass-floating-toolbar .toolbar-btn svg,
-  .floating-toolbar .toolbar-btn svg,
-  .markdown-toolbar .toolbar-btn svg {
+  .floating-toolbar .toolbar-btn svg {
     width: 16px !important;
     height: 16px !important;
   }
@@ -11992,3 +11933,495 @@ body.dark-theme.card-style-notebook .note-card::before {
     margin-left: 70px !important;
   }
 }
+
+/* ==========================================================================
+   Paperuss Toolbar Refactor — Phases 1–7
+   NEW: Add Button, Content Menu, Context Toolbar, Motion, Mobile, Polish
+   ========================================================================== */
+
+/* ─── Phase 1: Add (+) button styling ─────────────────────────────────────── */
+.glass-add-btn {
+  position: relative;
+}
+
+.glass-add-btn svg {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-add-btn.active svg {
+  transform: rotate(45deg);
+}
+
+/* ─── Phase 2: Content Insertion Add Menu ────────────────────────────────── */
+.glass-add-menu {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%) translateY(6px) scale(0.96);
+  background: linear-gradient(var(--glass-tint, rgba(255,255,255,0.85)), var(--glass-tint, rgba(255,255,255,0.85))), #ffffff;
+  border: 1px solid var(--accent-border, rgba(0,0,0,0.08));
+  border-radius: 16px;
+  padding: 6px;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 196px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.06);
+  z-index: 1100;
+  opacity: 0;
+  pointer-events: none;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: opacity 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.dark-theme .glass-add-menu {
+  background: linear-gradient(var(--glass-tint, rgba(15,23,42,0.88)), var(--glass-tint, rgba(15,23,42,0.88))), #1e293b;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.glass-add-menu.open {
+  display: flex;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+
+.glass-add-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--text-primary, #1e293b);
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.glass-add-menu-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--accent-primary, #0284c7);
+}
+
+.glass-add-menu-item:active {
+  transform: scale(0.97);
+  background: rgba(0, 0, 0, 0.08);
+}
+
+body.dark-theme .glass-add-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #38bdf8;
+}
+
+.glass-add-menu-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+body.dark-theme .glass-add-menu-icon {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.glass-add-menu-icon svg {
+  width: 17px;
+  height: 17px;
+  fill: currentColor;
+  pointer-events: none;
+}
+
+.glass-add-menu-label {
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
+}
+
+/* ─── Phase 3: Contextual Floating Toolbar ───────────────────────────────── */
+.glass-context-toolbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  transform: translateX(-50%) translateY(-8px) scale(0.95);
+  background: linear-gradient(var(--glass-tint, rgba(255,255,255,0.92)), var(--glass-tint, rgba(255,255,255,0.92))), #ffffff;
+  border: 1px solid var(--accent-border, rgba(0,0,0,0.08));
+  border-radius: 999px;
+  padding: 6px 10px;
+  display: none;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10), 0 2px 8px rgba(0, 0, 0, 0.06);
+  z-index: 1200;
+  opacity: 0;
+  pointer-events: none;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: opacity 0.20s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.20s cubic-bezier(0.4, 0, 0.2, 1);
+  max-width: calc(100vw - 32px);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+body.dark-theme .glass-context-toolbar {
+  background: linear-gradient(var(--glass-tint, rgba(15,23,42,0.92)), var(--glass-tint, rgba(15,23,42,0.92))), #1e293b;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.glass-context-toolbar.visible {
+  display: flex;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+
+/* Context toolbar button groups */
+.glass-ctx-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Context toolbar buttons */
+.glass-ctx-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #475569;
+  font-weight: 700;
+  font-size: 13px;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+
+body.dark-theme .glass-ctx-btn {
+  color: #94a3b8;
+}
+
+.glass-ctx-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  pointer-events: none;
+}
+
+.glass-ctx-btn .btn-text {
+  font-size: 12px;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  pointer-events: none;
+  font-weight: 700;
+}
+
+.glass-ctx-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #0284c7;
+  transform: scale(1.08);
+}
+
+body.dark-theme .glass-ctx-btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: #38bdf8;
+}
+
+.glass-ctx-btn:active {
+  transform: scale(0.94);
+}
+
+.glass-ctx-btn:focus-visible {
+  outline: 2px solid var(--accent-primary, #0284c7);
+  outline-offset: 2px;
+}
+
+.glass-ctx-btn.active {
+  background: rgba(56, 189, 248, 0.18);
+  color: #0284c7;
+}
+
+body.dark-theme .glass-ctx-btn.active {
+  background: rgba(56, 189, 248, 0.22);
+  color: #38bdf8;
+}
+
+/* Danger (destructive) context button */
+.glass-ctx-btn--danger:hover {
+  background: rgba(239, 68, 68, 0.10);
+  color: #ef4444;
+  transform: scale(1.08);
+}
+
+body.dark-theme .glass-ctx-btn--danger:hover {
+  background: rgba(239, 68, 68, 0.14);
+  color: #f87171;
+}
+
+/* Disabled state for context buttons */
+.glass-ctx-btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* Context toolbar divider */
+.glass-ctx-divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(0, 0, 0, 0.08);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+body.dark-theme .glass-ctx-divider {
+  background: rgba(255, 255, 255, 0.10);
+}
+
+/* ─── Phase 5: Keyframe animations ──────────────────────────────────────── */
+@keyframes glass-menu-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px) scale(0.96); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+@keyframes glass-ctx-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-4px) scale(0.95); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+/* ─── Phase 6: Mobile / Touch optimisation ─────────────────────────────── */
+@media (pointer: coarse) {
+  .glass-add-menu-item {
+    min-height: 44px;
+  }
+
+  .glass-ctx-btn {
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .glass-add-btn {
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media screen and (max-width: 500px) {
+  .glass-add-menu {
+    transform: translateY(6px) scale(0.96);
+    min-width: min(210px, calc(100vw - 24px));
+  }
+
+  .glass-add-menu.open {
+    transform: translateY(0) scale(1);
+  }
+
+  .glass-context-toolbar {
+    max-width: calc(100vw - 16px);
+    overflow-x: auto;
+    border-radius: 12px;
+  }
+
+  .glass-context-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ─── Phase 7: Polish — primary toolbar add-button accent ───────────────── */
+.glass-floating-toolbar .glass-add-btn {
+  color: var(--accent-primary, #0284c7);
+}
+
+.glass-floating-toolbar .glass-add-btn:hover {
+  background: rgba(2, 132, 199, 0.10);
+  color: #0284c7;
+}
+
+body.dark-theme .glass-floating-toolbar .glass-add-btn {
+  color: #38bdf8;
+}
+
+body.dark-theme .glass-floating-toolbar .glass-add-btn:hover {
+  background: rgba(56, 189, 248, 0.14);
+  color: #38bdf8;
+}
+
+/* Focus states for primary toolbar buttons (accessibility) */
+.glass-floating-toolbar .toolbar-btn:focus-visible,
+.glass-add-menu-item:focus-visible {
+  outline: 2px solid var(--accent-primary, #0284c7);
+  outline-offset: 2px;
+}
+
+/* Image resize CSS classes applied by context toolbar JS */
+.glass-editor-img--small  { width: 200px !important; height: auto !important; }
+.glass-editor-img--medium { width: 380px !important; height: auto !important; }
+.glass-editor-img--large  { width: 100%  !important; height: auto !important; }
+
+/* Image caption styling */
+.glass-img-caption {
+  display: block;
+  width: 100%;
+  font-size: 12.5px;
+  color: var(--text-secondary, #64748b);
+  text-align: center;
+  margin-top: 4px;
+  font-style: italic;
+  outline: none;
+  min-height: 1.4em;
+  cursor: text;
+  font-family: var(--font-sans, system-ui, sans-serif);
+}
+
+/* Resize inline sub-menu (appears above resize button in context toolbar) */
+.glass-ctx-resize-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(var(--glass-tint, rgba(255,255,255,0.95)), var(--glass-tint, rgba(255,255,255,0.95))), #fff;
+  border: 1px solid var(--accent-border, rgba(0,0,0,0.08));
+  border-radius: 12px;
+  padding: 4px;
+  display: flex;
+  gap: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+  z-index: 1300;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+body.dark-theme .glass-ctx-resize-menu {
+  background: linear-gradient(var(--glass-tint, rgba(15,23,42,0.94)), var(--glass-tint, rgba(15,23,42,0.94))), #1e293b;
+  border-color: rgba(255,255,255,0.08);
+}
+
+.glass-ctx-resize-option {
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-primary, #1e293b);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.glass-ctx-resize-option:hover {
+  background: rgba(0,0,0,0.06);
+  color: #0284c7;
+}
+
+body.dark-theme .glass-ctx-resize-option:hover {
+  background: rgba(255,255,255,0.08);
+  color: #38bdf8;
+}
+
+/* ==========================================================================
+   Glass Reminder Popover — dedicated overrides (must sit above modal overlay)
+   ========================================================================== */
+#glass-reminder-popover {
+  position: fixed !important;
+  z-index: 99999 !important;
+  display: none;
+  flex-direction: column !important;
+  padding: 16px !important;
+  gap: 12px !important;
+  min-width: 300px !important;
+  border-radius: 16px !important;
+  background: var(--surface, #ffffff) !important;
+  border: 1px solid var(--border-light, rgba(0,0,0,0.12)) !important;
+  box-shadow: 0 24px 48px rgba(0,0,0,0.18), 0 8px 16px rgba(0,0,0,0.1) !important;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.95) translateY(4px);
+  transition: opacity 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#glass-reminder-popover.visible {
+  display: flex !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transform: scale(1) translateY(0) !important;
+}
+
+body.dark-theme #glass-reminder-popover {
+  background: var(--surface, #1e293b) !important;
+  border-color: rgba(255,255,255,0.12) !important;
+  box-shadow: 0 24px 48px rgba(0,0,0,0.5), 0 8px 16px rgba(0,0,0,0.3) !important;
+}
+
+/* Snooze buttons row inside the reminder toast */
+.toast-snooze-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.toast-snooze-btn {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  color: inherit;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.toast-snooze-btn:hover {
+  background: rgba(255,255,255,0.28);
+}
+
+/* Inline-reminder chips shown inside the glass editor chips area */
+.inline-reminder-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: var(--surface-variant, rgba(0,120,212,0.08));
+  border: 1px solid rgba(0,120,212,0.22);
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.inline-reminder-chip:hover {
+  background: rgba(0,120,212,0.14);
+}
+
+body.dark-theme .inline-reminder-chip {
+  background: rgba(56,189,248,0.1);
+  border-color: rgba(56,189,248,0.25);
+}
+

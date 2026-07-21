@@ -27,9 +27,32 @@ export function saveGlassSelection() {
   }
 }
 
-export function restoreGlassSelection() {
-  if (!savedGlassRange || !savedGlassElement) return;
-  // Refocus the element first so execCommand has a valid active contenteditable
+export function restoreGlassSelection(mode = null) {
+  if (!savedGlassRange || !savedGlassElement || !document.body.contains(savedGlassElement)) {
+    let target = null;
+    if (mode === 'modal' || mode === 'creator') {
+      target = document.getElementById(`${mode}-glass-editor`);
+    } else {
+      const modalOpen = document.getElementById('edit-modal')?.classList.contains('visible');
+      target = modalOpen
+        ? document.getElementById('modal-glass-editor')
+        : document.getElementById('creator-glass-editor');
+    }
+
+    if (target) {
+      target.focus();
+      const range = document.createRange();
+      range.selectNodeContents(target);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      savedGlassRange = range;
+      savedGlassElement = target;
+    }
+    return;
+  }
+
   savedGlassElement.focus();
   const sel = window.getSelection();
   sel.removeAllRanges();
@@ -99,8 +122,8 @@ function stripUnderlineStylesInSelection() {
 }
 
 // Exported to window so it can be called directly from onmousedown inside HTML
-window.execGlassCmd = function(cmd, val = null) {
-  restoreGlassSelection();
+window.execGlassCmd = function(cmd, val = null, mode = null) {
+  restoreGlassSelection(mode);
   if (cmd === 'underline') {
     stripUnderlineStylesInSelection();
   }
@@ -110,7 +133,7 @@ window.execGlassCmd = function(cmd, val = null) {
     const editor = document.getElementById(`${mode}-glass-editor`);
     if (editor) {
       const items = getConvertibleItems(editor);
-      const hasChecklist = items.some(item => item.element.classList.contains('checklist-item'));
+      const hasChecklist = items.some(item => item.element && item.element.nodeType === Node.ELEMENT_NODE && item.element.classList.contains('checklist-item'));
       if (hasChecklist) {
         const listTag = cmd === 'insertUnorderedList' ? 'ul' : 'ol';
         const list = document.createElement(listTag);
@@ -163,11 +186,36 @@ window.updateGlassEmptyState = function(el) {
   }
 };
 
-window.toggleGlassColorPopup = function(mode) {
+window.toggleGlassColorPopup = function(mode, anchorBtn = null) {
   const p = document.getElementById(`${mode}-glass-color-popup`);
-  if (p) {
-    p.style.display = p.style.display === 'flex' ? 'none' : 'flex';
+  if (!p) return;
+  
+  if (p.style.display === 'flex') {
+    p.style.display = 'none';
+  } else {
+    p.style.display = 'flex';
+    
+    // Dynamically position it relative to the anchor button or context toolbar
+    if (anchorBtn) {
+      const btnRect = anchorBtn.getBoundingClientRect();
+      const popupH = p.offsetHeight || 130;
+      const margin = 8;
+      
+      let top = btnRect.top - popupH - margin;
+      if (top < margin) {
+        top = btnRect.bottom + margin; // Flip below if too close to top
+      }
+      
+      let left = btnRect.left + (btnRect.width / 2);
+      
+      p.style.position = 'fixed';
+      p.style.top = `${top}px`;
+      p.style.left = `${left}px`;
+      p.style.bottom = 'auto'; // override CSS
+      p.style.transform = 'translateX(-50%)'; // center horizontally over the point
+    }
   }
+
   // Dismiss link popover if open
   const linkPopover = document.getElementById(`${mode}-glass-link-popover`);
   if (linkPopover) linkPopover.style.display = 'none';
@@ -343,7 +391,7 @@ function getConvertibleItems(editor) {
 }
 
 window.addGlassChecklist = function(mode) {
-  restoreGlassSelection();
+  restoreGlassSelection(mode);
   const sel = window.getSelection();
   const editor = document.getElementById(`${mode}-glass-editor`);
   if (!editor) return;
@@ -477,7 +525,7 @@ function initGlassDrag(el) {
   }
 }
 
-window.toggleGlassLinkPopover = function(mode) {
+window.toggleGlassLinkPopover = function(mode, anchorBtn = null) {
   const popover = document.getElementById(`${mode}-glass-link-popover`);
   if (!popover) return;
   const input = document.getElementById(`${mode}-glass-link-input`);
@@ -491,7 +539,27 @@ window.toggleGlassLinkPopover = function(mode) {
     
     popover.style.display = 'flex';
     
-    restoreGlassSelection();
+    // Dynamically position it relative to the anchor button or context toolbar
+    if (anchorBtn) {
+      const btnRect = anchorBtn.getBoundingClientRect();
+      const popupH = popover.offsetHeight || 50;
+      const margin = 8;
+      
+      let top = btnRect.top - popupH - margin;
+      if (top < margin) {
+        top = btnRect.bottom + margin; // Flip below if too close to top
+      }
+      
+      let left = btnRect.left + (btnRect.width / 2);
+      
+      popover.style.position = 'fixed';
+      popover.style.top = `${top}px`;
+      popover.style.left = `${left}px`;
+      popover.style.bottom = 'auto'; // override CSS
+      popover.style.transform = 'translateX(-50%)'; // center horizontally over the point
+    }
+    
+    restoreGlassSelection(mode);
     const sel = window.getSelection();
     if (sel.rangeCount > 0) {
       let node = sel.anchorNode;
@@ -518,7 +586,7 @@ window.submitGlassLink = function(mode) {
   const rawUrl = input.value.trim();
   popover.style.display = 'none';
   
-  restoreGlassSelection();
+  restoreGlassSelection(mode);
   if (!rawUrl) {
     document.execCommand('unlink', false, null);
   } else {
@@ -676,7 +744,7 @@ window.handleGlassImage = function(input, mode) {
 };
 
 window.execGlassHeading = function(mode) {
-  restoreGlassSelection();
+  restoreGlassSelection(mode);
   const sel = window.getSelection();
   if (sel.rangeCount === 0) return;
   
@@ -712,7 +780,7 @@ window.execGlassHeading = function(mode) {
 };
 
 window.execGlassFontSize = function(mode) {
-  restoreGlassSelection();
+  restoreGlassSelection(mode);
   const sel = window.getSelection();
   if (sel.rangeCount === 0) return;
   

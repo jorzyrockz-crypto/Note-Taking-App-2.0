@@ -165,12 +165,22 @@
           <div class="profile-divider"></div>
           <div class="profile-version-section">
             <div class="version-header">
-              <span class="version-label">Version 2.5.1</span>
+              <span class="version-label">Version 2.6.9</span>
               <button class="update-btn" id="app-update-btn" type="button">Update</button>
             </div>
             <div class="changelog-container">
               <div class="changelog-title">What's New</div>
               <ul class="changelog-list">
+          <li><strong>Scheduler Overhaul:</strong> Fixed glass reminder popover hidden behind modal, added multi-clip audio recording, browser push notifications with snooze (5m/15m/1h), per-line inline reminder chips, and whole-note+inline reminder co-existence</li>
+          <li><strong>Voice Recording Fix:</strong> Disabled automatic SpeechRecognition live typing so voice recording solely records audio clips without modifying note text</li>
+          <li><strong>Cleaned up UI:</strong> Removed redundant floating voice recording overlay pill in favor of the clean top banner indicator</li>
+          <li><strong>Bug Fix:</strong> Fixed floating Voice Recording overlay indicator staying visible permanently due to conflicting inline CSS styles</li>
+          <li><strong>Glass UI Enhancements:</strong> Restored chip visibility for voice recordings and reminders in the Glass Editor, and upgraded voice note chips with playable HTML5 audio controls</li>
+          <li><strong>Bug Fix:</strong> Added null checks when referencing deleted legacy editor-textarea-wrap elements in openEditModal and expandCreator</li>
+          <li><strong>Bug Fix:</strong> Added compatibility shims for syncModalInputs, syncCreatorInputs, and legacy text functions to prevent startup ReferenceError crashes</li>
+          <li><strong>Glass UI Enhancements:</strong> Voice Recording now uses a sleek global floating indicator, and the Reminder Scheduler is now a floating context menu integrated directly into the new UI</li>
+          <li><strong>Legacy Editor Cleanup:</strong> Removed legacy textarea editor code to finalize transition to the rich text Glass Editor</li>
+                <li>Toolbar Refactor (Phases 1–7): Simplified glass editor toolbar to core tools with a new Add (+) content insertion menu and a context-aware floating toolbar appearing on text selection, image click, link hover, and checklist focus</li>
                 <li>Added Workspace Density settings with Auto, Compact, Comfortable, Touch, and Spacious modes plus an optional Tablet-first Navigation testing feature</li>
                 <li>Tablet-first workspace with an adaptive portrait dock, landscape navigation rail, roomier note grid, and touch-friendly controls</li>
                 <li>Upgraded tablet editor to a focused near-full-screen canvas with safer spacing, sticky actions, and better portrait/landscape behavior</li>
@@ -301,38 +311,7 @@
           <div class="editor-workspace-wrapper">
             <!-- Scrollable Workspace Container -->
             <div class="editor-scroll-container">
-              <input type="text" id="creator-title" placeholder="Title" autocomplete="off">
               <div class="editor-metadata" id="creator-metadata" style="display: none;">Today • 12:00 PM</div>
-              <!-- Editor render mirror overlays the textarea with formatted markdown -->
-              <div class="editor-textarea-wrap">
-                <!-- Markdown Formatting Toolbar -->
-                <div class="markdown-toolbar" id="creator-markdown-toolbar" style="display: none;">
-                  <button type="button" class="toolbar-btn" data-format="bold" title="Bold (Ctrl+B)">
-                    <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor;"><path d="M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c1.1 0 2 .9 2 2s-.9 2-2 2h-3V6.5zm3.5 11h-3.5v-3.5h3.5c1.1 0 2 .9 2 2s-.9 1.5-2 1.5z"/></svg>
-                  </button>
-                  <button type="button" class="toolbar-btn" data-format="italic" title="Italic (Ctrl+I)">
-                    <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor;"><path d="M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z"/></svg>
-                  </button>
-                  <button type="button" class="toolbar-btn" data-format="h1" title="Heading 1">
-                    <span style="font-size: 11px; font-weight: 800;">H1</span>
-                  </button>
-                  <button type="button" class="toolbar-btn" data-format="h2" title="Heading 2">
-                    <span style="font-size: 11px; font-weight: 800;">H2</span>
-                  </button>
-                  <button type="button" class="toolbar-btn" data-format="code" title="Inline Code">
-                    <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor;"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
-                  </button>
-                  <button type="button" class="toolbar-btn" data-format="quote" title="Quote">
-                    <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor;"><path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/></svg>
-                  </button>
-                  <button type="button" class="toolbar-btn" data-format="link" title="Add Link">
-                    <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor;"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
-                  </button>
-                </div>
-                <textarea id="creator-text" placeholder="Take a note..." rows="1"></textarea>
-                <div class="editor-render-mirror" id="creator-text-mirror" aria-hidden="true"></div>
-              </div>
-              <div class="checklist-editor" id="creator-checklist-editor" style="display: none;"></div>
               
               <!-- Glass Editor Workspace -->
               <div class="glass-editor-workspace" id="creator-glass-workspace" style="display: none;">
@@ -559,48 +538,152 @@
               <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
             </button>
           </div>
-          
-          <!-- Glass Editor Floating formatting toolbar -->
+          <!-- Glass Editor Floating formatting toolbar (Phase 1: simplified to core tools + Add button) -->
           <div class="glass-floating-toolbar" id="creator-glass-floating-toolbar" style="display: none;">
-            <button class="toolbar-btn" data-cmd="bold" onmousedown="event.preventDefault(); execGlassCmd('bold')" title="Bold">
+            <!-- Core Formatting: Bold -->
+            <button class="toolbar-btn" data-cmd="bold" onmousedown="event.preventDefault(); execGlassCmd('bold')" title="Bold (Ctrl+B)">
               <svg viewBox="0 0 24 24"><path d="M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-3v-3zm3.5 9H10v-3h3.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5z"/></svg>
             </button>
-            <button class="toolbar-btn" data-cmd="italic" onmousedown="event.preventDefault(); execGlassCmd('italic')" title="Italic">
+            <!-- Core Formatting: Italic -->
+            <button class="toolbar-btn" data-cmd="italic" onmousedown="event.preventDefault(); execGlassCmd('italic')" title="Italic (Ctrl+I)">
               <svg viewBox="0 0 24 24"><path d="M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z"/></svg>
             </button>
-            <button class="toolbar-btn" data-cmd="underline" onmousedown="event.preventDefault(); execGlassCmd('underline')" title="Underline">
+            <!-- Core Formatting: Underline -->
+            <button class="toolbar-btn" data-cmd="underline" onmousedown="event.preventDefault(); execGlassCmd('underline')" title="Underline (Ctrl+U)">
               <svg viewBox="0 0 24 24"><path d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z"/></svg>
             </button>
-            <button class="toolbar-btn" data-cmd="strikeThrough" onmousedown="event.preventDefault(); execGlassCmd('strikeThrough')" title="Strikethrough">
-              <span class="btn-text" style="text-decoration: line-through;">S</span>
-            </button>
             <div class="toolbar-divider"></div>
+            <!-- Core Formatting: Heading cycle -->
             <button class="toolbar-btn" id="creator-glass-heading-btn" onmousedown="event.preventDefault(); execGlassHeading('creator')" title="Heading style">
               <span class="btn-text" id="creator-glass-heading-label">H</span>
             </button>
-            <button class="toolbar-btn" id="creator-glass-size-btn" onmousedown="event.preventDefault(); execGlassFontSize('creator')" title="Font size">
-              <span class="btn-text" id="creator-glass-size-label">A↑</span>
-            </button>
             <div class="toolbar-divider"></div>
+            <!-- Core Formatting: Bullet list -->
             <button class="toolbar-btn" data-cmd="insertUnorderedList" onmousedown="event.preventDefault(); execGlassCmd('insertUnorderedList')" title="Bulleted list">
               <svg viewBox="0 0 24 24"><path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"/></svg>
             </button>
+            <!-- Core Formatting: Numbered list -->
             <button class="toolbar-btn" data-cmd="insertOrderedList" onmousedown="event.preventDefault(); execGlassCmd('insertOrderedList')" title="Numbered list">
               <svg viewBox="0 0 24 24"><path d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z"/></svg>
             </button>
-            <button class="toolbar-btn" onmousedown="event.preventDefault(); toggleGlassColorPopup('creator')" title="Highlight & Text color">
-              <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-            </button>
+            <!-- Core Formatting: Checklist -->
             <button class="toolbar-btn" onmousedown="event.preventDefault(); addGlassChecklist('creator')" title="Add checklist item">
               <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
             </button>
-            <button class="toolbar-btn" onmousedown="event.preventDefault(); toggleGlassLinkPopover('creator')" title="Insert link">
+            <!-- Core Formatting: Link -->
+            <button class="toolbar-btn" onmousedown="event.preventDefault(); toggleGlassLinkPopover('creator', this)" title="Insert link">
               <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
             </button>
-            <button class="toolbar-btn" onmousedown="event.preventDefault(); document.getElementById('creator-glass-img-upload').click()" title="Insert image">
-              <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+            <div class="toolbar-divider"></div>
+            <!-- Phase 2: Add (+) button — opens content insertion menu -->
+            <button class="toolbar-btn glass-add-btn" id="creator-glass-add-btn" onmousedown="event.preventDefault(); toggleGlassAddMenu('creator')" title="Insert content">
+              <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
             </button>
+            <!-- Hidden file inputs (preserved from original, required by JS handlers) -->
             <input type="file" id="creator-glass-img-upload" accept="image/*" style="display:none" onchange="handleGlassImage(this, 'creator')">
+            <input type="file" id="creator-glass-camera-upload" accept="image/*" capture="environment" style="display:none" onchange="handleGlassImage(this, 'creator')">
+          </div>
+
+          <!-- Phase 2: Content Insertion Menu (Add Menu) for creator glass editor -->
+          <div class="glass-add-menu" id="creator-add-menu" aria-hidden="true">
+            <button class="glass-add-menu-item" id="creator-add-image" onmousedown="event.preventDefault(); closeGlassAddMenu('creator'); document.getElementById('creator-glass-img-upload').click()" title="Add Image">
+              <span class="glass-add-menu-icon">
+                <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+              </span>
+              <span class="glass-add-menu-label">Image</span>
+            </button>
+            <button class="glass-add-menu-item" id="creator-add-camera" onmousedown="event.preventDefault(); closeGlassAddMenu('creator'); document.getElementById('creator-glass-camera-upload').click()" title="Take Photo">
+              <span class="glass-add-menu-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/><path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+              </span>
+              <span class="glass-add-menu-label">Camera</span>
+            </button>
+            <button class="glass-add-menu-item" id="creator-add-voice" onmousedown="event.preventDefault(); closeGlassAddMenu('creator'); toggleVoiceRecording('creator')" title="Voice Recording">
+              <span class="glass-add-menu-icon">
+                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+              </span>
+              <span class="glass-add-menu-label">Voice Recording</span>
+            </button>
+            <button class="glass-add-menu-item" id="creator-add-reminder" onmousedown="event.preventDefault(); closeGlassAddMenu('creator');" title="Set Reminder">
+              <span class="glass-add-menu-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+              </span>
+              <span class="glass-add-menu-label">Scheduler</span>
+            </button>
+            <button class="glass-add-menu-item" id="creator-add-file" onmousedown="event.preventDefault(); closeGlassAddMenu('creator'); document.getElementById('creator-file-input')?.click()" title="Attach File">
+              <span class="glass-add-menu-icon">
+                <svg viewBox="0 0 24 24"><path d="M16.5 6.5v10a4.5 4.5 0 0 1-9 0v-11a3 3 0 0 1 6 0v10.5a1.5 1.5 0 0 1-3 0V7h-2v9a3.5 3.5 0 0 0 7 0V5.5a5 5 0 0 0-10 0v11a6.5 6.5 0 0 0 13 0v-10h-2Z"/></svg>
+              </span>
+              <span class="glass-add-menu-label">Attachment</span>
+            </button>
+          </div>
+
+          <!-- Phase 3: Contextual Floating Toolbar for creator glass editor (NEW) -->
+          <div class="glass-context-toolbar" id="creator-context-toolbar" aria-hidden="true">
+            <!-- Text Selection Context -->
+            <div class="glass-ctx-group" id="creator-ctx-text">
+              <button class="glass-ctx-btn" onmousedown="event.preventDefault(); toggleGlassColorPopup('creator', this)" title="Highlight &amp; Text color">
+                <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+              </button>
+              <button class="glass-ctx-btn" id="creator-glass-size-btn" onmousedown="event.preventDefault(); execGlassFontSize('creator')" title="Text size">
+                <span class="btn-text" id="creator-glass-size-label">A↑</span>
+              </button>
+              <button class="glass-ctx-btn" onmousedown="event.preventDefault(); execGlassCmd('strikeThrough')" title="Strikethrough">
+                <span class="btn-text" style="text-decoration: line-through;">S</span>
+              </button>
+              <div class="glass-ctx-divider"></div>
+              <button class="glass-ctx-btn" onmousedown="event.preventDefault(); execGlassCmd('removeFormat')" title="Clear formatting">
+                <svg viewBox="0 0 24 24"><path d="M3.27 5L2 6.27l6.97 6.97L6.5 19h3l1.57-3.66L16.73 21 18 19.73 3.27 5zM6 5v.18L8.82 8h2.4l-.72 1.68 2.1 2.1L14.21 8H20V5H6z"/></svg>
+              </button>
+            </div>
+            <!-- Image Selection Context -->
+            <div class="glass-ctx-group" id="creator-ctx-image" style="display:none">
+              <button class="glass-ctx-btn" id="creator-ctx-replace-img" onmousedown="event.preventDefault()" title="Replace image">
+                <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+              </button>
+              <button class="glass-ctx-btn" id="creator-ctx-resize-img" onmousedown="event.preventDefault()" title="Resize image">
+                <svg viewBox="0 0 24 24"><path d="M19 12h-2v3h-3v2h5v-5zM7 9h3V7H5v5h2V9zm14-6H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.99h18v14.02z"/></svg>
+              </button>
+              <button class="glass-ctx-btn" id="creator-ctx-caption-img" onmousedown="event.preventDefault()" title="Add caption">
+                <svg viewBox="0 0 24 24"><path d="M2.5 4v3h5v12h3V7h5V4h-13zm19 5h-9v3h3v7h3v-7h3V9z"/></svg>
+              </button>
+              <div class="glass-ctx-divider"></div>
+              <button class="glass-ctx-btn glass-ctx-btn--danger" id="creator-ctx-delete-img" onmousedown="event.preventDefault()" title="Delete image">
+                <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+              </button>
+            </div>
+            <!-- Link Selection Context -->
+            <div class="glass-ctx-group" id="creator-ctx-link" style="display:none">
+              <button class="glass-ctx-btn" id="creator-ctx-edit-link" onmousedown="event.preventDefault(); toggleGlassLinkPopover('creator', this)" title="Edit link">
+                <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+              </button>
+              <button class="glass-ctx-btn" id="creator-ctx-open-link" onmousedown="event.preventDefault()" title="Open link">
+                <svg viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+              </button>
+              <div class="glass-ctx-divider"></div>
+              <button class="glass-ctx-btn glass-ctx-btn--danger" id="creator-ctx-remove-link" onmousedown="event.preventDefault(); execGlassCmd('unlink')" title="Remove link">
+                <svg viewBox="0 0 24 24"><path d="M17 7h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1 0 1.43-.98 2.63-2.31 2.98l1.46 1.46C20.88 15.61 22 13.95 22 12c0-2.76-2.24-5-5-5zm-1 4h-2.19l2 2H16v-2zM2 4.27l3.11 3.11A4.991 4.991 0 0 0 2 12c0 2.76 2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1 0-1.59 1.21-2.9 2.76-3.07L8.73 11H8v2h2.73l2 2H8v1.9h3.27l3.73 3.73 1.27-1.27L3.27 3 2 4.27z"/></svg>
+              </button>
+            </div>
+            <!-- Checklist Item Context -->
+            <div class="glass-ctx-group" id="creator-ctx-checklist" style="display:none">
+              <button class="glass-ctx-btn" id="creator-ctx-indent" onmousedown="event.preventDefault()" title="Indent">
+                <svg viewBox="0 0 24 24"><path d="M3 21h18v-2H3v2zM3 8v8l4-4-4-4zm8 9h10v-2H11v2zM3 3v2h18V3H3zm8 6h10V7H11v2zm0 4h10v-2H11v2z"/></svg>
+              </button>
+              <button class="glass-ctx-btn" id="creator-ctx-outdent" onmousedown="event.preventDefault()" title="Outdent">
+                <svg viewBox="0 0 24 24"><path d="M11 17h10v-2H11v2zm-8-5l4 4V8l-4 4zm0 9h18v-2H3v2zM3 3v2h18V3H3zm8 6h10V7H11v2zm0 4h10v-2H11v2z"/></svg>
+              </button>
+              <button class="glass-ctx-btn" id="creator-ctx-move-up" onmousedown="event.preventDefault()" title="Move up">
+                <svg viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6 1.41 1.41z"/></svg>
+              </button>
+              <button class="glass-ctx-btn" id="creator-ctx-move-down" onmousedown="event.preventDefault()" title="Move down">
+                <svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+              </button>
+              <div class="glass-ctx-divider"></div>
+              <button class="glass-ctx-btn glass-ctx-btn--danger" id="creator-ctx-delete-item" onmousedown="event.preventDefault()" title="Delete item">
+                <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+              </button>
+            </div>
           </div>
 
           <div id="creator-glass-link-popover" class="glass-link-popover" onmousedown="event.preventDefault()">
@@ -627,27 +710,6 @@
               <div class="color-swatch text-swatch" style="color:#f59e0b;" title="Orange text" onmousedown="event.preventDefault(); applyGlassTextColor('#f59e0b')">A</div>
               <div class="color-swatch text-swatch" style="color:#8b5cf6;" title="Purple text" onmousedown="event.preventDefault(); applyGlassTextColor('#8b5cf6')">A</div>
               <div class="color-swatch text-swatch" style="color:var(--text-primary);" title="Default text" onmousedown="event.preventDefault(); applyGlassTextColor(null)">A</div>
-            </div>
-          </div>
-          
-          <div class="emoji-popover" id="creator-emoji-popover" style="display: none;">
-            <div class="emoji-grid">
-              <span class="emoji-item">😊</span>
-              <span class="emoji-item">😂</span>
-              <span class="emoji-item">🤣</span>
-              <span class="emoji-item">❤️</span>
-              <span class="emoji-item">👍</span>
-              <span class="emoji-item">🎉</span>
-              <span class="emoji-item">🔥</span>
-              <span class="emoji-item">💡</span>
-              <span class="emoji-item">🚀</span>
-              <span class="emoji-item">📝</span>
-              <span class="emoji-item">📅</span>
-              <span class="emoji-item">📌</span>
-              <span class="emoji-item">🎨</span>
-              <span class="emoji-item">🎙️</span>
-              <span class="emoji-item">🔒</span>
-              <span class="emoji-item">📁</span>
             </div>
           </div>
         </div>
@@ -1394,39 +1456,7 @@
             </div>
           </section>
 
-          <input type="text" id="modal-title" placeholder="Title" autocomplete="off">
-          <div class="editor-metadata" id="modal-metadata">Today • 12:00 PM</div>
-          
-          <!-- Editor render mirror overlays the textarea with formatted markdown -->
-          <div class="editor-textarea-wrap">
-            <!-- Markdown Formatting Toolbar -->
-            <div class="markdown-toolbar" id="modal-markdown-toolbar" style="display: none;">
-              <button type="button" class="toolbar-btn" data-format="bold" title="Bold (Ctrl+B)">
-                <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor;"><path d="M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c1.1 0 2 .9 2 2s-.9 2-2 2h-3V6.5zm3.5 11h-3.5v-3.5h3.5c1.1 0 2 .9 2 2s-.9 1.5-2 1.5z"/></svg>
-              </button>
-              <button type="button" class="toolbar-btn" data-format="italic" title="Italic (Ctrl+I)">
-                <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor;"><path d="M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z"/></svg>
-              </button>
-              <button type="button" class="toolbar-btn" data-format="h1" title="Heading 1">
-                <span style="font-size: 11px; font-weight: 800;">H1</span>
-              </button>
-              <button type="button" class="toolbar-btn" data-format="h2" title="Heading 2">
-                <span style="font-size: 11px; font-weight: 800;">H2</span>
-              </button>
-              <button type="button" class="toolbar-btn" data-format="code" title="Inline Code">
-                <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor;"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
-              </button>
-              <button type="button" class="toolbar-btn" data-format="quote" title="Quote">
-                <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor;"><path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/></svg>
-              </button>
-              <button type="button" class="toolbar-btn" data-format="link" title="Add Link">
-                <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor;"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
-              </button>
-            </div>
-            <textarea id="modal-text" placeholder="Note" rows="4"></textarea>
-            <div class="editor-render-mirror" id="modal-text-mirror" aria-hidden="true"></div>
-          </div>
-          <div class="checklist-editor" id="modal-checklist-editor" style="display: none;"></div>
+
 
           <!-- Glass Editor Workspace -->
           <div class="glass-editor-workspace" id="modal-glass-workspace" style="display: none;">
@@ -1622,48 +1652,153 @@
           </button>
         </div>
       </div>
-      
-      <!-- Glass Editor Floating formatting toolbar -->
+
+      <!-- Glass Editor Floating formatting toolbar (Phase 1: simplified to core tools + Add button) -->
       <div class="glass-floating-toolbar" id="modal-glass-floating-toolbar" style="display: none;">
-        <button class="toolbar-btn" data-cmd="bold" onmousedown="event.preventDefault(); execGlassCmd('bold')" title="Bold">
+        <!-- Core Formatting: Bold -->
+        <button class="toolbar-btn" data-cmd="bold" onmousedown="event.preventDefault(); execGlassCmd('bold')" title="Bold (Ctrl+B)">
           <svg viewBox="0 0 24 24"><path d="M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-3v-3zm3.5 9H10v-3h3.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5z"/></svg>
         </button>
-        <button class="toolbar-btn" data-cmd="italic" onmousedown="event.preventDefault(); execGlassCmd('italic')" title="Italic">
+        <!-- Core Formatting: Italic -->
+        <button class="toolbar-btn" data-cmd="italic" onmousedown="event.preventDefault(); execGlassCmd('italic')" title="Italic (Ctrl+I)">
           <svg viewBox="0 0 24 24"><path d="M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z"/></svg>
         </button>
-        <button class="toolbar-btn" data-cmd="underline" onmousedown="event.preventDefault(); execGlassCmd('underline')" title="Underline">
+        <!-- Core Formatting: Underline -->
+        <button class="toolbar-btn" data-cmd="underline" onmousedown="event.preventDefault(); execGlassCmd('underline')" title="Underline (Ctrl+U)">
           <svg viewBox="0 0 24 24"><path d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z"/></svg>
         </button>
-        <button class="toolbar-btn" data-cmd="strikeThrough" onmousedown="event.preventDefault(); execGlassCmd('strikeThrough')" title="Strikethrough">
-          <span class="btn-text" style="text-decoration: line-through;">S</span>
-        </button>
         <div class="toolbar-divider"></div>
+        <!-- Core Formatting: Heading cycle -->
         <button class="toolbar-btn" id="modal-glass-heading-btn" onmousedown="event.preventDefault(); execGlassHeading('modal')" title="Heading style">
           <span class="btn-text" id="modal-glass-heading-label">H</span>
         </button>
-        <button class="toolbar-btn" id="modal-glass-size-btn" onmousedown="event.preventDefault(); execGlassFontSize('modal')" title="Font size">
-          <span class="btn-text" id="modal-glass-size-label">A↑</span>
-        </button>
         <div class="toolbar-divider"></div>
+        <!-- Core Formatting: Bullet list -->
         <button class="toolbar-btn" data-cmd="insertUnorderedList" onmousedown="event.preventDefault(); execGlassCmd('insertUnorderedList')" title="Bulleted list">
           <svg viewBox="0 0 24 24"><path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"/></svg>
         </button>
+        <!-- Core Formatting: Numbered list -->
         <button class="toolbar-btn" data-cmd="insertOrderedList" onmousedown="event.preventDefault(); execGlassCmd('insertOrderedList')" title="Numbered list">
           <svg viewBox="0 0 24 24"><path d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z"/></svg>
         </button>
-        <button class="toolbar-btn" onmousedown="event.preventDefault(); toggleGlassColorPopup('modal')" title="Highlight & Text color">
-          <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-        </button>
+        <!-- Core Formatting: Checklist -->
         <button class="toolbar-btn" onmousedown="event.preventDefault(); addGlassChecklist('modal')" title="Add checklist item">
           <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
         </button>
-        <button class="toolbar-btn" onmousedown="event.preventDefault(); toggleGlassLinkPopover('modal')" title="Insert link">
+        <!-- Core Formatting: Link -->
+        <button class="toolbar-btn" onmousedown="event.preventDefault(); toggleGlassLinkPopover('modal', this)" title="Insert link">
           <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
         </button>
-        <button class="toolbar-btn" onmousedown="event.preventDefault(); document.getElementById('modal-glass-img-upload').click()" title="Insert image">
-          <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+        <div class="toolbar-divider"></div>
+        <!-- Phase 2: Add (+) button — opens content insertion menu -->
+        <button class="toolbar-btn glass-add-btn" id="modal-glass-add-btn" onmousedown="event.preventDefault(); toggleGlassAddMenu('modal')" title="Insert content">
+          <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
         </button>
+        <!-- Hidden file inputs (preserved from original, required by JS handlers) -->
         <input type="file" id="modal-glass-img-upload" accept="image/*" style="display:none" onchange="handleGlassImage(this, 'modal')">
+        <input type="file" id="modal-glass-camera-upload" accept="image/*" capture="environment" style="display:none" onchange="handleGlassImage(this, 'modal')">
+      </div>
+
+      <!-- Phase 2: Content Insertion Menu (Add Menu) for modal glass editor -->
+      <div class="glass-add-menu" id="modal-add-menu" aria-hidden="true">
+        <button class="glass-add-menu-item" id="modal-add-image" onmousedown="event.preventDefault(); closeGlassAddMenu('modal'); document.getElementById('modal-glass-img-upload').click()" title="Add Image">
+          <span class="glass-add-menu-icon">
+            <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+          </span>
+          <span class="glass-add-menu-label">Image</span>
+        </button>
+        <button class="glass-add-menu-item" id="modal-add-camera" onmousedown="event.preventDefault(); closeGlassAddMenu('modal'); document.getElementById('modal-glass-camera-upload').click()" title="Take Photo">
+          <span class="glass-add-menu-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/><path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+          </span>
+          <span class="glass-add-menu-label">Camera</span>
+        </button>
+        <button class="glass-add-menu-item" id="modal-add-voice" onmousedown="event.preventDefault(); closeGlassAddMenu('modal'); toggleVoiceRecording('modal')" title="Voice Recording">
+          <span class="glass-add-menu-icon">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+          </span>
+          <span class="glass-add-menu-label">Voice Recording</span>
+        </button>
+        <button class="glass-add-menu-item" id="modal-add-reminder" onmousedown="event.preventDefault(); closeGlassAddMenu('modal');" title="Set Reminder">
+          <span class="glass-add-menu-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+          </span>
+          <span class="glass-add-menu-label">Scheduler</span>
+        </button>
+        <button class="glass-add-menu-item" id="modal-add-file" onmousedown="event.preventDefault(); closeGlassAddMenu('modal'); document.getElementById('modal-file-input')?.click()" title="Attach File">
+          <span class="glass-add-menu-icon">
+            <svg viewBox="0 0 24 24"><path d="M16.5 6.5v10a4.5 4.5 0 0 1-9 0v-11a3 3 0 0 1 6 0v10.5a1.5 1.5 0 0 1-3 0V7h-2v9a3.5 3.5 0 0 0 7 0V5.5a5 5 0 0 0-10 0v11a6.5 6.5 0 0 0 13 0v-10h-2Z"/></svg>
+          </span>
+          <span class="glass-add-menu-label">Attachment</span>
+        </button>
+      </div>
+
+      <!-- Phase 3: Contextual Floating Toolbar for modal glass editor (NEW) -->
+      <div class="glass-context-toolbar" id="modal-context-toolbar" aria-hidden="true">
+        <!-- Text Selection Context -->
+        <div class="glass-ctx-group" id="modal-ctx-text">
+          <button class="glass-ctx-btn" onmousedown="event.preventDefault(); toggleGlassColorPopup('modal', this)" title="Highlight &amp; Text color">
+            <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+          </button>
+          <button class="glass-ctx-btn" id="modal-glass-size-btn" onmousedown="event.preventDefault(); execGlassFontSize('modal')" title="Text size">
+            <span class="btn-text" id="modal-glass-size-label">A↑</span>
+          </button>
+          <button class="glass-ctx-btn" onmousedown="event.preventDefault(); execGlassCmd('strikeThrough')" title="Strikethrough">
+            <span class="btn-text" style="text-decoration: line-through;">S</span>
+          </button>
+          <div class="glass-ctx-divider"></div>
+          <button class="glass-ctx-btn" onmousedown="event.preventDefault(); execGlassCmd('removeFormat')" title="Clear formatting">
+            <svg viewBox="0 0 24 24"><path d="M3.27 5L2 6.27l6.97 6.97L6.5 19h3l1.57-3.66L16.73 21 18 19.73 3.27 5zM6 5v.18L8.82 8h2.4l-.72 1.68 2.1 2.1L14.21 8H20V5H6z"/></svg>
+          </button>
+        </div>
+        <!-- Image Selection Context -->
+        <div class="glass-ctx-group" id="modal-ctx-image" style="display:none">
+          <button class="glass-ctx-btn" id="modal-ctx-replace-img" onmousedown="event.preventDefault()" title="Replace image">
+            <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+          </button>
+          <button class="glass-ctx-btn" id="modal-ctx-resize-img" onmousedown="event.preventDefault()" title="Resize image">
+            <svg viewBox="0 0 24 24"><path d="M19 12h-2v3h-3v2h5v-5zM7 9h3V7H5v5h2V9zm14-6H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.99h18v14.02z"/></svg>
+          </button>
+          <button class="glass-ctx-btn" id="modal-ctx-caption-img" onmousedown="event.preventDefault()" title="Add caption">
+            <svg viewBox="0 0 24 24"><path d="M2.5 4v3h5v12h3V7h5V4h-13zm19 5h-9v3h3v7h3v-7h3V9z"/></svg>
+          </button>
+          <div class="glass-ctx-divider"></div>
+          <button class="glass-ctx-btn glass-ctx-btn--danger" id="modal-ctx-delete-img" onmousedown="event.preventDefault()" title="Delete image">
+            <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+          </button>
+        </div>
+        <!-- Link Selection Context -->
+        <div class="glass-ctx-group" id="modal-ctx-link" style="display:none">
+          <button class="glass-ctx-btn" id="modal-ctx-edit-link" onmousedown="event.preventDefault(); toggleGlassLinkPopover('modal', this)" title="Edit link">
+            <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+          </button>
+          <button class="glass-ctx-btn" id="modal-ctx-open-link" onmousedown="event.preventDefault()" title="Open link">
+            <svg viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+          </button>
+          <div class="glass-ctx-divider"></div>
+          <button class="glass-ctx-btn glass-ctx-btn--danger" id="modal-ctx-remove-link" onmousedown="event.preventDefault(); execGlassCmd('unlink')" title="Remove link">
+            <svg viewBox="0 0 24 24"><path d="M17 7h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1 0 1.43-.98 2.63-2.31 2.98l1.46 1.46C20.88 15.61 22 13.95 22 12c0-2.76-2.24-5-5-5zm-1 4h-2.19l2 2H16v-2zM2 4.27l3.11 3.11A4.991 4.991 0 0 0 2 12c0 2.76 2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1 0-1.59 1.21-2.9 2.76-3.07L8.73 11H8v2h2.73l2 2H8v1.9h3.27l3.73 3.73 1.27-1.27L3.27 3 2 4.27z"/></svg>
+          </button>
+        </div>
+        <!-- Checklist Item Context -->
+        <div class="glass-ctx-group" id="modal-ctx-checklist" style="display:none">
+          <button class="glass-ctx-btn" id="modal-ctx-indent" onmousedown="event.preventDefault()" title="Indent">
+            <svg viewBox="0 0 24 24"><path d="M3 21h18v-2H3v2zM3 8v8l4-4-4-4zm8 9h10v-2H11v2zM3 3v2h18V3H3zm8 6h10V7H11v2zm0 4h10v-2H11v2z"/></svg>
+          </button>
+          <button class="glass-ctx-btn" id="modal-ctx-outdent" onmousedown="event.preventDefault()" title="Outdent">
+            <svg viewBox="0 0 24 24"><path d="M11 17h10v-2H11v2zm-8-5l4 4V8l-4 4zm0 9h18v-2H3v2zM3 3v2h18V3H3zm8 6h10V7H11v2zm0 4h10v-2H11v2z"/></svg>
+          </button>
+          <button class="glass-ctx-btn" id="modal-ctx-move-up" onmousedown="event.preventDefault()" title="Move up">
+            <svg viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6 1.41 1.41z"/></svg>
+          </button>
+          <button class="glass-ctx-btn" id="modal-ctx-move-down" onmousedown="event.preventDefault()" title="Move down">
+            <svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+          </button>
+          <div class="glass-ctx-divider"></div>
+          <button class="glass-ctx-btn glass-ctx-btn--danger" id="modal-ctx-delete-item" onmousedown="event.preventDefault()" title="Delete item">
+            <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+          </button>
+        </div>
       </div>
 
       <div id="modal-glass-link-popover" class="glass-link-popover" onmousedown="event.preventDefault()">
@@ -1693,26 +1828,7 @@
         </div>
       </div>
 
-      <div class="emoji-popover" id="modal-emoji-popover" style="display: none;">
-        <div class="emoji-grid">
-          <span class="emoji-item">😊</span>
-          <span class="emoji-item">😂</span>
-          <span class="emoji-item">🤣</span>
-          <span class="emoji-item">❤️</span>
-          <span class="emoji-item">👍</span>
-          <span class="emoji-item">🎉</span>
-          <span class="emoji-item">🔥</span>
-          <span class="emoji-item">💡</span>
-          <span class="emoji-item">🚀</span>
-          <span class="emoji-item">📝</span>
-          <span class="emoji-item">📅</span>
-          <span class="emoji-item">📌</span>
-          <span class="emoji-item">🎨</span>
-          <span class="emoji-item">🎙️</span>
-          <span class="emoji-item">🔒</span>
-          <span class="emoji-item">📁</span>
-        </div>
-      </div>
+
       <!-- Hidden Legacy close button to avoid breaking click listeners -->
       <button id="modal-close" style="display: none;"></button>
     </div>
@@ -1997,5 +2113,22 @@
       }, 4000);
     })();
   </script>
+
+
+  <!-- Glass Reminder Popover -->
+  <div id="glass-reminder-popover">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 14px; font-weight: 600; color: var(--text-primary);">Set Reminder</span>
+      <button id="glass-reminder-close" class="icon-btn" style="width: 24px; height: 24px; min-width: 24px;">
+        <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+    </div>
+    <input type="datetime-local" id="glass-reminder-input" style="width: 100%; height: 36px; border-radius: 8px; border: 1px solid var(--border-light); background: var(--surface); padding: 0 10px; font-size: 14px; color: var(--text-primary); font-family: var(--font-sans); outline: none;">
+    <div style="display: flex; gap: 8px; margin-top: 4px;">
+      <button id="glass-reminder-save" class="text-btn" style="flex: 1; height: 36px; background: var(--accent-color); color: white; border-radius: 8px;">Save</button>
+      <button id="glass-reminder-clear" class="text-btn danger-btn" style="flex: 1; height: 36px; border-radius: 8px;">Clear</button>
+    </div>
+  </div>
+
 </body>
 </html>
