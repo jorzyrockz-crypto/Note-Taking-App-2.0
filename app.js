@@ -909,7 +909,7 @@ async function getAttachmentSrc(file) {
     }
     return '';
   }
-  return file.dataUrl;
+  return file.dataUrl || file.cloudUrl || '';
 }
 
 async function syncLocalFilesToCloud(note) {
@@ -3232,8 +3232,9 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.6.10';
+  const CURRENT_VERSION = '2.6.11';
   const DEFAULT_CHANGELOG = [
+    'Glass Editor Reliability: Kept voice and attachment chips above the floating toolbar, rendered local attachments immediately, restored the Scheduler overlay, and fixed contextual highlight tools for title and body selections',
     'Bug Fix: Glass reminder popover now successfully triggers from the Add menu; fixed inline mousedown handler preventing click events',
     'Scheduler Overhaul: Fixed glass reminder popover hidden behind modal (z-index), added multi-clip audio recording, browser push notifications, snooze (5m/15m/1h), per-line inline reminder chips, and whole-note+inline reminder co-existence',
     'Voice Recording Fix: Disabled automatic SpeechRecognition live typing so voice recording solely records audio clips without modifying note text',
@@ -5041,7 +5042,9 @@ function isEditableClipboardTarget(target) {
 }
 
 function normalizeNoteFiles(files = []) {
-  return Array.isArray(files) ? files.filter(file => file && file.dataUrl && file.name) : [];
+  return Array.isArray(files)
+    ? files.filter(file => file && file.name && (file.dataUrl || file.cloudUrl))
+    : [];
 }
 
 function formatFileSize(bytes = 0) {
@@ -5388,6 +5391,7 @@ async function handleSelectedFiles(target, fileList) {
   const maxBytes = 100 * 1024 * 1024; // 100MB
   const fastSyncLimit = 25 * 1024 * 1024; // 25MB
   const prepared = [];
+  const pendingCloudUploads = [];
   for (const file of files.slice(0, 5)) {
     if (file.size > maxBytes) {
       showToast({ title: 'File skipped', text: `${file.name} is larger than 100 MB.` });
@@ -5403,7 +5407,6 @@ async function handleSelectedFiles(target, fileList) {
       const fileId = `file-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       let dataUrl = 'db';
       let storedInDB = false;
-      let cloudUrl = null;
 
       if (file.size > 100 * 1024) { // Larger than 100KB
         await storeFileInDB(fileId, file);
@@ -5412,45 +5415,65 @@ async function handleSelectedFiles(target, fileList) {
         dataUrl = await readFileAsDataUrl(file);
       }
 
-      if (currentUser) {
-        showToast({ title: 'Cloud Sync', text: `Uploading "${file.name}" to Cloud Storage...` });
-        try {
-          cloudUrl = await uploadFileToCloud(currentUser.uid, fileId, file, file.type);
-        } catch (uploadErr) {
-          console.warn('Failed to upload file to Cloud Storage:', uploadErr);
-          showToast({ title: 'Sync warning', text: `Failed to upload "${file.name}" to the cloud, saved locally.` });
-        }
-      }
-
-      prepared.push({
+      const attachment = {
         id: fileId,
         name: file.name,
         type: file.type || 'application/octet-stream',
         size: file.size,
         dataUrl,
-        cloudUrl,
+        cloudUrl: null,
         storedInDB,
         addedAt: Date.now()
-      });
+      };
+      prepared.push(attachment);
+
+      // Local storage is the source of truth for the immediate editor preview.
+      // Cloud upload runs after rendering so offline/slow connections never hide
+      // a newly attached file from the user.
+      if (currentUser) {
+        pendingCloudUploads.push({ attachment, file });
+      }
     } catch (error) {
       console.error('Failed to attach file:', file.name, error);
       showToast({ title: 'File error', text: `Could not attach ${file.name}.` });
     }
   }
   if (!prepared.length) return;
+  let destinationNote = null;
   if (target === 'creator') {
     creatorFiles = [...normalizeNoteFiles(creatorFiles), ...prepared];
     renderCreatorFileAttachments();
-    return;
-  }
-  const note = notes.find(n => n.id === currentEditingNoteId);
-  if (note) {
-    note.files = [...normalizeNoteFiles(note.files), ...prepared];
-    note.updatedAt = Date.now();
+    saveCreatorNoteDraft();
+  } else {
+    destinationNote = notes.find(n => n.id === currentEditingNoteId);
+    if (!destinationNote) return;
+    destinationNote.files = [...normalizeNoteFiles(destinationNote.files), ...prepared];
+    destinationNote.updatedAt = Date.now();
     saveToLocalStorage();
-    renderModalFileAttachments(note);
+    renderModalFileAttachments(destinationNote);
     renderNotes();
   }
+
+  if (!pendingCloudUploads.length || !currentUser) return;
+  const uploadUserId = currentUser.uid;
+  pendingCloudUploads.forEach(({ attachment, file }) => {
+    showToast({ title: 'Cloud Sync', text: `Uploading "${file.name}" in the background...` });
+    uploadFileToCloud(uploadUserId, attachment.id, file, file.type)
+      .then((cloudUrl) => {
+        if (!cloudUrl) return;
+        attachment.cloudUrl = cloudUrl;
+        if (target === 'creator') {
+          saveCreatorNoteDraft();
+        } else if (destinationNote) {
+          destinationNote.updatedAt = Date.now();
+          saveToLocalStorage();
+        }
+      })
+      .catch((uploadErr) => {
+        console.warn('Failed to upload file to Cloud Storage:', uploadErr);
+        showToast({ title: 'Sync warning', text: `"${file.name}" is saved locally and will remain available on this device.` });
+      });
+  });
 }
 
 function renderNoteFileAttachments(container, note, options = {}) {
@@ -9736,24 +9759,8 @@ function initGlassAddMenu(mode) {
     }
   });
 
-  // Wire modal reminder (no standalone reminder btn in the glass modal footer)
-  if (mode === 'modal') {
-    const reminderItem = document.getElementById('modal-add-reminder');
-    if (reminderItem) {
-      reminderItem.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        closeGlassAddMenu('modal');
-        // Trigger the compact reminder card if it exists, otherwise the picker
-        const compactCard = document.getElementById('modal-reminder-compact-card');
-        if (compactCard) {
-          compactCard.click();
-        } else {
-          const reminderBtn = document.querySelector('#edit-modal-card .creator-reminder-trigger');
-          reminderBtn?.click();
-        }
-      });
-    }
-  }
+  // Scheduler buttons use the shared click binding below. Keeping one event
+  // path avoids opening the legacy property picker and Glass popover together.
 }
 
 // ─── Phase 3 & 4: Contextual Floating Toolbar ──────────────────────────────
@@ -9780,6 +9787,15 @@ function positionContextToolbar(toolbar, anchorRect) {
   }
   // Clamp to viewport
   top = Math.max(margin, Math.min(top, viewH - tbH - margin));
+
+  // Keep the selection tools clear of the persistent bottom toolbar.
+  const surface = toolbar.id.startsWith('modal-') ? 'modal' : 'creator';
+  const primaryToolbar = document.getElementById(`${surface}-glass-floating-toolbar`);
+  const primaryRect = primaryToolbar?.getBoundingClientRect();
+  if (primaryRect && top + tbH + margin > primaryRect.top) {
+    const abovePrimary = primaryRect.top - tbH - margin;
+    top = Math.max(margin, Math.min(top, abovePrimary));
+  }
 
   // Horizontally centre on selection, clamped to viewport
   let left = anchorRect.left + (anchorRect.width / 2);
@@ -9835,6 +9851,7 @@ function showContextToolbar(toolbar, contextMode, anchorRect, mode) {
  */
 function initGlassContextToolbar(mode) {
   const editorId = mode === 'creator' ? 'creator-glass-editor' : 'modal-glass-editor';
+  const titleId = mode === 'creator' ? 'creator-glass-title' : 'modal-glass-title';
   const toolbarId = `${mode}-context-toolbar`;
   const toolbar = document.getElementById(toolbarId);
   if (!toolbar) return;
@@ -9847,14 +9864,20 @@ function initGlassContextToolbar(mode) {
   // ── Text selection detection ──────────────────────────────────────────────
   document.addEventListener('selectionchange', () => {
     const editor = document.getElementById(editorId);
-    if (!editor) return;
+    const title = document.getElementById(titleId);
+    if (!editor && !title) return;
 
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
 
     const range = sel.getRangeAt(0);
-    // Check if selection is inside our editor
-    if (!editor.contains(range.commonAncestorContainer)) {
+    // Context formatting works in both the note body and editable title.
+    const selectionRoot = editor?.contains(range.commonAncestorContainer)
+      ? editor
+      : title?.contains(range.commonAncestorContainer)
+        ? title
+        : null;
+    if (!selectionRoot) {
       // Not in editor — don't hide here, handled by blur/click-outside
       return;
     }
@@ -9866,6 +9889,7 @@ function initGlassContextToolbar(mode) {
       if (rect.width === 0 && rect.height === 0) return; // collapsed
 
       contextMode = 'text';
+      saveGlassSelection();
       showContextToolbar(toolbar, 'text', rect, mode);
     } else {
       // No selection — check if cursor is inside a link
@@ -9875,7 +9899,7 @@ function initGlassContextToolbar(mode) {
         : anchorNode;
       const linkEl = parentEl?.closest('a');
 
-      if (linkEl && editor.contains(linkEl)) {
+      if (linkEl && selectionRoot.contains(linkEl)) {
         selectedLinkEl = linkEl;
         contextMode = 'link';
         const rect = linkEl.getBoundingClientRect();
@@ -10206,4 +10230,3 @@ document.addEventListener('click', (e) => {
     closeGlassReminderPopover();
   }
 }, true);
-

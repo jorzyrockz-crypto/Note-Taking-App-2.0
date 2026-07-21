@@ -12065,7 +12065,7 @@ body.dark-theme .glass-add-menu-icon {
   align-items: center;
   gap: 4px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10), 0 2px 8px rgba(0, 0, 0, 0.06);
-  z-index: 1200;
+  z-index: 4200;
   opacity: 0;
   pointer-events: none;
   backdrop-filter: blur(16px);
@@ -12346,7 +12346,7 @@ body.dark-theme .glass-ctx-resize-option:hover {
    ========================================================================== */
 #glass-reminder-popover {
   position: fixed !important;
-  z-index: 2000 !important;
+  z-index: 5000 !important;
   display: none;
   flex-direction: column !important;
   padding: 16px !important;
@@ -12374,6 +12374,23 @@ body.dark-theme #glass-reminder-popover {
   background: var(--surface, #1e293b) !important;
   border-color: rgba(255,255,255,0.12) !important;
   box-shadow: 0 24px 48px rgba(0,0,0,0.5), 0 8px 16px rgba(0,0,0,0.3) !important;
+}
+
+/* Keep generated media and attachment rows reachable above the persistent
+   formatting dock in both Glass Editor surfaces. */
+.creator-wrapper.modern-glass-editor-active .creator-chips-container,
+.edit-modal-card.modern-glass-editor-active .modal-tags-container {
+  width: 100%;
+  box-sizing: border-box;
+  padding-bottom: 96px !important;
+  scroll-margin-bottom: 96px;
+}
+
+.creator-wrapper.modern-glass-editor-active .audio-player-chip,
+.creator-wrapper.modern-glass-editor-active .file-attachment-list,
+.edit-modal-card.modern-glass-editor-active .audio-player-chip,
+.edit-modal-card.modern-glass-editor-active .file-attachment-list {
+  scroll-margin-bottom: 104px;
 }
 
 /* Snooze buttons row inside the reminder toast */
@@ -12424,4 +12441,3 @@ body.dark-theme .inline-reminder-chip {
   background: rgba(56,189,248,0.1);
   border-color: rgba(56,189,248,0.25);
 }
-

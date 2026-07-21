@@ -223,11 +223,11 @@ window.toggleGlassColorPopup = function(mode, anchorBtn = null) {
 
 window.applyGlassHighlight = function(color) {
   restoreGlassSelection();
-  if (color) {
-    document.execCommand('hiliteColor', false, color);
-  } else {
-    document.execCommand('hiliteColor', false, 'transparent');
-  }
+  const value = color || 'transparent';
+  // Chromium uses hiliteColor while older WebViews expose backColor.
+  // Trying both keeps installed tablet PWAs and desktop browsers consistent.
+  const applied = document.execCommand('hiliteColor', false, value);
+  if (!applied) document.execCommand('backColor', false, value);
   saveGlassSelection();
   saveGlassEditorChanges();
   
