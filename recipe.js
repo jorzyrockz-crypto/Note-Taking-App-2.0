@@ -194,8 +194,8 @@ export function renderRecipeImportError(message) {
 }
 
 export function getRecipeImporterUnavailableMessage() {
-  const origin = window.location.origin;
-  const hostname = window.location.hostname;
+  const origin = typeof window !== 'undefined' && window.location ? window.location.origin : 'http://localhost:3000';
+  const hostname = typeof window !== 'undefined' && window.location ? window.location.hostname : 'localhost';
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     return 'Recipe import needs the AtlasNest server running on this device. If you are on a phone or tablet, open the computer LAN address shown by npm start instead of localhost.';
   }

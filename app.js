@@ -55,7 +55,8 @@ import {
   rememberPermanentlyDeletedNoteIds,
   getPermanentlyDeletedNoteIds,
   stopCloudSync,
-  deleteNoteFromCloudWithQueue
+  deleteNoteFromCloudWithQueue,
+  syncNoteToCloudWithQueue
 } from './sync.js';
 
 import {
@@ -86,12 +87,26 @@ import {
   customThemes
 } from './theme.js';
 
-window.addEventListener('error', (event) => {
-  alert('Global Error: ' + event.message + '\nAt: ' + event.filename + ':' + event.lineno + '\nStack: ' + (event.error ? event.error.stack : ''));
-});
-window.addEventListener('unhandledrejection', (event) => {
-  alert('Unhandled Rejection: ' + event.reason);
-});
+import { getRecipeImporterUnavailableMessage } from './recipe.js';
+import { parseMarkdown } from './note-types/shared.js';
+
+let _savedWorkspaceScrollY = 0;
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (event) => {
+    console.error('Global Error:', event.message, 'at', event.filename + ':' + event.lineno, event.error);
+    if (typeof showToast === 'function') {
+      showToast({ title: 'Application Notice', text: 'An unexpected issue occurred. Your changes remain saved locally.' });
+    }
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled Rejection:', event.reason);
+    if (typeof showToast === 'function') {
+      showToast({ title: 'Application Notice', text: 'An unexpected async operation failed. Your changes remain saved locally.' });
+    }
+  });
+}
 
 // ==========================================================================
 // 1. Initial State & Data Definition (Upgraded)
@@ -739,6 +754,7 @@ const STORE_NAME = 'attachments';
 const DB_VERSION = 1;
 
 async function migrateIndexedDBData() {
+  if (typeof indexedDB === 'undefined') return;
   try {
     const oldDBExists = await new Promise((resolve) => {
       const req = indexedDB.open(OLD_DB_NAME);
@@ -882,6 +898,10 @@ async function getFileFromDB(id) {
     request.onsuccess = (e) => resolve(e.target.result);
     request.onerror = () => reject(request.error);
   });
+}
+
+async function getVideoBlob(id) {
+  return await getFileFromDB(id);
 }
 
 async function deleteFileFromDB(id) {
@@ -1093,6 +1113,7 @@ export const STORAGE_KEYS = {
 };
 
 function migrateLocalStorageKeys() {
+  if (typeof localStorage === 'undefined') return;
   const keys = ['settings', 'customThemes', 'notes', 'folders', 'theme', 'emojiThemeControls', 'view', 'starterSeeded', 'settingsUpdatedAt', 'pendingSyncQueue'];
   keys.forEach(key => {
     const oldKey = `keep_${key}`;
@@ -1179,67 +1200,70 @@ const STARTER_NOTES = [
 // 2. DOM Elements & References
 // ==========================================================================
 
-const searchInput = document.getElementById('search-input');
-const searchClear = document.getElementById('search-clear');
-const viewToggle = document.getElementById('view-toggle');
-const themeBtn = document.getElementById('theme-btn');
+const getEl = id => typeof document !== 'undefined' ? document.getElementById(id) : null;
+const queryEl = sel => typeof document !== 'undefined' ? document.querySelector(sel) : null;
 
-const noteCreator = document.getElementById('note-creator');
-const creatorCollapsed = document.getElementById('creator-collapsed');
-const creatorExpanded = document.getElementById('creator-expanded');
+const searchInput = getEl('search-input');
+const searchClear = getEl('search-clear');
+const viewToggle = getEl('view-toggle');
+const themeBtn = getEl('theme-btn');
+
+const noteCreator = getEl('note-creator');
+const creatorCollapsed = getEl('creator-collapsed');
+const creatorExpanded = getEl('creator-expanded');
 const creatorTitle = {
-  get value() { const el = document.getElementById('creator-glass-title'); return el ? el.innerText : ''; },
-  set value(v) { const el = document.getElementById('creator-glass-title'); if (el) el.innerText = v; },
+  get value() { const el = getEl('creator-glass-title'); return el ? el.innerText : ''; },
+  set value(v) { const el = getEl('creator-glass-title'); if (el) el.innerText = v; },
   style: { set display(v) {}, get display() { return ''; } },
   addEventListener: () => {},
   setAttribute: () => {}
 };
 const creatorText = {
-  get value() { const el = document.getElementById('creator-glass-editor'); return el ? el.innerHTML : ''; },
-  set value(v) { const el = document.getElementById('creator-glass-editor'); if (el) el.innerHTML = v; },
+  get value() { const el = getEl('creator-glass-editor'); return el ? el.innerHTML : ''; },
+  set value(v) { const el = getEl('creator-glass-editor'); if (el) el.innerHTML = v; },
   style: { set display(v) {}, get display() { return ''; }, set height(v) {}, get height() { return ''; } },
   addEventListener: () => {},
-  focus: () => { const el = document.getElementById('creator-glass-editor'); if (el) el.focus(); }
+  focus: () => { const el = getEl('creator-glass-editor'); if (el) el.focus(); }
 };
-const creatorAdvancedHeader = document.getElementById('creator-advanced-header');
-const creatorBackBtn = document.getElementById('creator-back-btn');
-const creatorBreadcrumb = document.getElementById('creator-breadcrumb');
-const creatorAutosaveStatus = document.getElementById('creator-autosave-status');
-const modalAutosaveStatus = document.getElementById('modal-autosave-status');
-const creatorShareBtn = document.getElementById('creator-share-btn');
-const creatorMoreBtn = document.getElementById('creator-more-btn');
-const creatorMetadata = document.getElementById('creator-metadata');
-const creatorFloatingToolbar = document.getElementById('creator-floating-toolbar');
-const creatorMorePopover = document.getElementById('creator-more-popover');
-const creatorSave = document.getElementById('creator-save');
-const creatorClose = document.getElementById('creator-close');
-const creatorPin = document.getElementById('creator-pin');
-const creatorColorPicker = document.getElementById('creator-color-picker');
-const creatorImageBanner = document.getElementById('creator-image-banner');
-const creatorImgPreview = document.getElementById('creator-img-preview');
-const creatorRemoveImg = document.getElementById('creator-remove-img');
-const creatorImageBtn = document.getElementById('creator-image-btn');
-const creatorImageInput = document.getElementById('creator-image-input');
-const creatorCameraInput = document.getElementById('creator-camera-input');
-const creatorFileBtn = document.getElementById('creator-file-btn');
-const creatorFileInput = document.getElementById('creator-file-input');
-const creatorListBtn = document.getElementById('creator-list-btn');
-const creatorListToggleBtn = document.getElementById('creator-list-toggle');
-const creatorLinkParserBtn = document.getElementById('creator-link-parser-btn');
-const creatorDrawBtn = document.getElementById('creator-palette-draw');
-const creatorDrawToggleBtn = document.getElementById('creator-draw-toggle');
+const creatorAdvancedHeader = getEl('creator-advanced-header');
+const creatorBackBtn = getEl('creator-back-btn');
+const creatorBreadcrumb = getEl('creator-breadcrumb');
+const creatorAutosaveStatus = getEl('creator-autosave-status');
+const modalAutosaveStatus = getEl('modal-autosave-status');
+const creatorShareBtn = getEl('creator-share-btn');
+const creatorMoreBtn = getEl('creator-more-btn');
+const creatorMetadata = getEl('creator-metadata');
+const creatorFloatingToolbar = getEl('creator-floating-toolbar');
+const creatorMorePopover = getEl('creator-more-popover');
+const creatorSave = getEl('creator-save');
+const creatorClose = getEl('creator-close');
+const creatorPin = getEl('creator-pin');
+const creatorColorPicker = getEl('creator-color-picker');
+const creatorImageBanner = getEl('creator-image-banner');
+const creatorImgPreview = getEl('creator-img-preview');
+const creatorRemoveImg = getEl('creator-remove-img');
+const creatorImageBtn = getEl('creator-image-btn');
+const creatorImageInput = getEl('creator-image-input');
+const creatorCameraInput = getEl('creator-camera-input');
+const creatorFileBtn = getEl('creator-file-btn');
+const creatorFileInput = getEl('creator-file-input');
+const creatorListBtn = getEl('creator-list-btn');
+const creatorListToggleBtn = getEl('creator-list-toggle');
+const creatorLinkParserBtn = getEl('creator-link-parser-btn');
+const creatorDrawBtn = getEl('creator-palette-draw');
+const creatorDrawToggleBtn = getEl('creator-draw-toggle');
 
-const pinnedSection = document.getElementById('pinned-section');
-const pinnedGrid = document.getElementById('pinned-grid');
-const othersSection = document.getElementById('others-section');
-const othersGrid = document.getElementById('others-grid');
-const othersSectionTitle = document.getElementById('others-section-title');
-const emptyState = document.getElementById('empty-state');
+const pinnedSection = getEl('pinned-section');
+const pinnedGrid = getEl('pinned-grid');
+const othersSection = getEl('others-section');
+const othersGrid = getEl('others-grid');
+const othersSectionTitle = getEl('others-section-title');
+const emptyState = getEl('empty-state');
 let sidebarTagsList = null;
-const sidebarAllNotes = document.getElementById('sidebar-all-notes');
-const sidebarSearch = document.getElementById('sidebar-search');
-const creatorWrapper = document.querySelector('.creator-wrapper');
-const notesFeed = document.querySelector('.notes-feed');
+const sidebarAllNotes = getEl('sidebar-all-notes');
+const sidebarSearch = getEl('sidebar-search');
+const creatorWrapper = queryEl('.creator-wrapper');
+const notesFeed = queryEl('.notes-feed');
 let sidebarFoldersList = null;
 let sidebarProductivity = null;
 let sidebarArchive = null;
@@ -1257,48 +1281,48 @@ let folderDrawerList = null;
 let productivityPage = null;
 
 
-const editModal = document.getElementById('edit-modal');
-const editModalCard = document.getElementById('edit-modal-card');
+const editModal = getEl('edit-modal');
+const editModalCard = getEl('edit-modal-card');
 const modalTitle = {
-  get value() { const el = document.getElementById('modal-glass-title'); return el ? el.innerText : ''; },
-  set value(v) { const el = document.getElementById('modal-glass-title'); if (el) el.innerText = v; },
+  get value() { const el = getEl('modal-glass-title'); return el ? el.innerText : ''; },
+  set value(v) { const el = getEl('modal-glass-title'); if (el) el.innerText = v; },
   style: { set display(v) {}, get display() { return ''; } },
   addEventListener: () => {},
   setAttribute: () => {}
 };
 const modalText = {
-  get value() { const el = document.getElementById('modal-glass-editor'); return el ? el.innerHTML : ''; },
-  set value(v) { const el = document.getElementById('modal-glass-editor'); if (el) el.innerHTML = v; },
+  get value() { const el = getEl('modal-glass-editor'); return el ? el.innerHTML : ''; },
+  set value(v) { const el = getEl('modal-glass-editor'); if (el) el.innerHTML = v; },
   style: { set display(v) {}, get display() { return ''; }, set height(v) {}, get height() { return ''; } },
   addEventListener: () => {},
-  focus: () => { const el = document.getElementById('modal-glass-editor'); if (el) el.focus(); }
+  focus: () => { const el = getEl('modal-glass-editor'); if (el) el.focus(); }
 };
-const modalPin = document.getElementById('modal-pin');
-const modalDelete = document.getElementById('modal-delete');
-const modalClose = document.getElementById('modal-close');
-const modalColorPicker = document.getElementById('modal-color-picker');
-const themePickerV2 = document.getElementById('theme-picker-v2');
-const themePickerV2Grid = document.getElementById('theme-picker-v2-grid');
-const themePickerV2Controls = document.getElementById('theme-picker-v2-controls');
-const themePickerV2Close = document.getElementById('theme-picker-v2-close');
-const modalImageBanner = document.getElementById('modal-image-banner');
-const modalImgPreview = document.getElementById('modal-img-preview');
-const modalRemoveImg = document.getElementById('modal-remove-img');
-const modalImageBtn = document.getElementById('modal-image-btn');
-const modalImageInput = document.getElementById('modal-image-input');
-const modalCameraInput = document.getElementById('modal-camera-input');
-const modalFileBtn = document.getElementById('modal-file-btn');
-const modalFileInput = document.getElementById('modal-file-input');
-const modalShareBtn = document.getElementById('modal-share-btn');
-const modalSocialCapture = document.getElementById('modal-social-capture');
-const modalSocialPlatform = document.getElementById('modal-social-platform');
-const modalSocialStatus = document.getElementById('modal-social-status');
-const modalSocialCaption = document.getElementById('modal-social-caption');
-const modalSocialScreenshot = document.getElementById('modal-social-screenshot');
-const modalSocialOpen = document.getElementById('modal-social-open');
-const modalListBtn = document.getElementById('modal-list-btn');
-const modalDrawBtn = document.getElementById('modal-draw-btn');
-const modalTagsContainer = document.getElementById('modal-popover-tags-container');
+const modalPin = getEl('modal-pin');
+const modalDelete = getEl('modal-delete');
+const modalClose = getEl('modal-close');
+const modalColorPicker = getEl('modal-color-picker');
+const themePickerV2 = getEl('theme-picker-v2');
+const themePickerV2Grid = getEl('theme-picker-v2-grid');
+const themePickerV2Controls = getEl('theme-picker-v2-controls');
+const themePickerV2Close = getEl('theme-picker-v2-close');
+const modalImageBanner = getEl('modal-image-banner');
+const modalImgPreview = getEl('modal-img-preview');
+const modalRemoveImg = getEl('modal-remove-img');
+const modalImageBtn = getEl('modal-image-btn');
+const modalImageInput = getEl('modal-image-input');
+const modalCameraInput = getEl('modal-camera-input');
+const modalFileBtn = getEl('modal-file-btn');
+const modalFileInput = getEl('modal-file-input');
+const modalShareBtn = getEl('modal-share-btn');
+const modalSocialCapture = getEl('modal-social-capture');
+const modalSocialPlatform = getEl('modal-social-platform');
+const modalSocialStatus = getEl('modal-social-status');
+const modalSocialCaption = getEl('modal-social-caption');
+const modalSocialScreenshot = getEl('modal-social-screenshot');
+const modalSocialOpen = getEl('modal-social-open');
+const modalListBtn = getEl('modal-list-btn');
+const modalDrawBtn = getEl('modal-draw-btn');
+const modalTagsContainer = getEl('modal-popover-tags-container');
 let modalFolderInput = null;
 let modalFolderField = null;
 let modalFolderTrigger = null;
@@ -1306,14 +1330,14 @@ let modalFolderOptions = null;
 let modalFolderCustomInput = null;
 
 // Canvas Sketch Overlay elements
-const sketchModal = document.getElementById('sketch-modal');
-const sketchCanvas = document.getElementById('sketch-canvas');
-const sketchClear = document.getElementById('sketch-clear');
-const sketchClose = document.getElementById('sketch-close');
-const sketchSave = document.getElementById('sketch-save');
-const sketchEraser = document.getElementById('sketch-eraser');
-const sketchBrushSize = document.getElementById('sketch-brush-size');
-const sketchColors = document.getElementById('sketch-colors');
+const sketchModal = getEl('sketch-modal');
+const sketchCanvas = getEl('sketch-canvas');
+const sketchClear = getEl('sketch-clear');
+const sketchClose = getEl('sketch-close');
+const sketchSave = getEl('sketch-save');
+const sketchEraser = getEl('sketch-eraser');
+const sketchBrushSize = getEl('sketch-brush-size');
+const sketchColors = getEl('sketch-colors');
 
 // Drawing context variables
 let canvasCtx = null;
@@ -2012,25 +2036,50 @@ function syncModalInputs(note) {
 // 3. Core Initialization & Event Listeners
 // ==========================================================================
 
-document.addEventListener('DOMContentLoaded', () => {
-  initSettingsCloudSync(null); // Load local preferences initially
-  initSearch();
-  loadSettings();
-  enhanceShell();
-  initTheme();
-  loadEmojiThemeControls();
-  initViewLayout();
-  initData();
-  setupEventHandlers();
-  buildColorPickers();
-  initCanvasDrawEngine();
-  renderAppView();
-  handleSharedLaunchData();
-  initAuth();
-  initModernGlassEditorListeners({
-    showToast,
-    saveModalNoteDraft,
-    triggerAutosave
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', () => {
+    initSettingsCloudSync(null); // Load local preferences initially
+    initSearch();
+    loadSettings();
+    enhanceShell();
+    initTheme();
+    loadEmojiThemeControls();
+    initViewLayout();
+    initData();
+    setupEventHandlers();
+    buildColorPickers();
+    initCanvasDrawEngine();
+    renderAppView();
+    handleSharedLaunchData();
+    initAuth();
+    initModernGlassEditorListeners({
+      showToast,
+      saveModalNoteDraft,
+      triggerAutosave
+    });
+
+    registerServiceWorker();
+    updateOnlineStatusUI();
+
+    creatorText?.addEventListener('keydown', handleTextareaTabKey);
+    modalText?.addEventListener('keydown', handleTextareaTabKey);
+
+    // Start background checks for note reminders
+    setInterval(checkReminders, 10000);
+
+    // Request browser notification permission (non-blocking, once)
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    // Pre-load dynamic modules asynchronously in the background for instant transitions
+    loadSettingsModule().catch(err => console.warn('Failed to pre-load settings module:', err));
+    loadProductivityModule().catch(err => console.warn('Failed to pre-load productivity module:', err));
+
+    // Dismiss splash screen since app initialization is complete
+    if (typeof window !== 'undefined' && typeof window.__dismissSplash === 'function') {
+      window.__dismissSplash();
+    }
   });
 
   document.addEventListener('visibilitychange', () => {
@@ -2038,36 +2087,16 @@ document.addEventListener('DOMContentLoaded', () => {
       flushPendingEditorSaves();
     }
   });
+}
+
+if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
     flushPendingEditorSaves();
   });
   window.addEventListener('pagehide', () => {
     flushPendingEditorSaves();
   });
-
-  registerServiceWorker();
-  updateOnlineStatusUI();
-
-  creatorText?.addEventListener('keydown', handleTextareaTabKey);
-  modalText?.addEventListener('keydown', handleTextareaTabKey);
-
-  // Start background checks for note reminders
-  setInterval(checkReminders, 10000);
-
-  // Request browser notification permission (non-blocking, once)
-  if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission();
-  }
-
-  // Pre-load dynamic modules asynchronously in the background for instant transitions
-  loadSettingsModule().catch(err => console.warn('Failed to pre-load settings module:', err));
-  loadProductivityModule().catch(err => console.warn('Failed to pre-load productivity module:', err));
-
-  // Dismiss splash screen since app initialization is complete
-  if (typeof window.__dismissSplash === 'function') {
-    window.__dismissSplash();
-  }
-});
+}
 
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
@@ -2141,34 +2170,63 @@ function registerServiceWorker() {
 }
 
 let deferredPrompt = null;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  const installRow = document.getElementById('settings-install-row');
-  if (installRow) {
-    installRow.style.display = 'flex';
-  }
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    const installRow = document.getElementById('settings-install-row');
+    if (installRow) {
+      installRow.style.display = 'flex';
+    }
 
-  // Install button click handler
-  const installBtn = document.getElementById('settings-install-btn');
-  if (installBtn && !installBtn.dataset.bound) {
-    installBtn.addEventListener('click', () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then((choiceResult) => {
-          if (choiceResult.outcome === 'accepted') {
-            console.log('User accepted the install prompt');
-          }
-          deferredPrompt = null;
-          if (installRow) installRow.style.display = 'none';
-        });
-      }
-    });
-    installBtn.dataset.bound = 'true';
-  }
+    // Install button click handler
+    const installBtn = document.getElementById('settings-install-btn');
+    if (installBtn && !installBtn.dataset.bound) {
+      installBtn.addEventListener('click', () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+              console.log('User accepted the install prompt');
+            }
+            deferredPrompt = null;
+            if (installRow) installRow.style.display = 'none';
+          });
+        }
+      });
+      installBtn.dataset.bound = 'true';
+    }
 
-  showInstallNotification();
-});
+    showInstallNotification();
+  });
+
+  window.addEventListener('online', () => {
+    updateOnlineStatusUI();
+    if (currentUser) {
+      console.log('Returned online — processing pending sync queue...');
+      processPendingSyncQueue(currentUser.uid);
+      initCloudNotesSyncRef?.(currentUser);
+    }
+  });
+
+  window.addEventListener('focus', () => {
+    if (currentUser) {
+      console.log('App active (focused) — checking sync status and processing queue...');
+      updateOnlineStatusUI();
+      processPendingSyncQueue(currentUser.uid);
+      initCloudNotesSyncRef?.(currentUser);
+    }
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    const installRow = document.getElementById('settings-install-row');
+    if (installRow) {
+      installRow.style.display = 'none';
+    }
+    showToast({ title: 'App Installed', text: 'Paperuss has been installed successfully!' });
+  });
+}
 
 function updateOnlineStatusUI() {
   const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
@@ -2215,50 +2273,16 @@ function updateOnlineStatusUI() {
   }
 }
 
-window.addEventListener('online', () => {
-  updateOnlineStatusUI();
-  if (!currentUser) return;
-  console.log('Back online — retrying pending cloud sync operations, notes, and files...');
-  processPendingSyncQueue(currentUser.uid);
-  notes.forEach(note => {
-    syncNoteToCloudWithQueue(note);
-    syncLocalFilesToCloud(note);
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && currentUser) {
+      console.log('App active (visible) — checking sync status and processing queue...');
+      updateOnlineStatusUI();
+      processPendingSyncQueue(currentUser.uid);
+      initCloudNotesSyncRef?.(currentUser);
+    }
   });
-  // Re-establish cloud sync subscription to force updates
-  initCloudNotesSyncRef?.(currentUser);
-});
-
-window.addEventListener('offline', () => {
-  updateOnlineStatusUI();
-});
-
-// Sync and resume updates when PWA/app comes to foreground or tab gets focused
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && currentUser) {
-    console.log('App active (visible) — checking sync status and processing queue...');
-    updateOnlineStatusUI();
-    processPendingSyncQueue(currentUser.uid);
-    initCloudNotesSyncRef?.(currentUser);
-  }
-});
-
-window.addEventListener('focus', () => {
-  if (currentUser) {
-    console.log('App active (focused) — checking sync status and processing queue...');
-    updateOnlineStatusUI();
-    processPendingSyncQueue(currentUser.uid);
-    initCloudNotesSyncRef?.(currentUser);
-  }
-});
-
-window.addEventListener('appinstalled', () => {
-  deferredPrompt = null;
-  const installRow = document.getElementById('settings-install-row');
-  if (installRow) {
-    installRow.style.display = 'none';
-  }
-  showToast({ title: 'App Installed', text: 'Paperuss has been installed successfully!' });
-});
+}
 
 function showInstallNotification() {
   if (sessionStorage.getItem('install-prompted')) return;
@@ -2671,7 +2695,7 @@ function setupEventHandlers() {
       document.getElementById('search-clear').style.display = 'none';
       renderNotesPage();
       if (window.innerWidth <= 768) {
-        appLayout.classList.remove('sidebar-open');
+        sidebar?.classList.remove('sidebar-open');
       }
     });
   }
@@ -2683,7 +2707,7 @@ function setupEventHandlers() {
       selectedTagFilter = null;
       renderSearchPage();
       if (window.innerWidth <= 768) {
-        appLayout.classList.remove('sidebar-open');
+        sidebar?.classList.remove('sidebar-open');
       }
     });
   }
@@ -3513,6 +3537,7 @@ function buildColorGrid(container, activeColor, activeTheme, activeCustomTheme, 
 let creatorActiveNoteId = null;
 
 function expandCreator() {
+  _savedWorkspaceScrollY = window.scrollY;
   if (appSettings.modernGlassEditorEnabled) {
     const newNote = {
       id: 'note-' + Date.now(),
@@ -3622,6 +3647,10 @@ function collapseCreator() {
     creatorColorPicker.classList.remove('visible');
   });
   creatorColorPicker.classList.remove('visible');
+  if (_savedWorkspaceScrollY) {
+    window.scrollTo(0, _savedWorkspaceScrollY);
+    _savedWorkspaceScrollY = 0;
+  }
 }
 
 let modalSaveTimer = null;
@@ -4140,13 +4169,24 @@ function initAdvancedEditorHandlers() {
     e.stopPropagation();
     if (creatorActiveNoteId) {
       trashNote(creatorActiveNoteId);
-      collapseCreator();
-    } else {
-      clearCreator();
-      collapseCreator();
     }
+    collapseCreator();
     showToast({ title: 'Note Deleted', text: 'Draft discarded.' });
   });
+
+  function formatSelectedText(prefix, suffix, textarea = creatorText) {
+    if (!textarea) return;
+    const start = textarea.selectionStart || 0;
+    const end = textarea.selectionEnd || 0;
+    const text = textarea.value || '';
+    const selected = text.substring(start, end);
+    const replacement = prefix + selected + suffix;
+    textarea.value = text.substring(0, start) + replacement + text.substring(end);
+    textarea.selectionStart = start + prefix.length;
+    textarea.selectionEnd = end + prefix.length;
+    textarea.focus();
+    triggerAutosave();
+  }
 
   // Formatting toolbar bindings
   document.getElementById('tb-bold')?.addEventListener('click', () => formatSelectedText('**', '**'));
@@ -4351,7 +4391,7 @@ function initModalAdvancedEditorHandlers() {
     const note = notes.find(n => n.id === currentEditingNoteId);
     if (note) {
       if (note.archived) {
-        unarchiveNote(note.id);
+        restoreArchivedNote(note.id);
         showToast({ title: 'Note Unarchived', text: 'Note returned to home feed.' });
       } else {
         archiveNote(note.id);
@@ -4904,7 +4944,7 @@ function getSuggestedCreatorFolder() {
     title: creatorTitle?.value.trim() || '',
     text: creatorText?.value.trim() || '',
     type: getNoteType(creatorText?.value.trim() || ''),
-    audio: creatorAudio,
+    audio: creatorAudioClips.length ? creatorAudioClips[0].data : null,
     image: creatorImage
   };
   return inferDefaultFolder(draftNote, 1);
@@ -6803,6 +6843,7 @@ function extractHashtags(combinedText) {
 // ==========================================================================
 
 function openEditModal(note, autoFocus = false) {
+  _savedWorkspaceScrollY = window.scrollY;
   if (currentEditingNoteId && currentEditingNoteId !== note.id) {
     flushPendingEditorSaves();
   }
@@ -7085,7 +7126,6 @@ function openEditModal(note, autoFocus = false) {
   document.body.classList.add('modern-glass-active');
   const feedEl = document.getElementById('notes-feed');
   if (feedEl) feedEl.setAttribute('aria-hidden', 'true');
-  window.scrollTo(0, _savedWorkspaceScrollY);
 
   setTimeout(() => {
     modalText.style.height = 'auto';
@@ -7211,7 +7251,10 @@ function closeEditModal() {
   modalColorPicker.classList.remove('visible');
   const glassColorPopup = document.getElementById('modal-glass-color-popup');
   if (glassColorPopup) glassColorPopup.style.display = 'none';
-  window.scrollTo(0, _savedWorkspaceScrollY);
+  if (_savedWorkspaceScrollY) {
+    window.scrollTo(0, _savedWorkspaceScrollY);
+    _savedWorkspaceScrollY = 0;
+  }
 }
 
 function deleteNote(id) {
@@ -7304,10 +7347,12 @@ function onViewportResize() {
 }
 
 // Attach viewport resize listeners (runs once at startup)
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', onViewportResize);
-} else {
-  window.addEventListener('resize', onViewportResize);
+if (typeof window !== 'undefined') {
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', onViewportResize);
+  } else {
+    window.addEventListener('resize', onViewportResize);
+  }
 }
 
 
@@ -8627,9 +8672,9 @@ function toggleVoiceRecording(target) {
     startVoiceRecording(target);
   }
 }
-window.toggleVoiceRecording = toggleVoiceRecording;
+if (typeof window !== 'undefined') window.toggleVoiceRecording = toggleVoiceRecording;
 
-document.getElementById('glass-recording-stop-btn')?.addEventListener('click', () => {
+getEl('glass-recording-stop-btn')?.addEventListener('click', () => {
   stopVoiceRecording();
 });
 
@@ -9843,7 +9888,7 @@ function toggleGlassAddMenu(mode) {
     }
   }
 }
-window.toggleGlassAddMenu = toggleGlassAddMenu;
+if (typeof window !== 'undefined') window.toggleGlassAddMenu = toggleGlassAddMenu;
 
 /**
  * Closes the Add (+) content insertion menu for the given editor surface.
@@ -9857,7 +9902,7 @@ function closeGlassAddMenu(mode) {
   menu.setAttribute('aria-hidden', 'true');
   btn?.classList.remove('active');
 }
-window.closeGlassAddMenu = closeGlassAddMenu;
+if (typeof window !== 'undefined') window.closeGlassAddMenu = closeGlassAddMenu;
 
 /**
  * Initialises the Add (+) menu for a given editor surface.
@@ -10222,7 +10267,8 @@ function initGlassToolbarExtensions(mode) {
 }
 
 // Initialise both surfaces on DOMContentLoaded (safe no-op if not in glass mode)
-document.addEventListener('DOMContentLoaded', () => {
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', () => {
   // Small defer to ensure glass editor elements are in the DOM
   setTimeout(() => {
     initGlassToolbarExtensions('creator');
@@ -10354,3 +10400,4 @@ document.addEventListener('click', (e) => {
     closeGlassReminderPopover();
   }
 }, true);
+}

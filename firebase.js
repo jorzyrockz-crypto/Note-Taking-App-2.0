@@ -26,15 +26,17 @@ if (envConfig.apiKey && envConfig.projectId) {
 } else {
   // 2. Fall back to LocalStorage
   try {
-    let stored = localStorage.getItem(CONFIG_KEY);
-    if (!stored) {
-      stored = localStorage.getItem(OLD_CONFIG_KEY);
-      if (stored) {
-        localStorage.setItem(CONFIG_KEY, stored);
+    if (typeof localStorage !== 'undefined') {
+      let stored = localStorage.getItem(CONFIG_KEY);
+      if (!stored) {
+        stored = localStorage.getItem(OLD_CONFIG_KEY);
+        if (stored) {
+          localStorage.setItem(CONFIG_KEY, stored);
+        }
       }
-    }
-    if (stored) {
-      savedConfig = JSON.parse(stored);
+      if (stored) {
+        savedConfig = JSON.parse(stored);
+      }
     }
   } catch (e) {
     console.warn('Failed to parse saved Firebase config:', e);
@@ -96,15 +98,17 @@ let authCallbacks = [];
 
 // Try to auto-restore mock session if page is reloaded
 try {
-  let activeSession = localStorage.getItem('paperuss_active_mock_session');
-  if (!activeSession) {
-    activeSession = localStorage.getItem('atlasnest_active_mock_session');
-    if (activeSession) {
-      localStorage.setItem('paperuss_active_mock_session', activeSession);
+  if (typeof localStorage !== 'undefined') {
+    let activeSession = localStorage.getItem('paperuss_active_mock_session');
+    if (!activeSession) {
+      activeSession = localStorage.getItem('atlasnest_active_mock_session');
+      if (activeSession) {
+        localStorage.setItem('paperuss_active_mock_session', activeSession);
+      }
     }
-  }
-  if (activeSession) {
-    mockCurrentUser = JSON.parse(activeSession);
+    if (activeSession) {
+      mockCurrentUser = JSON.parse(activeSession);
+    }
   }
 } catch (e) {
   console.warn('Failed to restore active mock session:', e);

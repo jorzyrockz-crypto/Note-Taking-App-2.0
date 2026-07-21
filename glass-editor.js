@@ -1,3 +1,5 @@
+const win = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
+
 let showToastFn = () => {};
 let saveModalNoteDraftFn = () => {};
 let triggerAutosaveFn = () => {};
@@ -6,6 +8,7 @@ let savedGlassRange = null;
 let savedGlassElement = null;
 
 export function saveGlassSelection() {
+  if (typeof window === 'undefined') return;
   const sel = window.getSelection();
   if (sel.rangeCount > 0) {
     const node = sel.anchorNode;
@@ -122,7 +125,7 @@ function stripUnderlineStylesInSelection() {
 }
 
 // Exported to window so it can be called directly from onmousedown inside HTML
-window.execGlassCmd = function(cmd, val = null, mode = null) {
+win.execGlassCmd = function(cmd, val = null, mode = null) {
   restoreGlassSelection(mode);
   if (cmd === 'underline') {
     stripUnderlineStylesInSelection();
@@ -177,16 +180,16 @@ window.execGlassCmd = function(cmd, val = null, mode = null) {
 
   document.execCommand(cmd, false, val);
   saveGlassSelection();
-  saveGlassEditorChanges();
+  saveGlassEditorChanges(mode);
 };
 
-window.updateGlassEmptyState = function(el) {
+win.updateGlassEmptyState = function(el) {
   if (el) {
     el.classList.toggle('is-empty', el.textContent.trim() === '');
   }
 };
 
-window.toggleGlassColorPopup = function(mode, anchorBtn = null) {
+win.toggleGlassColorPopup = function(mode, anchorBtn = null) {
   saveGlassSelection();
   const p = document.getElementById(`${mode}-glass-color-popup`);
   if (!p) return;
@@ -223,7 +226,7 @@ window.toggleGlassColorPopup = function(mode, anchorBtn = null) {
   if (linkPopover) linkPopover.style.display = 'none';
 };
 
-window.applyGlassHighlight = function(color) {
+win.applyGlassHighlight = function(color) {
   restoreGlassSelection();
   const value = color || 'transparent';
   // Chromium uses hiliteColor while older WebViews expose backColor.
@@ -240,7 +243,7 @@ window.applyGlassHighlight = function(color) {
   if (modalPopup) modalPopup.style.display = 'none';
 };
 
-window.applyGlassTextColor = function(color) {
+win.applyGlassTextColor = function(color) {
   restoreGlassSelection();
   if (color) {
     document.execCommand('foreColor', false, color);
@@ -257,7 +260,7 @@ window.applyGlassTextColor = function(color) {
   if (modalPopup) modalPopup.style.display = 'none';
 };
 
-window.wireGlassChecklistEvents = function(container) {
+win.wireGlassChecklistEvents = function(container) {
   if (!container) return;
   container.querySelectorAll('.checklist-item').forEach(item => {
     item.setAttribute('contenteditable', 'false');
@@ -392,7 +395,7 @@ function getConvertibleItems(editor) {
   return items;
 }
 
-window.addGlassChecklist = function(mode) {
+win.addGlassChecklist = function(mode) {
   restoreGlassSelection(mode);
   const sel = window.getSelection();
   const editor = document.getElementById(`${mode}-glass-editor`);
@@ -527,7 +530,7 @@ function initGlassDrag(el) {
   }
 }
 
-window.toggleGlassLinkPopover = function(mode, anchorBtn = null) {
+win.toggleGlassLinkPopover = function(mode, anchorBtn = null) {
   saveGlassSelection();
   const popover = document.getElementById(`${mode}-glass-link-popover`);
   if (!popover) return;
@@ -587,7 +590,7 @@ window.toggleGlassLinkPopover = function(mode, anchorBtn = null) {
   }
 };
 
-window.submitGlassLink = function(mode) {
+win.submitGlassLink = function(mode) {
   const popover = document.getElementById(`${mode}-glass-link-popover`);
   const input = document.getElementById(`${mode}-glass-link-input`);
   if (!popover || !input) return;
@@ -726,7 +729,7 @@ function compressGlassImage(img, file) {
   return { dataUrl, width, qualityReduced };
 }
 
-window.handleGlassImage = function(input, mode) {
+win.handleGlassImage = function(input, mode) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
@@ -758,7 +761,7 @@ window.handleGlassImage = function(input, mode) {
   input.value = '';
 };
 
-window.execGlassHeading = function(mode) {
+win.execGlassHeading = function(mode) {
   restoreGlassSelection(mode);
   const sel = window.getSelection();
   if (sel.rangeCount === 0) return;
@@ -794,7 +797,7 @@ window.execGlassHeading = function(mode) {
   saveGlassEditorChanges(mode);
 };
 
-window.execGlassFontSize = function(mode) {
+win.execGlassFontSize = function(mode) {
   restoreGlassSelection(mode);
   const sel = window.getSelection();
   if (sel.rangeCount === 0) return;
