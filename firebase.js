@@ -468,9 +468,9 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '2.6.9',
+        version: '2.6.10',
         changelog: [
-          'Scheduler Overhaul: Fixed glass reminder popover hidden behind modal (z-index), added multi-clip audio recording, browser push notifications with snooze, per-line inline reminder chips',
+          'Bug Fix: Glass reminder popover now successfully triggers from the Add menu; fixed inline mousedown handler preventing click events',
           'Added Workspace Density settings with Auto, Compact, Comfortable, Touch, and Spacious modes plus an optional Tablet-first Navigation testing feature',
           'Tablet-first workspace with an adaptive portrait dock, landscape navigation rail, roomier note grid, and touch-friendly controls',
           'Upgraded tablet editor to a focused near-full-screen canvas with safer spacing, sticky actions, and better portrait/landscape behavior',

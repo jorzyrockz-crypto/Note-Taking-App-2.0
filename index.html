@@ -165,12 +165,13 @@
           <div class="profile-divider"></div>
           <div class="profile-version-section">
             <div class="version-header">
-              <span class="version-label">Version 2.6.9</span>
+              <span class="version-label">Version 2.6.10</span>
               <button class="update-btn" id="app-update-btn" type="button">Update</button>
             </div>
             <div class="changelog-container">
               <div class="changelog-title">What's New</div>
               <ul class="changelog-list">
+          <li><strong>Bug Fix:</strong> Glass reminder popover now successfully triggers from the Add menu; fixed inline mousedown handler preventing click events</li>
           <li><strong>Scheduler Overhaul:</strong> Fixed glass reminder popover hidden behind modal, added multi-clip audio recording, browser push notifications with snooze (5m/15m/1h), per-line inline reminder chips, and whole-note+inline reminder co-existence</li>
           <li><strong>Voice Recording Fix:</strong> Disabled automatic SpeechRecognition live typing so voice recording solely records audio clips without modifying note text</li>
           <li><strong>Cleaned up UI:</strong> Removed redundant floating voice recording overlay pill in favor of the clean top banner indicator</li>
@@ -604,7 +605,7 @@
               </span>
               <span class="glass-add-menu-label">Voice Recording</span>
             </button>
-            <button class="glass-add-menu-item" id="creator-add-reminder" onmousedown="event.preventDefault(); closeGlassAddMenu('creator');" title="Set Reminder">
+            <button class="glass-add-menu-item" id="creator-add-reminder" onmousedown="event.preventDefault(); closeGlassAddMenu('creator'); this.click();" title="Set Reminder">
               <span class="glass-add-menu-icon">
                 <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
               </span>
@@ -1719,7 +1720,7 @@
           </span>
           <span class="glass-add-menu-label">Voice Recording</span>
         </button>
-        <button class="glass-add-menu-item" id="modal-add-reminder" onmousedown="event.preventDefault(); closeGlassAddMenu('modal');" title="Set Reminder">
+        <button class="glass-add-menu-item" id="modal-add-reminder" onmousedown="event.preventDefault(); closeGlassAddMenu('modal'); this.click();" title="Set Reminder">
           <span class="glass-add-menu-icon">
             <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
           </span>

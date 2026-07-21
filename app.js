@@ -3232,8 +3232,9 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.6.9';
+  const CURRENT_VERSION = '2.6.10';
   const DEFAULT_CHANGELOG = [
+    'Bug Fix: Glass reminder popover now successfully triggers from the Add menu; fixed inline mousedown handler preventing click events',
     'Scheduler Overhaul: Fixed glass reminder popover hidden behind modal (z-index), added multi-clip audio recording, browser push notifications, snooze (5m/15m/1h), per-line inline reminder chips, and whole-note+inline reminder co-existence',
     'Voice Recording Fix: Disabled automatic SpeechRecognition live typing so voice recording solely records audio clips without modifying note text',
     'Cleaned up UI: Removed redundant floating voice recording overlay pill in favor of the clean top banner indicator',
