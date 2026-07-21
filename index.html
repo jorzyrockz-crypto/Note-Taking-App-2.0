@@ -165,12 +165,15 @@
           <div class="profile-divider"></div>
           <div class="profile-version-section">
             <div class="version-header">
-              <span class="version-label">Version 2.4.5</span>
+              <span class="version-label">Version 2.5.1</span>
               <button class="update-btn" id="app-update-btn" type="button">Update</button>
             </div>
             <div class="changelog-container">
               <div class="changelog-title">What's New</div>
               <ul class="changelog-list">
+                <li>Added Workspace Density settings with Auto, Compact, Comfortable, Touch, and Spacious modes plus an optional Tablet-first Navigation testing feature</li>
+                <li>Tablet-first workspace with an adaptive portrait dock, landscape navigation rail, roomier note grid, and touch-friendly controls</li>
+                <li>Upgraded tablet editor to a focused near-full-screen canvas with safer spacing, sticky actions, and better portrait/landscape behavior</li>
                 <li>Added resilient Facebook, X, and Pinterest capture cards with editable captions, screenshot fallback, canonical links, and richer public metadata handling</li>
                 <li>Upgraded social link parsing with clean canonical URLs, official previews where available, safe fallbacks, and stronger redirect protection</li>
                 <li>Fixed modern glass editor modal opening empty note when receiving shared PWA launch data (loads data directly into modal note draft and enriches website metadata in modal)</li>
@@ -888,6 +891,30 @@
             </div>
 
             <div class="settings-card">
+              <div class="settings-card-title">Workspace Density</div>
+              <div class="settings-row flex-column" style="padding-top: 0;">
+                <div class="settings-info full-width">
+                  <strong>Choose how much information fits on screen</strong>
+                  <span>Auto adapts to your screen. Touch increases tap targets, while Compact and Spacious change card density.</span>
+                </div>
+                <div class="seg-control density-control" id="settings-density-seg" role="group" aria-label="Workspace Density">
+                  <button class="seg-btn active" data-value="auto" type="button">Auto</button>
+                  <button class="seg-btn" data-value="compact" type="button">Compact</button>
+                  <button class="seg-btn" data-value="comfortable" type="button">Comfortable</button>
+                  <button class="seg-btn" data-value="touch" type="button">Touch</button>
+                  <button class="seg-btn" data-value="spacious" type="button">Spacious</button>
+                </div>
+                <select id="settings-workspace-density" class="settings-select" style="display:none;" aria-hidden="true">
+                  <option value="auto">Auto</option>
+                  <option value="compact">Compact</option>
+                  <option value="comfortable">Comfortable</option>
+                  <option value="touch">Touch</option>
+                  <option value="spacious">Spacious</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="settings-card">
               <div class="settings-card-title">Card Layout</div>
               <div class="settings-row flex-column" style="padding-top: 0;">
                 <div class="settings-info full-width">
@@ -1084,6 +1111,16 @@
                 </div>
                 <label class="switch">
                   <input type="checkbox" id="settings-premium-floating-theme">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+              <div class="settings-row">
+                <div class="settings-info">
+                  <strong>Tablet-first Navigation <span class="settings-beta-badge">Testing</span></strong>
+                  <span>Enables the portrait bottom dock, touch-visible note actions, and tablet-focused navigation on supported screen sizes</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="settings-tablet-first">
                   <span class="slider round"></span>
                 </label>
               </div>
@@ -1884,6 +1921,30 @@
 
     </div><!-- /auth-card -->
   </div><!-- /auth-modal -->
+
+  <!-- Tablet-first navigation dock. It is hidden on desktop and phones. -->
+  <nav class="tablet-dock" id="tablet-dock" aria-label="Tablet navigation">
+    <button class="tablet-dock-item active" type="button" data-tablet-page="notes" aria-label="All notes">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm2 4v2h7V8H7Zm0 4v2h7v-2H7Z"/></svg>
+      <span>Notes</span>
+    </button>
+    <button class="tablet-dock-item" type="button" data-tablet-page="search" aria-label="Search notes">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20.5 19-4.3-4.3a7 7 0 1 0-1.5 1.5l4.3 4.3 1.5-1.5ZM5 10.5a5.5 5.5 0 1 1 11 0 5.5 5.5 0 0 1-11 0Z"/></svg>
+      <span>Search</span>
+    </button>
+    <button class="tablet-dock-create" type="button" data-tablet-action="create" aria-label="Create a new note">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg>
+      <span>New</span>
+    </button>
+    <button class="tablet-dock-item" type="button" data-tablet-page="productivity" aria-label="Open productivity">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2 4v3h3V7H7Zm0 5v5h3v-5H7Zm5-5v3h5V7h-5Zm0 5v2h5v-2h-5Zm0 4v1h5v-1h-5Z"/></svg>
+      <span>Today</span>
+    </button>
+    <button class="tablet-dock-item" type="button" data-tablet-action="menu" aria-label="Open notebooks and settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/></svg>
+      <span>Library</span>
+    </button>
+  </nav>
 
   <!-- Toast notification container -->
   <div class="toast-container" id="toast-container"></div>

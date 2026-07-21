@@ -131,6 +131,8 @@ export let appSettings = {
   advancedEditorEnabled: false,
   modernGlassEditorEnabled: true,
   cardLayoutStyle: 'default',
+  workspaceDensity: 'auto',
+  tabletFirstEnabled: false,
   welcomeNoteDismissed: false,
   welcomeNoteSeeded: false,
   appBgColor: 'base',
@@ -311,6 +313,16 @@ export function saveSettingsAndSync() {
   }
 }
 
+export function applyWorkspacePreferences() {
+  const allowedDensities = new Set(['auto', 'compact', 'comfortable', 'touch', 'spacious']);
+  const density = allowedDensities.has(appSettings.workspaceDensity)
+    ? appSettings.workspaceDensity
+    : 'auto';
+
+  document.body.dataset.workspaceDensity = density;
+  document.body.classList.toggle('tablet-first-enabled', appSettings.tabletFirstEnabled === true);
+}
+
 export function saveCustomThemesAndSync() {
   const timestamp = Date.now();
   localStorage.setItem(STORAGE_KEYS.customThemes, JSON.stringify(customThemes));
@@ -390,6 +402,7 @@ export function initSettingsCloudSync(uid) {
             localStorage.setItem(STORAGE_KEYS.settingsUpdatedAt, cloudUpdatedAt.toString());
 
             applyCardLayoutStyle(appSettings.cardLayoutStyle);
+            applyWorkspacePreferences();
             syncEmojiThemePresentation();
             buildColorPickers();
             renderNotes();
@@ -1562,6 +1575,9 @@ function clearSidebarActiveStates() {
 
 export function setActiveSidebarPage(pageId) {
   clearSidebarActiveStates();
+  document.querySelectorAll('.tablet-dock-item[data-tablet-page]').forEach((item) => {
+    item.classList.toggle('active', item.dataset.tabletPage === pageId || (pageId !== 'search' && pageId !== 'productivity' && item.dataset.tabletPage === 'notes'));
+  });
     if (pageId === 'settings') {
       sidebarSettings?.classList.add('active');
       return;
@@ -2573,6 +2589,36 @@ function setupEventHandlers() {
     setActivePage('deleted');
   });
 
+  // Tablet dock: thumb-reachable primary navigation in portrait orientation.
+  document.querySelectorAll('[data-tablet-page]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const page = button.dataset.tabletPage;
+      if (page === 'search') {
+        setActivePage('search');
+        requestAnimationFrame(() => document.getElementById('search-input')?.focus({ preventScroll: true }));
+      } else if (page === 'productivity') {
+        ensureCalendarSelection();
+        setActivePage('productivity');
+      } else {
+        setActivePage('notes');
+      }
+    });
+  });
+
+  document.querySelector('[data-tablet-action="create"]')?.addEventListener('click', () => {
+    setActivePage('notes');
+    requestAnimationFrame(() => {
+      document.getElementById('note-creator')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (creatorCollapsed?.offsetParent !== null) creatorCollapsed.click();
+    });
+  });
+
+  document.querySelector('[data-tablet-action="menu"]')?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    sidebar?.classList.add('sidebar-open');
+    document.body.classList.remove('sidebar-pinned');
+  });
+
   if (creatorFolderTrigger && !creatorFolderTrigger.dataset.bound) {
     creatorFolderTrigger.addEventListener('click', () => {
       if (isInlineCreatorFolderPicker()) return;
@@ -3153,8 +3199,11 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.4.5';
+  const CURRENT_VERSION = '2.5.1';
   const DEFAULT_CHANGELOG = [
+    'Added Workspace Density settings with Auto, Compact, Comfortable, Touch, and Spacious modes plus an optional Tablet-first Navigation testing feature',
+    'Tablet-first workspace with an adaptive portrait dock, landscape navigation rail, roomier note grid, and touch-friendly controls',
+    'Upgraded tablet editor to a focused near-full-screen canvas with safer spacing, sticky actions, and better portrait/landscape behavior',
     'Added resilient Facebook, X, and Pinterest capture cards with editable captions, screenshot fallback, canonical links, and richer public metadata handling',
     'Upgraded social link parsing with clean canonical URLs, official previews where available, safe fallbacks, and stronger redirect protection',
     'Fixed modern glass editor modal opening empty note when receiving shared PWA launch data (loads data directly into modal note draft and enriches website metadata in modal)',
@@ -9159,6 +9208,7 @@ function loadSettings() {
 
   // Apply layout style
   applyCardLayoutStyle(appSettings.cardLayoutStyle);
+  applyWorkspacePreferences();
   applyAppBgColor();
   // Load experimental sky theme setting
   const savedSky = localStorage.getItem('paperuss_experimental_sky');

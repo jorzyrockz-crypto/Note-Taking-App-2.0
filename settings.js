@@ -20,7 +20,8 @@ import {
   setExperimentalSkyTheme,
   premiumSkyTheme,
   setPremiumSkyTheme,
-  applyUiColorThemeClass
+  applyUiColorThemeClass,
+  applyWorkspacePreferences
 } from './app.js';
 
 import {
@@ -44,6 +45,8 @@ let settingsNewBottom;
 let settingsAdvancedEditor;
 let settingsModernGlassEditor;
 let settingsCardStyle;
+let settingsWorkspaceDensity;
+let settingsTabletFirst;
 let settingsEmojiOpacity;
 let settingsEmojiSize;
 let settingsEmojiSpacing;
@@ -86,6 +89,8 @@ export function initSettings() {
   settingsAdvancedEditor = document.getElementById('settings-advanced-editor');
   settingsModernGlassEditor = document.getElementById('settings-modern-glass-editor');
   settingsCardStyle = document.getElementById('settings-card-style');
+  settingsWorkspaceDensity = document.getElementById('settings-workspace-density');
+  settingsTabletFirst = document.getElementById('settings-tablet-first');
   settingsExperimentalSkyTheme = document.getElementById('settings-experimental-sky-theme');
   settingsPremiumSkyTheme = document.getElementById('settings-premium-floating-theme');
 
@@ -160,6 +165,30 @@ export function initSettings() {
     btn.classList.add('active');
     if (settingsCardStyle) settingsCardStyle.value = btn.dataset.value;
     applyCardLayoutStyle(btn.dataset.value);
+  });
+
+  const densitySeg = document.getElementById('settings-density-seg');
+  densitySeg?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.seg-btn');
+    if (!btn) return;
+    densitySeg.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (settingsWorkspaceDensity) settingsWorkspaceDensity.value = btn.dataset.value;
+    appSettings.workspaceDensity = btn.dataset.value;
+    applyWorkspacePreferences();
+    saveSettingsAndSync();
+  });
+
+  settingsTabletFirst?.addEventListener('change', () => {
+    appSettings.tabletFirstEnabled = settingsTabletFirst.checked;
+    applyWorkspacePreferences();
+    saveSettingsAndSync();
+    showToast({
+      title: settingsTabletFirst.checked ? 'Tablet experience enabled' : 'Tablet experience disabled',
+      text: settingsTabletFirst.checked
+        ? 'The tablet dock and touch-first navigation are now active on supported screen sizes.'
+        : 'Paperuss has returned to its standard adaptive navigation.'
+    });
   });
 
   // ── Accent Swatch Buttons ────────────────────────────────────
@@ -336,6 +365,13 @@ export function renderSettingsPage() {
   document.querySelectorAll('#settings-card-style-seg .seg-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.value === cardStyle);
   });
+
+  const density = appSettings.workspaceDensity || 'auto';
+  if (settingsWorkspaceDensity) settingsWorkspaceDensity.value = density;
+  document.querySelectorAll('#settings-density-seg .seg-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === density);
+  });
+  if (settingsTabletFirst) settingsTabletFirst.checked = appSettings.tabletFirstEnabled === true;
 
   if (settingsExperimentalSkyTheme) settingsExperimentalSkyTheme.checked = experimentalSkyTheme;
   if (settingsPremiumSkyTheme) settingsPremiumSkyTheme.checked = premiumSkyTheme;
@@ -652,6 +688,8 @@ export function saveSettingsFromForm() {
     advancedEditorEnabled: false,
     modernGlassEditorEnabled: true,
     cardLayoutStyle: settingsCardStyle.value,
+    workspaceDensity: settingsWorkspaceDensity ? settingsWorkspaceDensity.value : 'auto',
+    tabletFirstEnabled: settingsTabletFirst ? settingsTabletFirst.checked : false,
     reminderTimes: {
       morning: settingsReminderMorning.value,
       afternoon: settingsReminderAfternoon.value,
@@ -690,6 +728,7 @@ export function saveSettingsFromForm() {
 
   // Apply layout style
   applyCardLayoutStyle(appSettings.cardLayoutStyle);
+  applyWorkspacePreferences();
 
   // Apply UI Accent color theme
   if (typeof applyUiColorThemeClass === 'function') {
@@ -806,4 +845,3 @@ function updateNotifControlsDisabledState() {
     positionGrid.style.pointerEvents = enabled ? 'auto' : 'none';
   }
 }
-
