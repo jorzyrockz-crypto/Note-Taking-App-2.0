@@ -187,6 +187,7 @@ window.updateGlassEmptyState = function(el) {
 };
 
 window.toggleGlassColorPopup = function(mode, anchorBtn = null) {
+  saveGlassSelection();
   const p = document.getElementById(`${mode}-glass-color-popup`);
   if (!p) return;
   
@@ -526,6 +527,7 @@ function initGlassDrag(el) {
 }
 
 window.toggleGlassLinkPopover = function(mode, anchorBtn = null) {
+  saveGlassSelection();
   const popover = document.getElementById(`${mode}-glass-link-popover`);
   if (!popover) return;
   const input = document.getElementById(`${mode}-glass-link-input`);
@@ -816,11 +818,15 @@ window.execGlassFontSize = function(mode) {
 };
 
 let autoHideTimers = {};
+let _glassListenersInitialized = false;
 
 export function initModernGlassEditorListeners(callbacks = {}) {
   if (callbacks.showToast) showToastFn = callbacks.showToast;
   if (callbacks.saveModalNoteDraft) saveModalNoteDraftFn = callbacks.saveModalNoteDraft;
   if (callbacks.triggerAutosave) triggerAutosaveFn = callbacks.triggerAutosave;
+
+  if (_glassListenersInitialized) return;
+  _glassListenersInitialized = true;
 
   const ids = ['creator', 'modal'];
   ids.forEach(mode => {
@@ -1056,66 +1062,79 @@ export function initModernGlassEditorListeners(callbacks = {}) {
     }
   });
 
-  // Track selection and toolbar states
+  // Track selection and toolbar states throttled with requestAnimationFrame
+  let selectionScheduled = false;
   document.addEventListener('selectionchange', () => {
-    const sel = window.getSelection();
-    if (!sel.rangeCount) return;
-    const node = sel.anchorNode;
-    
-    const creatorEditor = document.getElementById('creator-glass-editor');
-    const modalEditor = document.getElementById('modal-glass-editor');
-    
-    const isCreatorActive = creatorEditor?.contains(node);
-    const isModalActive = modalEditor?.contains(node);
-    if (!isCreatorActive && !isModalActive) return;
+    if (selectionScheduled) return;
+    selectionScheduled = true;
+    requestAnimationFrame(() => {
+      selectionScheduled = false;
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      const node = sel.anchorNode;
+      if (!node) return;
+      
+      const creatorEditor = document.getElementById('creator-glass-editor');
+      const creatorTitle = document.getElementById('creator-glass-title');
+      const modalEditor = document.getElementById('modal-glass-editor');
+      const modalTitle = document.getElementById('modal-glass-title');
+      
+      const isCreatorActive = creatorEditor?.contains(node) || creatorTitle?.contains(node);
+      const isModalActive = modalEditor?.contains(node) || modalTitle?.contains(node);
+      if (!isCreatorActive && !isModalActive) return;
 
-    const activeMode = isCreatorActive ? 'creator' : 'modal';
-    
-    if (!sel.isCollapsed) {
-      const toolbar = document.getElementById(`${activeMode}-glass-floating-toolbar`);
+      saveGlassSelection();
+
+      const activeMode = isCreatorActive ? 'creator' : 'modal';
+      
+      if (!sel.isCollapsed) {
+        const toolbar = document.getElementById(`${activeMode}-glass-floating-toolbar`);
+        if (toolbar) {
+          clearTimeout(autoHideTimers[activeMode]);
+          toolbar.classList.remove('toolbar-hidden');
+        }
+      }
+
+      const toolbarId = `${activeMode}-glass-floating-toolbar`;
+      const toolbar = document.getElementById(toolbarId);
       if (toolbar) {
-        clearTimeout(autoHideTimers[activeMode]);
-        toolbar.classList.remove('toolbar-hidden');
+        toolbar.querySelectorAll('.toolbar-btn[data-cmd]').forEach(btn => {
+          const cmd = btn.dataset.cmd;
+          let active = false;
+          try { active = document.queryCommandState(cmd); } catch (e) {}
+          if (btn.classList.contains('active') !== active) {
+            btn.classList.toggle('active', active);
+          }
+        });
+        
+        let headingLabel = 'H';
+        let parentNode = node;
+        if (parentNode.nodeType === Node.TEXT_NODE) parentNode = parentNode.parentNode;
+        const hTag = parentNode.closest('h1, h2, h3');
+        if (hTag) {
+          headingLabel = hTag.tagName;
+        }
+        const headingLabelEl = document.getElementById(`${activeMode}-glass-heading-label`);
+        if (headingLabelEl && headingLabelEl.textContent !== headingLabel) {
+          headingLabelEl.textContent = headingLabel;
+        }
+        
+        let sizeLabel = 'A';
+        const fontTag = parentNode.closest('font[size]');
+        if (fontTag) {
+          const currentSize = fontTag.getAttribute('size');
+          if (currentSize === '2') sizeLabel = 'A↓';
+          else if (currentSize === '4') sizeLabel = 'A↑';
+        }
+        const sizeLabelEl = document.getElementById(`${activeMode}-glass-size-label`);
+        if (sizeLabelEl && sizeLabelEl.textContent !== sizeLabel) {
+          sizeLabelEl.textContent = sizeLabel;
+        }
       }
-    }
-
-    const toolbarId = `${activeMode}-glass-floating-toolbar`;
-    const toolbar = document.getElementById(toolbarId);
-    if (toolbar) {
-      toolbar.querySelectorAll('.toolbar-btn[data-cmd]').forEach(btn => {
-        const cmd = btn.dataset.cmd;
-        let active = false;
-        try { active = document.queryCommandState(cmd); } catch (e) {}
-        btn.classList.toggle('active', active);
-      });
-      
-      let headingLabel = 'H';
-      let parentNode = node;
-      if (parentNode.nodeType === Node.TEXT_NODE) parentNode = parentNode.parentNode;
-      const hTag = parentNode.closest('h1, h2, h3');
-      if (hTag) {
-        headingLabel = hTag.tagName;
-      }
-      const headingLabelEl = document.getElementById(`${activeMode}-glass-heading-label`);
-      if (headingLabelEl) {
-        headingLabelEl.textContent = headingLabel;
-      }
-      
-      let sizeLabel = 'A';
-      const fontTag = parentNode.closest('font[size]');
-      if (fontTag) {
-        const currentSize = fontTag.getAttribute('size');
-        if (currentSize === '2') sizeLabel = 'A↓';
-        else if (currentSize === '4') sizeLabel = 'A↑';
-      }
-      const sizeLabelEl = document.getElementById(`${activeMode}-glass-size-label`);
-      if (sizeLabelEl) {
-        sizeLabelEl.textContent = sizeLabel;
-      }
-    }
+    });
   });
 
-  // Global dismissals for popups on click outside
+  // Global dismissals for popups on click outside & Escape key
   document.addEventListener('mousedown', (e) => {
     const ids = ['creator', 'modal'];
     ids.forEach(mode => {
@@ -1131,5 +1150,21 @@ export function initModernGlassEditorListeners(callbacks = {}) {
         colorPopup.style.display = 'none';
       }
     });
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const ids = ['creator', 'modal'];
+      ids.forEach(mode => {
+        const linkPopover = document.getElementById(`${mode}-glass-link-popover`);
+        if (linkPopover && linkPopover.style.display === 'flex') {
+          linkPopover.style.display = 'none';
+        }
+        const colorPopup = document.getElementById(`${mode}-glass-color-popup`);
+        if (colorPopup && colorPopup.style.display === 'flex') {
+          colorPopup.style.display = 'none';
+        }
+      });
+    }
   });
 }

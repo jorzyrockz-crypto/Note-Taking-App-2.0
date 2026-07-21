@@ -293,6 +293,10 @@ export async function processPendingSyncQueue(uid = config.getCurrentUser()?.uid
 // Local Storage Operations
 // ==========================================================================
 
+// In-flight and queued cloud sync tracking per note
+const _inFlightCloudSyncs = new Map();
+const _queuedCloudSyncs = new Map();
+
 export function saveNotesLocalOnly() {
   const notes = config.getNotes();
   const customFolders = config.getCustomFolders();
@@ -307,6 +311,35 @@ let _saveTimer;
 export function debouncedSave() {
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(saveToLocalStorage, 400);
+}
+
+export function saveSingleNoteToLocalStorage(note) {
+  try {
+    if (!note?.id) return false;
+    const notes = config.getNotes();
+    const currentUser = config.getCurrentUser();
+    const customFolders = config.getCustomFolders();
+
+    const index = notes.findIndex(n => n.id === note.id);
+    if (index !== -1) {
+      setNoteFolders(note, getNoteFolders(note, inferDefaultFolder(note, index)));
+    }
+    localStorage.setItem(STORAGE_KEYS.notes, JSON.stringify(notes));
+    localStorage.setItem(STORAGE_KEYS.folders, JSON.stringify(customFolders));
+
+    if (currentUser) {
+      const currentTs = getNoteSyncTimestamp(note);
+      const lastTs = getNoteSyncTimestamp(_lastSyncedCloudNotes.get(note.id));
+      if (currentTs > lastTs) {
+        syncNoteToCloudWithQueue(note);
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.warn('Unable to save single note to localStorage:', error);
+    return false;
+  }
 }
 
 export function saveToLocalStorage() {
@@ -347,6 +380,12 @@ export async function syncNoteToCloudWithQueue(note) {
   const currentUser = config.getCurrentUser();
   if (!currentUser || !note?.id) return;
 
+  // If a sync for this note is already in flight, queue the newest snapshot to coalesce writes
+  if (_inFlightCloudSyncs.has(note.id)) {
+    _queuedCloudSyncs.set(note.id, note);
+    return;
+  }
+
   const lastCloudNote = _lastSyncedCloudNotes.get(note.id);
   let diff;
   if (!lastCloudNote) {
@@ -378,18 +417,30 @@ export async function syncNoteToCloudWithQueue(note) {
     return;
   }
 
-  try {
-    await saveNoteToCloud(currentUser.uid, diff);
-    if (lastCloudNote) {
-      Object.assign(lastCloudNote, JSON.parse(JSON.stringify(diff)));
-    } else {
-      _lastSyncedCloudNotes.set(note.id, JSON.parse(JSON.stringify(note)));
+  const syncPromise = (async () => {
+    try {
+      await saveNoteToCloud(currentUser.uid, diff);
+      if (lastCloudNote) {
+        Object.assign(lastCloudNote, JSON.parse(JSON.stringify(diff)));
+      } else {
+        _lastSyncedCloudNotes.set(note.id, JSON.parse(JSON.stringify(note)));
+      }
+      removePendingSyncOperation(currentUser.uid, note.id, 'upsert');
+    } catch (err) {
+      upsertPendingSyncOperation('upsert', note);
+      console.warn('Failed to sync note to cloud; queued for retry:', err);
+    } finally {
+      _inFlightCloudSyncs.delete(note.id);
+      if (_queuedCloudSyncs.has(note.id)) {
+        const nextNoteState = _queuedCloudSyncs.get(note.id);
+        _queuedCloudSyncs.delete(note.id);
+        syncNoteToCloudWithQueue(nextNoteState);
+      }
     }
-    removePendingSyncOperation(currentUser.uid, note.id, 'upsert');
-  } catch (err) {
-    upsertPendingSyncOperation('upsert', note);
-    console.warn('Failed to sync note to cloud; queued for retry:', err);
-  }
+  })();
+
+  _inFlightCloudSyncs.set(note.id, syncPromise);
+  await syncPromise;
 }
 
 export async function deleteNoteFromCloudWithQueue(noteId, snapshot = null) {

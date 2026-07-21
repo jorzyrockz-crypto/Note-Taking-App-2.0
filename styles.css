@@ -10453,7 +10453,7 @@ body.dark-theme .glass-floating-toolbar {
   cursor: pointer;
   color: #475569;
   font-weight: 700;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 body.dark-theme .glass-floating-toolbar .toolbar-btn {
@@ -10552,9 +10552,19 @@ body.dark-theme .checklist-item:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   background: transparent;
   flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-floating-toolbar,
+  .glass-floating-toolbar .toolbar-btn,
+  .checklist-item input[type="checkbox"],
+  .checklist-item span[contenteditable] {
+    transition: none !important;
+    animation: none !important;
+  }
 }
 
 body.dark-theme .checklist-item input[type="checkbox"] {

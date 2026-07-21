@@ -46,6 +46,7 @@ import {
   initSync,
   debouncedSave,
   saveToLocalStorage,
+  saveSingleNoteToLocalStorage,
   saveNotesLocalOnly,
   initCloudNotesSync,
   processPendingSyncQueue,
@@ -2032,6 +2033,18 @@ document.addEventListener('DOMContentLoaded', () => {
     triggerAutosave
   });
 
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      flushPendingEditorSaves();
+    }
+  });
+  window.addEventListener('beforeunload', () => {
+    flushPendingEditorSaves();
+  });
+  window.addEventListener('pagehide', () => {
+    flushPendingEditorSaves();
+  });
+
   registerServiceWorker();
   updateOnlineStatusUI();
 
@@ -3232,8 +3245,9 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.6.11';
+  const CURRENT_VERSION = '2.6.12';
   const DEFAULT_CHANGELOG = [
+    'Glass Editor Performance (Phases 1–3): Eliminated typing lag by updating notes in-memory on input without workspace re-renders, debounced single-note disk persistence, added immediate save flushes on modal close/switch/pagehide, throttled selectionchange with requestAnimationFrame, and coalesced cloud sync writes',
     'Glass Editor Reliability: Kept voice and attachment chips above the floating toolbar, rendered local attachments immediately, restored the Scheduler overlay, and fixed contextual highlight tools for title and body selections',
     'Bug Fix: Glass reminder popover now successfully triggers from the Add menu; fixed inline mousedown handler preventing click events',
     'Scheduler Overhaul: Fixed glass reminder popover hidden behind modal (z-index), added multi-clip audio recording, browser push notifications, snooze (5m/15m/1h), per-line inline reminder chips, and whole-note+inline reminder co-existence',
@@ -3608,11 +3622,30 @@ function collapseCreator() {
   creatorColorPicker.classList.remove('visible');
 }
 
-function saveCreatorNoteDraft() {
+let modalSaveTimer = null;
+let isModalDirty = false;
+
+let creatorSaveTimer = null;
+let isCreatorDirty = false;
+
+export function flushPendingEditorSaves() {
+  if (modalSaveTimer || isModalDirty) {
+    saveModalNoteDraftImmediate();
+  }
+  if (creatorSaveTimer || isCreatorDirty) {
+    saveCreatorNoteDraftImmediate();
+  }
+}
+
+function saveCreatorNoteDraftImmediate() {
+  clearTimeout(creatorSaveTimer);
+  creatorSaveTimer = null;
   if (!creatorActiveNoteId) return;
 
-  const title = document.getElementById('creator-glass-title').innerText.trim();
-  const text = document.getElementById('creator-glass-editor').innerHTML.trim();
+  const titleEl = document.getElementById('creator-glass-title');
+  const textEl = document.getElementById('creator-glass-editor');
+  const title = titleEl ? titleEl.innerText.trim() : (creatorTitle?.value?.trim() || '');
+  const text = textEl ? textEl.innerHTML.trim() : (creatorText?.value?.trim() || '');
 
   // If empty, and it was previously saved, we should remove it from notes
   if (isNoteEffectivelyEmpty(title, text, creatorImage, creatorAudioClips.length ? creatorAudioClips[0].data : null, creatorFiles)) {
@@ -3623,15 +3656,16 @@ function saveCreatorNoteDraft() {
       renderNotes();
     }
     setAutosaveStatus('saved');
+    isCreatorDirty = false;
     return;
   }
 
   const selectedFolders = decodeFolderSelection(creatorFolderInput?.value || '');
 
-  // Check if note already exists in the array
   let note = notes.find(n => n.id === creatorActiveNoteId);
+  let isNew = false;
   if (!note) {
-    // Create new note
+    isNew = true;
     note = normalizeNoteType(setNoteFolders({
       id: creatorActiveNoteId,
       type: creatorIntentType || getNoteType(text),
@@ -3661,7 +3695,6 @@ function saveCreatorNoteDraft() {
     registerNoteFolders(note);
     notes.unshift(note);
   } else {
-    // Update existing note
     note.title = title;
     note.text = text;
     note.isRichText = true;
@@ -3684,30 +3717,90 @@ function saveCreatorNoteDraft() {
     registerNoteFolders(note);
   }
 
-  saveToLocalStorage();
-  renderNotes();
+  saveSingleNoteToLocalStorage(note);
+  if (isNew) {
+    renderNotes();
+  } else {
+    updateNoteCardUI(note.id);
+  }
 
   setAutosaveStatus('saved');
+  isCreatorDirty = false;
+}
+
+function saveCreatorNoteDraft() {
+  if (!creatorActiveNoteId) return;
+  const titleEl = document.getElementById('creator-glass-title');
+  const textEl = document.getElementById('creator-glass-editor');
+  const title = titleEl ? titleEl.innerText.trim() : (creatorTitle?.value?.trim() || '');
+  const text = textEl ? textEl.innerHTML.trim() : (creatorText?.value?.trim() || '');
+
+  let note = notes.find(n => n.id === creatorActiveNoteId);
+  if (note) {
+    note.title = title;
+    note.text = text;
+    note.updatedAt = Date.now();
+  }
+
+  isCreatorDirty = true;
+  setAutosaveStatus('saving');
+
+  clearTimeout(creatorSaveTimer);
+  creatorSaveTimer = setTimeout(() => {
+    saveCreatorNoteDraftImmediate();
+  }, 800);
+}
+
+function saveModalNoteDraftImmediate() {
+  clearTimeout(modalSaveTimer);
+  modalSaveTimer = null;
+  if (!currentEditingNoteId) return;
+  const note = notes.find(n => n.id === currentEditingNoteId);
+  if (!note) return;
+
+  const glassTitle = document.getElementById('modal-glass-title');
+  const glassEditor = document.getElementById('modal-glass-editor');
+  const title = glassTitle ? glassTitle.innerText.trim() : modalTitle.value.trim();
+  const text = glassEditor ? glassEditor.innerHTML.trim() : modalText.value.trim();
+
+  note.title = title;
+  note.text = text;
+  if (appSettings.modernGlassEditorEnabled) {
+    note.isRichText = true;
+    note.editorMode = 'glass';
+  }
+  note.updatedAt = Date.now();
+  saveSingleNoteToLocalStorage(note);
+  updateNoteCardUI(note.id);
+  setAutosaveStatus('saved');
+  isModalDirty = false;
 }
 
 export function saveModalNoteDraft() {
   if (!currentEditingNoteId) return;
   const note = notes.find(n => n.id === currentEditingNoteId);
-  if (note) {
-    setAutosaveStatus('saving');
-    const title = document.getElementById('modal-glass-title').innerText.trim();
-    const text = document.getElementById('modal-glass-editor').innerHTML.trim();
+  if (!note) return;
 
-    note.title = title;
-    note.text = text;
-    if (appSettings.modernGlassEditorEnabled) {
-      note.isRichText = true;
-      note.editorMode = 'glass';
-    }
-    note.updatedAt = Date.now();
-    debouncedSave();
-    renderNotes();
+  const glassTitle = document.getElementById('modal-glass-title');
+  const glassEditor = document.getElementById('modal-glass-editor');
+  const title = glassTitle ? glassTitle.innerText.trim() : modalTitle.value.trim();
+  const text = glassEditor ? glassEditor.innerHTML.trim() : modalText.value.trim();
+
+  note.title = title;
+  note.text = text;
+  if (appSettings.modernGlassEditorEnabled) {
+    note.isRichText = true;
+    note.editorMode = 'glass';
   }
+  note.updatedAt = Date.now();
+
+  setAutosaveStatus('saving');
+  isModalDirty = true;
+
+  clearTimeout(modalSaveTimer);
+  modalSaveTimer = setTimeout(() => {
+    saveModalNoteDraftImmediate();
+  }, 800);
 }
 
 function renderPopoverCategories() {
@@ -6109,467 +6202,484 @@ function getTaskPreviewSchedule(note, dateKey = '') {
 
 
 
+export function createNoteCardElement(note) {
+  const card = document.createElement('div');
+  const noteKind = getVisualNoteType(note);
+  card.className = 'note-card';
+  applyNoteAppearance(card, note);
+  card.setAttribute('data-note-kind', noteKind);
+  if (note.image || note.videoId) card.setAttribute('data-has-image', 'true');
+  card.setAttribute('data-id', note.id);
+
+  const boardHeader = document.createElement('div');
+  boardHeader.className = 'note-board-header';
+  const boardTitle = document.createElement('span');
+  boardTitle.className = 'note-board-title';
+  boardTitle.textContent = getFolderSummaryLabel(note, getVisualTypeLabel(noteKind));
+  const boardHeaderMeta = document.createElement('div');
+  boardHeaderMeta.className = 'note-board-meta';
+  if (note.pinned) {
+    const pinIndicator = document.createElement('span');
+    pinIndicator.className = 'note-pin-indicator-wrapper';
+    pinIndicator.innerHTML = `<svg viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zM9.8 4h4.4v8H9.8V4z" /></svg>`;
+    boardHeaderMeta.appendChild(pinIndicator);
+  }
+  const boardAccent = document.createElement('span');
+  boardAccent.className = 'note-board-accent';
+  boardAccent.textContent = getVisualTypeLabel(noteKind);
+  boardHeader.appendChild(boardTitle);
+  boardHeader.appendChild(boardHeaderMeta);
+  card.appendChild(boardHeader);
+
+  const surface = document.createElement('div');
+  surface.className = 'note-surface';
+  card.appendChild(surface);
+
+  // 1. Image Banner
+  const bannerImage = note.image || null;
+  if (bannerImage) {
+    const banner = document.createElement('div');
+    banner.className = 'card-image-banner';
+    const bannerImg = document.createElement('img');
+    bannerImg.src = bannerImage;
+    bannerImg.alt = 'Note banner';
+    bannerImg.loading = 'lazy';
+    banner.appendChild(bannerImg);
+    banner.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openImageViewer(bannerImage, cleanTitleTags(note.title || 'Note image'));
+    });
+    surface.appendChild(banner);
+  }
+
+  const cardMenu = document.createElement('div');
+  cardMenu.className = 'note-card-menu';
+
+  const menuToggle = document.createElement('button');
+  menuToggle.className = 'icon-btn note-card-menu-toggle';
+  menuToggle.setAttribute('aria-label', 'More note actions');
+  menuToggle.innerHTML = `
+    <svg viewBox="0 0 24 24">
+      <path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
+    </svg>
+  `;
+  cardMenu.appendChild(menuToggle);
+
+  const menuPanelEl = document.createElement('div');
+  menuPanelEl.className = 'note-card-menu-panel';
+  cardMenu.appendChild(menuPanelEl);
+  boardHeaderMeta.appendChild(boardAccent);
+  boardHeaderMeta.appendChild(cardMenu);
+
+  // 3. Title (if not empty)
+  const titleVal = note.title || '';
+  if (titleVal.trim() !== '') {
+    const titleEl = document.createElement('h4');
+    titleEl.className = 'note-title';
+    titleEl.textContent = cleanTitleTags(titleVal);
+    surface.appendChild(titleEl);
+  }
+
+  const previewBody = document.createElement('div');
+  previewBody.className = 'note-card-preview-body';
+  surface.appendChild(previewBody);
+
+  // 4. Content (Checklist vs Plain Text)
+  note.type = note.recipeData || note.type === 'recipe' ? 'recipe' : getNoteType(note.text || '');
+  const contentEl = renderNoteContent(note, {
+    cleanTextTags,
+    currentEditingNoteId: () => currentEditingNoteId,
+    modalText: () => modalText,
+    renderNotes,
+    renderTextWithLinksFromApp: (text) => renderTextWithLinks(text, URL_REGEX),
+    saveToLocalStorage,
+    syncModalInputs,
+    urlRegex: URL_REGEX,
+    appSettings: () => appSettings
+  });
+  if (contentEl) {
+    previewBody.appendChild(contentEl);
+  }
+
+  // 4.5 Audio Voice Note player rendering
+  if (note.audio) {
+    const audioChip = document.createElement('div');
+    audioChip.className = 'audio-player-chip';
+    audioChip.addEventListener('click', (e) => e.stopPropagation()); // prevent modal open
+
+    const playBtn = document.createElement('button');
+    playBtn.className = 'audio-play-btn';
+    playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
+
+    const visualizer = document.createElement('div');
+    visualizer.className = 'audio-wave-visualizer';
+    for (let w = 0; w < 8; w++) {
+      const bar = document.createElement('div');
+      bar.className = 'audio-wave-bar';
+      visualizer.appendChild(bar);
+    }
+
+    const durationLabel = document.createElement('span');
+    durationLabel.className = 'audio-duration-label';
+    durationLabel.textContent = `0:00 / ${note.audioDuration || '0:05'}`;
+
+    let audioObj = null;
+    let playInterval = null;
+
+    playBtn.addEventListener('click', () => {
+      if (audioObj && !audioObj.paused) {
+        audioObj.pause();
+        playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
+        audioChip.classList.remove('playing');
+        clearInterval(playInterval);
+      } else {
+        if (!audioObj) {
+          audioObj = new Audio(note.audio);
+          audioObj.addEventListener('ended', () => {
+            playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
+            audioChip.classList.remove('playing');
+            durationLabel.textContent = `0:00 / ${note.audioDuration || '0:05'}`;
+            clearInterval(playInterval);
+            audioObj = null;
+          });
+        }
+
+        audioObj.play();
+        playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
+        audioChip.classList.add('playing');
+
+        playInterval = setInterval(() => {
+          if (audioObj) {
+            const curMin = Math.floor(audioObj.currentTime / 60);
+            const curSec = Math.floor(audioObj.currentTime % 60).toString().padStart(2, '0');
+            durationLabel.textContent = `${curMin}:${curSec} / ${note.audioDuration || '0:05'}`;
+          }
+        }, 250);
+      }
+    });
+
+    audioChip.appendChild(playBtn);
+    audioChip.appendChild(visualizer);
+    audioChip.appendChild(durationLabel);
+    const downloadAudioBtn = document.createElement('button');
+    downloadAudioBtn.className = 'media-action-btn';
+    downloadAudioBtn.type = 'button';
+    downloadAudioBtn.textContent = 'Download';
+    downloadAudioBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      downloadDataUrl(note.audio, `${getSafeFileName(note.title || 'voice-note')}.${getDataUrlExtension(note.audio, 'webm')}`);
+    });
+    audioChip.appendChild(downloadAudioBtn);
+    previewBody.appendChild(audioChip);
+  }
+
+  renderNoteFileAttachments(previewBody, note, { compact: true });
+
+  // 5. Dynamic Tag Badges & Reminders rendering inside note cards
+  const tags = extractHashtags(`${note.title} ${note.text}`);
+  if (tags.length > 0 || note.reminder) {
+    const tagList = document.createElement('div');
+    tagList.className = 'note-tags-list';
+
+    // Prepend reminder chip if set
+    if (note.reminder) {
+      const chip = document.createElement('span');
+      chip.className = 'reminder-chip';
+      chip.innerHTML = `
+        <svg class="reminder-chip-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+        <span>${formatReminderDate(note.reminder)}</span>
+        <span class="reminder-chip-delete" title="Delete reminder">✕</span>
+      `;
+      chip.querySelector('.reminder-chip-delete').addEventListener('click', (e) => {
+        e.stopPropagation();
+        note.reminder = null;
+        note.reminderTriggered = false;
+        saveToLocalStorage();
+        renderNotes();
+      });
+      chip.addEventListener('click', (e) => {
+        if (e.target.classList.contains('reminder-chip-delete')) return;
+        e.stopPropagation();
+        openEditModal(note);
+      });
+      tagList.appendChild(chip);
+    }
+
+    tags.forEach(tag => {
+      const badge = document.createElement('span');
+      badge.className = 'tag-badge';
+      badge.textContent = `#${tag}`;
+      badge.addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentPage = 'notes';
+        selectedTagFilter = tag;
+        selectedFolderFilter = null;
+        // Sync sidebar active styling
+        document.querySelectorAll('.sidebar-item').forEach(el => {
+          const lbl = el.querySelector('.sidebar-label');
+          if (lbl && lbl.textContent === `#${tag}`) {
+            el.classList.add('active');
+          } else {
+            el.classList.remove('active');
+          }
+        });
+        renderAppView();
+      });
+      tagList.appendChild(badge);
+    });
+    previewBody.appendChild(tagList);
+  }
+
+  // 5.5 Link Preview Box rendering
+  const firstUrl = getFirstUrlInText(note.text);
+  if (firstUrl) {
+    const previewUrl = normalizeSocialCaptureUrl(note.linkPreview?.canonicalUrl)?.canonicalUrl || firstUrl;
+    const domain = extractDomain(previewUrl);
+    const cleanDomain = domain.replace(/^www\./, '');
+    const mediaKind = getMediaKindFromUrl(previewUrl);
+    const mockMeta = getLinkMetadata(previewUrl, note);
+
+    if (mediaKind) {
+      const mediaBox = document.createElement('div');
+      mediaBox.className = `link-preview-box media-link-preview type-${mediaKind}`;
+      mediaBox.addEventListener('click', (e) => e.stopPropagation());
+      const media = document.createElement(mediaKind);
+      media.className = 'link-media-player';
+      media.src = previewUrl;
+      media.controls = true;
+      media.preload = 'metadata';
+      if (mediaKind === 'video') media.playsInline = true;
+      mediaBox.innerHTML = `
+        <div class="link-preview-info">
+          <div class="link-preview-title">${mediaKind === 'video' ? 'Video link' : 'Audio link'}</div>
+          <a class="link-preview-url" href="${escapeHtml(previewUrl)}" target="_blank" rel="noopener noreferrer">Open source</a>
+        </div>
+      `;
+      mediaBox.prepend(media);
+      previewBody.appendChild(mediaBox);
+    } else {
+      const previewBox = document.createElement('a');
+      previewBox.href = previewUrl;
+      previewBox.target = '_blank';
+      previewBox.rel = 'noopener noreferrer';
+      if (note.linkPreview?.platform) previewBox.dataset.platform = note.linkPreview.platform;
+      previewBox.className = 'link-preview-box';
+      previewBox.addEventListener('click', (e) => e.stopPropagation());
+
+      if (mockMeta) {
+      previewBox.className = 'link-preview-box rich';
+      const cover = document.createElement('img');
+      cover.className = 'link-preview-cover';
+      cover.src = mockMeta.image;
+      cover.alt = `${mockMeta.title} preview`;
+      cover.loading = 'lazy';
+      cover.addEventListener('error', () => {
+        cover.src = createPreviewFallbackImage(cleanDomain, mockMeta.title);
+      }, { once: true });
+
+      const richContent = document.createElement('div');
+      richContent.className = 'link-preview-rich-content';
+      richContent.innerHTML = `
+        <div class="link-preview-domain">${escapeHtml(cleanDomain)}</div>
+        <div class="link-preview-rich-title">${escapeHtml(mockMeta.title)}</div>
+        <div class="link-preview-rich-desc">${escapeHtml(mockMeta.description)}</div>
+        <div class="link-preview-badge">
+          <svg viewBox="0 0 24 24" style="width: 10px; height: 10px; margin-right: 2px;"><path fill="currentColor" d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+          ${escapeHtml(mockMeta.badge)}
+        </div>
+        <span class="link-preview-open-action">${escapeHtml(mockMeta.actionLabel || 'Open original post')}</span>
+      `;
+      previewBox.appendChild(cover);
+      previewBox.appendChild(richContent);
+      } else {
+      previewBox.className = 'link-preview-box';
+      previewBox.innerHTML = `
+        <svg class="link-preview-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+        <div class="link-preview-info">
+          <div class="link-preview-title">${escapeHtml(domain || 'Visit Link')}</div>
+          <div class="link-preview-url">${escapeHtml(previewUrl)}</div>
+        </div>
+      `;
+      }
+      previewBody.appendChild(previewBox);
+    }
+  }
+
+  // 6. Overflow Actions Menu
+  const colorBtn = document.createElement('button');
+  colorBtn.className = 'note-card-menu-action';
+  colorBtn.setAttribute('aria-label', 'Change note theme');
+  colorBtn.innerHTML = `
+    <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01l-.23-.25a.3.3 0 0 1-.03-.17c0-.09.06-.15.15-.15H15a6 6 0 0 0 6-6c0-4.97-4.03-9-9-9zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm4.5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>
+    <span>Theme</span>
+  `;
+  colorBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openThemePickerV2({ type: 'note', note });
+  });
+  menuPanelEl.appendChild(colorBtn);
+
+  if (getFirstUrlFromSharedText(note.title || '', note.text || '', note.recipeSourceUrl || '')) {
+    const parseLinkBtn = document.createElement('button');
+    parseLinkBtn.className = 'note-card-menu-action';
+    parseLinkBtn.setAttribute('aria-label', 'Parse link metadata');
+    parseLinkBtn.innerHTML = `
+      <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+      <span>Parse Link</span>
+    `;
+    parseLinkBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      parseExistingNoteLink(note);
+    });
+    menuPanelEl.appendChild(parseLinkBtn);
+  }
+
+  if (note.recipeData) {
+    const recipeBuilderBtn = document.createElement('button');
+    recipeBuilderBtn.className = 'note-card-menu-action';
+    recipeBuilderBtn.setAttribute('aria-label', 'Open recipe builder');
+    recipeBuilderBtn.innerHTML = `
+      <svg viewBox="0 0 24 24"><path d="M7 2h2v8a2 2 0 1 1-2 0V2Zm8 0h2v7h1v2h-1v11h-2V11h-1V9h1V2Zm-5 12h4v2h-4v6H8v-6H4v-2h4v-2h2v2Z"/></svg>
+      <span>Recipe Builder</span>
+    `;
+    recipeBuilderBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeAllNoteCardMenus();
+      openRecipeModal(note);
+    });
+    menuPanelEl.appendChild(recipeBuilderBtn);
+  }
+
+  if (!note.deleted) {
+    const shareBtn = document.createElement('button');
+    shareBtn.className = 'note-card-menu-action';
+    shareBtn.setAttribute('aria-label', 'Share note');
+    shareBtn.innerHTML = `
+      <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7a3.2 3.2 0 0 0 0-1.39l7.05-4.11A3 3 0 1 0 15 5c0 .22.02.43.07.64L8.02 9.75a3 3 0 1 0 0 4.5l7.12 4.17c-.04.18-.06.37-.06.58a2.92 2.92 0 1 0 2.92-2.92Z"/></svg>
+      <span>Share</span>
+    `;
+    shareBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeAllNoteCardMenus();
+      openShareSheet(note);
+    });
+    menuPanelEl.appendChild(shareBtn);
+
+    const pinBtn = document.createElement('button');
+    pinBtn.className = 'note-card-menu-action';
+    pinBtn.setAttribute('aria-label', note.pinned ? 'Unpin note' : 'Pin note');
+    pinBtn.innerHTML = `
+      <svg viewBox="0 0 24 24">
+        <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zM9.8 4h4.4v8H9.8V4z" />
+      </svg>
+      <span>${note.pinned ? 'Unpin' : 'Pin'}</span>
+    `;
+    pinBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      note.pinned = !note.pinned;
+      saveToLocalStorage();
+      closeAllNoteCardMenus();
+      renderNotes();
+    });
+    menuPanelEl.appendChild(pinBtn);
+  }
+
+  const archiveBtn = document.createElement('button');
+  archiveBtn.className = 'note-card-menu-action';
+  if (note.deleted) {
+    archiveBtn.setAttribute('aria-label', 'Restore note');
+    archiveBtn.innerHTML = `
+      <svg viewBox="0 0 24 24"><path d="M12 5V2L7 7l5 5V9c3.31 0 6 2.69 6 6a6 6 0 0 1-6 6 6 6 0 0 1-5.65-4H4.26A8 8 0 0 0 12 23a8 8 0 0 0 0-16Z"/></svg>
+      <span>Restore</span>
+    `;
+    archiveBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      restoreDeletedNote(note.id);
+    });
+  } else if (note.archived) {
+    archiveBtn.setAttribute('aria-label', 'Restore from archive');
+    archiveBtn.innerHTML = `
+      <svg viewBox="0 0 24 24"><path d="M12 5V2L7 7l5 5V9c3.31 0 6 2.69 6 6a6 6 0 0 1-6 6 6 6 0 0 1-5.65-4H4.26A8 8 0 0 0 12 23a8 8 0 0 0 0-16Z"/></svg>
+      <span>Restore</span>
+    `;
+    archiveBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      restoreArchivedNote(note.id);
+    });
+  } else {
+    archiveBtn.setAttribute('aria-label', 'Archive note');
+    archiveBtn.innerHTML = `
+      <svg viewBox="0 0 24 24"><path d="M20.54 5.23 19.15 3.55A2 2 0 0 0 17.61 3H6.39a2 2 0 0 0-1.54.55L3.46 5.23A2 2 0 0 0 3 6.5V19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.5a2 2 0 0 0-.46-1.27ZM6.24 5h11.52l.81 1H5.43l.81-1ZM12 17l-4-4h2.5v-3h3v3H16l-4 4Z"/></svg>
+      <span>Archive</span>
+    `;
+    archiveBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      archiveNote(note.id);
+    });
+  }
+  menuPanelEl.appendChild(archiveBtn);
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'note-card-menu-action danger';
+  deleteBtn.setAttribute('aria-label', note.deleted ? 'Delete forever' : 'Move note to delete page');
+  deleteBtn.innerHTML = `
+    <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+    <span>${note.deleted ? 'Delete Forever' : 'Move to Trash'}</span>
+  `;
+  deleteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (note.deleted) {
+      deleteNotePermanently(note.id);
+    } else {
+      trashNote(note.id);
+    }
+  });
+  menuPanelEl.appendChild(deleteBtn);
+
+  menuToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = cardMenu.classList.contains('open');
+    closeAllNoteCardMenus();
+    if (!isOpen) {
+      cardMenu.classList.add('open');
+    }
+  });
+
+  const stamp = document.createElement('div');
+  stamp.className = 'note-stamp';
+  stamp.textContent = formatCardTimestamp(note.updatedAt);
+  surface.appendChild(stamp);
+
+  // Open Edit Modal on Click
+  card.addEventListener('click', (e) => {
+    if (!e.target.closest('.icon-btn') && !e.target.closest('.note-card-menu-action') && !e.target.closest('.color-picker-bubble') && !e.target.closest('.checklist-checkbox')) {
+      openEditModal(note);
+    }
+  });
+
+  return card;
+}
+
+export function updateNoteCardUI(noteId) {
+  if (!noteId) return;
+  const existingCard = document.querySelector(`.note-card[data-id="${noteId}"]`);
+  if (!existingCard) {
+    renderNotes();
+    return;
+  }
+  const note = notes.find(n => n.id === noteId);
+  if (!note) return;
+  const newCard = createNoteCardElement(note);
+  existingCard.parentNode.replaceChild(newCard, existingCard);
+}
+
 export function renderGrid(gridContainer, notesArray) {
   gridContainer.innerHTML = '';
 
   const validNotes = (notesArray || []).filter(note => note !== null && typeof note === 'object' && note.id);
 
   validNotes.forEach(note => {
-    const card = document.createElement('div');
-    const noteKind = getVisualNoteType(note);
-    card.className = 'note-card';
-    applyNoteAppearance(card, note);
-    card.setAttribute('data-note-kind', noteKind);
-    if (note.image || note.videoId) card.setAttribute('data-has-image', 'true');
-    card.setAttribute('data-id', note.id);
-
-    const boardHeader = document.createElement('div');
-    boardHeader.className = 'note-board-header';
-    const boardTitle = document.createElement('span');
-    boardTitle.className = 'note-board-title';
-    boardTitle.textContent = getFolderSummaryLabel(note, getVisualTypeLabel(noteKind));
-    const boardHeaderMeta = document.createElement('div');
-    boardHeaderMeta.className = 'note-board-meta';
-    if (note.pinned) {
-      const pinIndicator = document.createElement('span');
-      pinIndicator.className = 'note-pin-indicator-wrapper';
-      pinIndicator.innerHTML = `<svg viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zM9.8 4h4.4v8H9.8V4z" /></svg>`;
-      boardHeaderMeta.appendChild(pinIndicator);
-    }
-    const boardAccent = document.createElement('span');
-    boardAccent.className = 'note-board-accent';
-    boardAccent.textContent = getVisualTypeLabel(noteKind);
-    boardHeader.appendChild(boardTitle);
-    boardHeader.appendChild(boardHeaderMeta);
-    card.appendChild(boardHeader);
-
-    const surface = document.createElement('div');
-    surface.className = 'note-surface';
-    card.appendChild(surface);
-
-    // 1. Image Banner
-    const bannerImage = note.image || null;
-    if (bannerImage) {
-      const banner = document.createElement('div');
-      banner.className = 'card-image-banner';
-      const bannerImg = document.createElement('img');
-      bannerImg.src = bannerImage;
-      bannerImg.alt = 'Note banner';
-      bannerImg.loading = 'lazy';
-      banner.appendChild(bannerImg);
-      banner.addEventListener('click', (e) => {
-        e.stopPropagation();
-        openImageViewer(bannerImage, cleanTitleTags(note.title || 'Note image'));
-      });
-      surface.appendChild(banner);
-    }
-
-    const cardMenu = document.createElement('div');
-    cardMenu.className = 'note-card-menu';
-
-    const menuToggle = document.createElement('button');
-    menuToggle.className = 'icon-btn note-card-menu-toggle';
-    menuToggle.setAttribute('aria-label', 'More note actions');
-    menuToggle.innerHTML = `
-      <svg viewBox="0 0 24 24">
-        <path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
-      </svg>
-    `;
-    cardMenu.appendChild(menuToggle);
-
-    const menuPanelEl = document.createElement('div');
-    menuPanelEl.className = 'note-card-menu-panel';
-    cardMenu.appendChild(menuPanelEl);
-    boardHeaderMeta.appendChild(boardAccent);
-    boardHeaderMeta.appendChild(cardMenu);
-
-    // 3. Title (if not empty)
-    const titleVal = note.title || '';
-    if (titleVal.trim() !== '') {
-      const titleEl = document.createElement('h4');
-      titleEl.className = 'note-title';
-      titleEl.textContent = cleanTitleTags(titleVal);
-      surface.appendChild(titleEl);
-    }
-
-    const previewBody = document.createElement('div');
-    previewBody.className = 'note-card-preview-body';
-    surface.appendChild(previewBody);
-
-    // 4. Content (Checklist vs Plain Text)
-    note.type = note.recipeData || note.type === 'recipe' ? 'recipe' : getNoteType(note.text || '');
-    const contentEl = renderNoteContent(note, {
-      cleanTextTags,
-      currentEditingNoteId: () => currentEditingNoteId,
-      modalText: () => modalText,
-      renderNotes,
-      renderTextWithLinksFromApp: (text) => renderTextWithLinks(text, URL_REGEX),
-      saveToLocalStorage,
-      syncModalInputs,
-      urlRegex: URL_REGEX,
-      appSettings: () => appSettings
-    });
-    if (contentEl) {
-      previewBody.appendChild(contentEl);
-    }
-
-    // 4.5 Audio Voice Note player rendering
-    if (note.audio) {
-      const audioChip = document.createElement('div');
-      audioChip.className = 'audio-player-chip';
-      audioChip.addEventListener('click', (e) => e.stopPropagation()); // prevent modal open
-
-      const playBtn = document.createElement('button');
-      playBtn.className = 'audio-play-btn';
-      playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
-
-      const visualizer = document.createElement('div');
-      visualizer.className = 'audio-wave-visualizer';
-      for (let w = 0; w < 8; w++) {
-        const bar = document.createElement('div');
-        bar.className = 'audio-wave-bar';
-        visualizer.appendChild(bar);
-      }
-
-      const durationLabel = document.createElement('span');
-      durationLabel.className = 'audio-duration-label';
-      durationLabel.textContent = `0:00 / ${note.audioDuration || '0:05'}`;
-
-      let audioObj = null;
-      let playInterval = null;
-
-      playBtn.addEventListener('click', () => {
-        if (audioObj && !audioObj.paused) {
-          audioObj.pause();
-          playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
-          audioChip.classList.remove('playing');
-          clearInterval(playInterval);
-        } else {
-          if (!audioObj) {
-            audioObj = new Audio(note.audio);
-            audioObj.addEventListener('ended', () => {
-              playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
-              audioChip.classList.remove('playing');
-              durationLabel.textContent = `0:00 / ${note.audioDuration || '0:05'}`;
-              clearInterval(playInterval);
-              audioObj = null;
-            });
-          }
-
-          audioObj.play();
-          playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
-          audioChip.classList.add('playing');
-
-          playInterval = setInterval(() => {
-            if (audioObj) {
-              const curMin = Math.floor(audioObj.currentTime / 60);
-              const curSec = Math.floor(audioObj.currentTime % 60).toString().padStart(2, '0');
-              durationLabel.textContent = `${curMin}:${curSec} / ${note.audioDuration || '0:05'}`;
-            }
-          }, 250);
-        }
-      });
-
-      audioChip.appendChild(playBtn);
-      audioChip.appendChild(visualizer);
-      audioChip.appendChild(durationLabel);
-      const downloadAudioBtn = document.createElement('button');
-      downloadAudioBtn.className = 'media-action-btn';
-      downloadAudioBtn.type = 'button';
-      downloadAudioBtn.textContent = 'Download';
-      downloadAudioBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        downloadDataUrl(note.audio, `${getSafeFileName(note.title || 'voice-note')}.${getDataUrlExtension(note.audio, 'webm')}`);
-      });
-      audioChip.appendChild(downloadAudioBtn);
-      previewBody.appendChild(audioChip);
-    }
-
-    renderNoteFileAttachments(previewBody, note, { compact: true });
-
-    // 5. Dynamic Tag Badges & Reminders rendering inside note cards
-    const tags = extractHashtags(`${note.title} ${note.text}`);
-    if (tags.length > 0 || note.reminder) {
-      const tagList = document.createElement('div');
-      tagList.className = 'note-tags-list';
-
-      // Prepend reminder chip if set
-      if (note.reminder) {
-        const chip = document.createElement('span');
-        chip.className = 'reminder-chip';
-        chip.innerHTML = `
-          <svg class="reminder-chip-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
-          <span>${formatReminderDate(note.reminder)}</span>
-          <span class="reminder-chip-delete" title="Delete reminder">✕</span>
-        `;
-        chip.querySelector('.reminder-chip-delete').addEventListener('click', (e) => {
-          e.stopPropagation();
-          note.reminder = null;
-          note.reminderTriggered = false;
-          saveToLocalStorage();
-          renderNotes();
-        });
-        chip.addEventListener('click', (e) => {
-          if (e.target.classList.contains('reminder-chip-delete')) return;
-          e.stopPropagation();
-          openEditModal(note);
-        });
-        tagList.appendChild(chip);
-      }
-
-      tags.forEach(tag => {
-        const badge = document.createElement('span');
-        badge.className = 'tag-badge';
-        badge.textContent = `#${tag}`;
-        badge.addEventListener('click', (e) => {
-          e.stopPropagation();
-          currentPage = 'notes';
-          selectedTagFilter = tag;
-          selectedFolderFilter = null;
-          // Sync sidebar active styling
-          document.querySelectorAll('.sidebar-item').forEach(el => {
-            const lbl = el.querySelector('.sidebar-label');
-            if (lbl && lbl.textContent === `#${tag}`) {
-              el.classList.add('active');
-            } else {
-              el.classList.remove('active');
-            }
-          });
-          renderAppView();
-        });
-        tagList.appendChild(badge);
-      });
-      previewBody.appendChild(tagList);
-    }
-
-    // 5.5 Link Preview Box rendering
-    const firstUrl = getFirstUrlInText(note.text);
-    if (firstUrl) {
-      const previewUrl = normalizeSocialCaptureUrl(note.linkPreview?.canonicalUrl)?.canonicalUrl || firstUrl;
-      const domain = extractDomain(previewUrl);
-      const cleanDomain = domain.replace(/^www\./, '');
-      const mediaKind = getMediaKindFromUrl(previewUrl);
-      const mockMeta = getLinkMetadata(previewUrl, note);
-
-      if (mediaKind) {
-        const mediaBox = document.createElement('div');
-        mediaBox.className = `link-preview-box media-link-preview type-${mediaKind}`;
-        mediaBox.addEventListener('click', (e) => e.stopPropagation());
-        const media = document.createElement(mediaKind);
-        media.className = 'link-media-player';
-        media.src = previewUrl;
-        media.controls = true;
-        media.preload = 'metadata';
-        if (mediaKind === 'video') media.playsInline = true;
-        mediaBox.innerHTML = `
-          <div class="link-preview-info">
-            <div class="link-preview-title">${mediaKind === 'video' ? 'Video link' : 'Audio link'}</div>
-            <a class="link-preview-url" href="${escapeHtml(previewUrl)}" target="_blank" rel="noopener noreferrer">Open source</a>
-          </div>
-        `;
-        mediaBox.prepend(media);
-        previewBody.appendChild(mediaBox);
-      } else {
-        const previewBox = document.createElement('a');
-        previewBox.href = previewUrl;
-        previewBox.target = '_blank';
-        previewBox.rel = 'noopener noreferrer';
-        if (note.linkPreview?.platform) previewBox.dataset.platform = note.linkPreview.platform;
-        previewBox.className = 'link-preview-box';
-        previewBox.addEventListener('click', (e) => e.stopPropagation());
-
-        if (mockMeta) {
-        previewBox.className = 'link-preview-box rich';
-        const cover = document.createElement('img');
-        cover.className = 'link-preview-cover';
-        cover.src = mockMeta.image;
-        cover.alt = `${mockMeta.title} preview`;
-        cover.loading = 'lazy';
-        cover.addEventListener('error', () => {
-          cover.src = createPreviewFallbackImage(cleanDomain, mockMeta.title);
-        }, { once: true });
-
-        const richContent = document.createElement('div');
-        richContent.className = 'link-preview-rich-content';
-        richContent.innerHTML = `
-          <div class="link-preview-domain">${escapeHtml(cleanDomain)}</div>
-          <div class="link-preview-rich-title">${escapeHtml(mockMeta.title)}</div>
-          <div class="link-preview-rich-desc">${escapeHtml(mockMeta.description)}</div>
-          <div class="link-preview-badge">
-            <svg viewBox="0 0 24 24" style="width: 10px; height: 10px; margin-right: 2px;"><path fill="currentColor" d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
-            ${escapeHtml(mockMeta.badge)}
-          </div>
-          <span class="link-preview-open-action">${escapeHtml(mockMeta.actionLabel || 'Open original post')}</span>
-        `;
-        previewBox.appendChild(cover);
-        previewBox.appendChild(richContent);
-        } else {
-        previewBox.className = 'link-preview-box';
-        previewBox.innerHTML = `
-          <svg class="link-preview-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
-          <div class="link-preview-info">
-            <div class="link-preview-title">${escapeHtml(domain || 'Visit Link')}</div>
-            <div class="link-preview-url">${escapeHtml(previewUrl)}</div>
-          </div>
-        `;
-        }
-        previewBody.appendChild(previewBox);
-      }
-    }
-
-    // 6. Overflow Actions Menu
-    const colorBtn = document.createElement('button');
-    colorBtn.className = 'note-card-menu-action';
-    colorBtn.setAttribute('aria-label', 'Change note theme');
-    colorBtn.innerHTML = `
-      <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01l-.23-.25a.3.3 0 0 1-.03-.17c0-.09.06-.15.15-.15H15a6 6 0 0 0 6-6c0-4.97-4.03-9-9-9zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm4.5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>
-      <span>Theme</span>
-    `;
-    colorBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openThemePickerV2({ type: 'note', note });
-    });
-    menuPanelEl.appendChild(colorBtn);
-
-    if (getFirstUrlFromSharedText(note.title || '', note.text || '', note.recipeSourceUrl || '')) {
-      const parseLinkBtn = document.createElement('button');
-      parseLinkBtn.className = 'note-card-menu-action';
-      parseLinkBtn.setAttribute('aria-label', 'Parse link metadata');
-      parseLinkBtn.innerHTML = `
-        <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
-        <span>Parse Link</span>
-      `;
-      parseLinkBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        parseExistingNoteLink(note);
-      });
-      menuPanelEl.appendChild(parseLinkBtn);
-    }
-
-    if (note.recipeData) {
-      const recipeBuilderBtn = document.createElement('button');
-      recipeBuilderBtn.className = 'note-card-menu-action';
-      recipeBuilderBtn.setAttribute('aria-label', 'Open recipe builder');
-      recipeBuilderBtn.innerHTML = `
-        <svg viewBox="0 0 24 24"><path d="M7 2h2v8a2 2 0 1 1-2 0V2Zm8 0h2v7h1v2h-1v11h-2V11h-1V9h1V2Zm-5 12h4v2h-4v6H8v-6H4v-2h4v-2h2v2Z"/></svg>
-        <span>Recipe Builder</span>
-      `;
-      recipeBuilderBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeAllNoteCardMenus();
-        openRecipeModal(note);
-      });
-      menuPanelEl.appendChild(recipeBuilderBtn);
-    }
-
-    if (!note.deleted) {
-      const shareBtn = document.createElement('button');
-      shareBtn.className = 'note-card-menu-action';
-      shareBtn.setAttribute('aria-label', 'Share note');
-      shareBtn.innerHTML = `
-        <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7a3.2 3.2 0 0 0 0-1.39l7.05-4.11A3 3 0 1 0 15 5c0 .22.02.43.07.64L8.02 9.75a3 3 0 1 0 0 4.5l7.12 4.17c-.04.18-.06.37-.06.58a2.92 2.92 0 1 0 2.92-2.92Z"/></svg>
-        <span>Share</span>
-      `;
-      shareBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeAllNoteCardMenus();
-        openShareSheet(note);
-      });
-      menuPanelEl.appendChild(shareBtn);
-
-      const pinBtn = document.createElement('button');
-      pinBtn.className = 'note-card-menu-action';
-      pinBtn.setAttribute('aria-label', note.pinned ? 'Unpin note' : 'Pin note');
-      pinBtn.innerHTML = `
-        <svg viewBox="0 0 24 24">
-          <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zM9.8 4h4.4v8H9.8V4z" />
-        </svg>
-        <span>${note.pinned ? 'Unpin' : 'Pin'}</span>
-      `;
-      pinBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        note.pinned = !note.pinned;
-        saveToLocalStorage();
-        closeAllNoteCardMenus();
-        renderNotes();
-      });
-      menuPanelEl.appendChild(pinBtn);
-    }
-
-    const archiveBtn = document.createElement('button');
-    archiveBtn.className = 'note-card-menu-action';
-    if (note.deleted) {
-      archiveBtn.setAttribute('aria-label', 'Restore note');
-      archiveBtn.innerHTML = `
-        <svg viewBox="0 0 24 24"><path d="M12 5V2L7 7l5 5V9c3.31 0 6 2.69 6 6a6 6 0 0 1-6 6 6 6 0 0 1-5.65-4H4.26A8 8 0 0 0 12 23a8 8 0 0 0 0-16Z"/></svg>
-        <span>Restore</span>
-      `;
-      archiveBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        restoreDeletedNote(note.id);
-      });
-    } else if (note.archived) {
-      archiveBtn.setAttribute('aria-label', 'Restore from archive');
-      archiveBtn.innerHTML = `
-        <svg viewBox="0 0 24 24"><path d="M12 5V2L7 7l5 5V9c3.31 0 6 2.69 6 6a6 6 0 0 1-6 6 6 6 0 0 1-5.65-4H4.26A8 8 0 0 0 12 23a8 8 0 0 0 0-16Z"/></svg>
-        <span>Restore</span>
-      `;
-      archiveBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        restoreArchivedNote(note.id);
-      });
-    } else {
-      archiveBtn.setAttribute('aria-label', 'Archive note');
-      archiveBtn.innerHTML = `
-        <svg viewBox="0 0 24 24"><path d="M20.54 5.23 19.15 3.55A2 2 0 0 0 17.61 3H6.39a2 2 0 0 0-1.54.55L3.46 5.23A2 2 0 0 0 3 6.5V19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.5a2 2 0 0 0-.46-1.27ZM6.24 5h11.52l.81 1H5.43l.81-1ZM12 17l-4-4h2.5v-3h3v3H16l-4 4Z"/></svg>
-        <span>Archive</span>
-      `;
-      archiveBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        archiveNote(note.id);
-      });
-    }
-    menuPanelEl.appendChild(archiveBtn);
-
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'note-card-menu-action danger';
-    deleteBtn.setAttribute('aria-label', note.deleted ? 'Delete forever' : 'Move note to delete page');
-    deleteBtn.innerHTML = `
-      <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-      <span>${note.deleted ? 'Delete Forever' : 'Move to Trash'}</span>
-    `;
-    deleteBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (note.deleted) {
-        deleteNotePermanently(note.id);
-      } else {
-        trashNote(note.id);
-      }
-    });
-    menuPanelEl.appendChild(deleteBtn);
-
-    menuToggle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const isOpen = cardMenu.classList.contains('open');
-      closeAllNoteCardMenus();
-      if (!isOpen) {
-        cardMenu.classList.add('open');
-      }
-    });
-
-    const stamp = document.createElement('div');
-    stamp.className = 'note-stamp';
-    stamp.textContent = formatCardTimestamp(note.updatedAt);
-    surface.appendChild(stamp);
-
-    // Open Edit Modal on Click
-    card.addEventListener('click', (e) => {
-      if (!e.target.closest('.icon-btn') && !e.target.closest('.note-card-menu-action') && !e.target.closest('.color-picker-bubble') && !e.target.closest('.checklist-checkbox')) {
-        openEditModal(note);
-      }
-    });
-
-    gridContainer.appendChild(card);
+    gridContainer.appendChild(createNoteCardElement(note));
   });
 }
 
@@ -6690,6 +6800,9 @@ function extractHashtags(combinedText) {
 // ==========================================================================
 
 function openEditModal(note, autoFocus = false) {
+  if (currentEditingNoteId && currentEditingNoteId !== note.id) {
+    flushPendingEditorSaves();
+  }
   currentEditingNoteId = note.id;
 
   const modalAdvancedHeader = document.getElementById('modal-advanced-header');
@@ -7028,6 +7141,7 @@ function renderCreatorPopoverTags() {
 }
 
 function duplicateNote(noteId) {
+  flushPendingEditorSaves();
   const note = notes.find(n => n.id === noteId);
   if (!note) return;
   const newNote = JSON.parse(JSON.stringify(note));
@@ -7042,6 +7156,7 @@ function duplicateNote(noteId) {
 }
 
 function closeEditModal() {
+  flushPendingEditorSaves();
   if (currentEditingNoteId) {
     const note = notes.find(n => n.id === currentEditingNoteId);
     if (note) {
