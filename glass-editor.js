@@ -4,6 +4,9 @@ let triggerAutosaveFn = () => {};
 
 let savedGlassRange = null;
 let savedGlassElement = null;
+let selectedGlassObject = null;
+let selectedGlassMode = null;
+let pendingGlassImageAction = null;
 
 export function saveGlassSelection() {
   const sel = window.getSelection();
@@ -37,16 +40,24 @@ export function restoreGlassSelection() {
 }
 
 function saveGlassEditorChanges(mode = null) {
-  if (mode === 'modal') {
-    saveModalNoteDraftFn();
-  } else if (mode === 'creator') {
-    triggerAutosaveFn();
-  } else {
-    if (savedGlassElement && (savedGlassElement.closest('#modal-glass-editor') !== null || savedGlassElement.id === 'modal-glass-editor')) {
+  const temporarySelectionClasses = [...document.querySelectorAll('.glass-selected-object')];
+  temporarySelectionClasses.forEach(element => element.classList.remove('glass-selected-object'));
+  try {
+    if (mode === 'modal') {
       saveModalNoteDraftFn();
-    } else {
+    } else if (mode === 'creator') {
       triggerAutosaveFn();
+    } else {
+      if (savedGlassElement && (savedGlassElement.closest('#modal-glass-editor') !== null || savedGlassElement.id === 'modal-glass-editor')) {
+        saveModalNoteDraftFn();
+      } else {
+        triggerAutosaveFn();
+      }
     }
+  } finally {
+    temporarySelectionClasses.forEach(element => {
+      if (element.isConnected) element.classList.add('glass-selected-object');
+    });
   }
 }
 
@@ -657,13 +668,20 @@ window.handleGlassImage = function(input, mode) {
     const img = new Image();
     img.onload = () => {
       const result = compressGlassImage(img, file);
-      restoreGlassSelection();
-      document.execCommand('insertImage', false, result.dataUrl);
+      const replacement = pendingGlassImageAction?.mode === mode ? pendingGlassImageAction.element : null;
+      if (replacement?.isConnected) {
+        replacement.src = result.dataUrl;
+        replacement.classList.add('glass-selected-object');
+      } else {
+        restoreGlassSelection();
+        document.execCommand('insertImage', false, result.dataUrl);
+      }
+      pendingGlassImageAction = null;
       saveGlassSelection();
-      triggerAutosaveFn();
+      saveGlassEditorChanges(mode);
       const finalKb = Math.round(estimateGlassBase64Bytes(result.dataUrl) / 1024);
       showToastFn({
-        title: 'Image Added',
+        title: replacement ? 'Image Replaced' : 'Image Added',
         text: `Image optimized to ~${finalKb}KB (${result.width}px wide)`
       });
     };
@@ -747,6 +765,218 @@ window.execGlassFontSize = function(mode) {
   saveGlassEditorChanges(mode);
 };
 
+function closeGlassToolbarPopovers(except = null) {
+  document.querySelectorAll('.glass-toolbar-popover.is-open').forEach(popover => {
+    if (popover === except) return;
+    popover.classList.remove('is-open');
+    const toolbar = popover.closest('.glass-floating-toolbar');
+    toolbar?.querySelectorAll('.toolbar-add-btn, .toolbar-more-btn').forEach(button => {
+      button.setAttribute('aria-expanded', 'false');
+    });
+  });
+}
+
+window.toggleGlassToolbarPopover = function(mode, type, button) {
+  saveGlassSelection();
+  const popover = document.getElementById(`${mode}-glass-${type}-menu`);
+  if (!popover) return;
+  const willOpen = !popover.classList.contains('is-open');
+  closeGlassToolbarPopovers(willOpen ? popover : null);
+  popover.classList.toggle('is-open', willOpen);
+  button?.setAttribute('aria-expanded', String(willOpen));
+};
+
+function invokeGlassAddAction(mode, action) {
+  closeGlassToolbarPopovers();
+  const targetIds = {
+    image: `${mode}-glass-img-upload`,
+    camera: `${mode}-glass-camera-upload`,
+    voice: `${mode}-voice-btn`,
+    attachment: `${mode}-file-input`
+  };
+  if (action === 'scheduler') {
+    const moreButton = document.getElementById(`${mode}-more-btn`);
+    moreButton?.click();
+    window.setTimeout(() => document.getElementById(`${mode}-reminder-compact-card`)?.click(), 0);
+    return;
+  }
+  document.getElementById(targetIds[action])?.click();
+}
+
+function invokeGlassMoreAction(mode, action) {
+  closeGlassToolbarPopovers();
+  const commands = {
+    underline: 'underline',
+    bullet: 'insertUnorderedList',
+    number: 'insertOrderedList',
+    strike: 'strikeThrough',
+    clear: 'removeFormat'
+  };
+  if (commands[action]) window.execGlassCmd(commands[action]);
+  else if (action === 'heading') window.execGlassHeading(mode);
+  else if (action === 'size') window.execGlassFontSize(mode);
+  else if (action === 'color') window.toggleGlassColorPopup(mode);
+}
+
+function clearGlassObjectSelection() {
+  document.querySelectorAll('.glass-selected-object').forEach(element => element.classList.remove('glass-selected-object'));
+  selectedGlassObject = null;
+  selectedGlassMode = null;
+}
+
+function hideGlassContextToolbar(clearObject = true) {
+  document.querySelectorAll('.glass-context-toolbar.is-visible').forEach(toolbar => {
+    toolbar.classList.remove('is-visible');
+    toolbar.setAttribute('aria-hidden', 'true');
+  });
+  if (clearObject) clearGlassObjectSelection();
+}
+
+function positionGlassContextToolbar(toolbar, rect) {
+  if (!toolbar || !rect) return;
+  toolbar.style.visibility = 'hidden';
+  toolbar.classList.add('is-visible');
+  const width = toolbar.offsetWidth;
+  const height = toolbar.offsetHeight;
+  const margin = 10;
+  const bottomGuard = 78;
+  const left = Math.min(Math.max(rect.left + rect.width / 2 - width / 2, margin), window.innerWidth - width - margin);
+  let top = rect.top - height - 10;
+  if (top < margin) top = Math.min(rect.bottom + 10, window.innerHeight - height - bottomGuard);
+  top = Math.max(margin, Math.min(top, window.innerHeight - height - bottomGuard));
+  toolbar.style.left = `${left}px`;
+  toolbar.style.top = `${top}px`;
+  toolbar.style.visibility = '';
+}
+
+function setGlassSelectionToElement(element) {
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+  saveGlassSelection();
+}
+
+function createGlassContextButton(label, action, danger = false) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = label;
+  button.className = danger ? 'danger' : '';
+  button.addEventListener('mousedown', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    action();
+  });
+  return button;
+}
+
+function showGlassContextToolbar(mode, type, target, rect) {
+  const toolbar = document.getElementById(`${mode}-glass-context-toolbar`);
+  if (!toolbar) return;
+  document.querySelectorAll('.glass-context-toolbar').forEach(other => {
+    if (other !== toolbar) other.classList.remove('is-visible');
+  });
+  toolbar.replaceChildren();
+  toolbar.dataset.context = type;
+  toolbar.setAttribute('aria-hidden', 'false');
+
+  const add = (label, action, danger = false) => toolbar.appendChild(createGlassContextButton(label, action, danger));
+  if (type === 'text') {
+    add('Highlight', () => window.toggleGlassColorPopup(mode));
+    add('Text color', () => window.toggleGlassColorPopup(mode));
+    add('Text size', () => window.execGlassFontSize(mode));
+    add('Clear', () => window.execGlassCmd('removeFormat'));
+  } else if (type === 'image') {
+    add('Replace', () => {
+      pendingGlassImageAction = { mode, element: target };
+      document.getElementById(`${mode}-glass-img-upload`)?.click();
+    });
+    add('Resize', () => {
+      const sizes = ['50%', '75%', '100%'];
+      const current = target.style.width || '100%';
+      target.style.width = sizes[(sizes.indexOf(current) + 1) % sizes.length];
+      target.style.height = 'auto';
+      saveGlassEditorChanges(mode);
+      showGlassContextToolbar(mode, type, target, target.getBoundingClientRect());
+    });
+    add('Caption', () => {
+      const figure = target.closest('figure.glass-image-figure');
+      const current = figure?.querySelector('figcaption')?.textContent || '';
+      const caption = window.prompt('Image caption', current);
+      if (caption === null) return;
+      const wrapper = figure || document.createElement('figure');
+      if (!figure) {
+        wrapper.className = 'glass-image-figure';
+        target.replaceWith(wrapper);
+        wrapper.appendChild(target);
+      }
+      let captionElement = wrapper.querySelector('figcaption');
+      if (!caption.trim()) captionElement?.remove();
+      else {
+        captionElement ||= document.createElement('figcaption');
+        captionElement.textContent = caption.trim();
+        if (!captionElement.isConnected) wrapper.appendChild(captionElement);
+      }
+      saveGlassEditorChanges(mode);
+    });
+    add('Delete', () => {
+      const figure = target.closest('figure.glass-image-figure');
+      (figure || target).remove();
+      hideGlassContextToolbar();
+      saveGlassEditorChanges(mode);
+    }, true);
+  } else if (type === 'link') {
+    add('Edit link', () => {
+      setGlassSelectionToElement(target);
+      window.toggleGlassLinkPopover(mode);
+    });
+    add('Open link', () => {
+      const url = normalizeGlassUrl(target.getAttribute('href'));
+      if (url) window.open(url, '_blank', 'noopener,noreferrer');
+    });
+    add('Remove link', () => {
+      setGlassSelectionToElement(target);
+      document.execCommand('unlink', false, null);
+      hideGlassContextToolbar();
+      saveGlassEditorChanges(mode);
+    }, true);
+  } else if (type === 'checklist') {
+    const move = direction => {
+      const sibling = direction < 0 ? target.previousElementSibling : target.nextElementSibling;
+      if (!sibling) return;
+      if (direction < 0) target.parentNode.insertBefore(target, sibling);
+      else target.parentNode.insertBefore(sibling, target);
+      saveGlassEditorChanges(mode);
+      showGlassContextToolbar(mode, type, target, target.getBoundingClientRect());
+    };
+    const indent = delta => {
+      const level = Math.max(0, Math.min(4, Number(target.dataset.indent || 0) + delta));
+      target.dataset.indent = String(level);
+      target.style.marginInlineStart = `${level * 24}px`;
+      saveGlassEditorChanges(mode);
+    };
+    add('Indent', () => indent(1));
+    add('Outdent', () => indent(-1));
+    add('Move up', () => move(-1));
+    add('Move down', () => move(1));
+    add('Delete', () => {
+      target.remove();
+      hideGlassContextToolbar();
+      saveGlassEditorChanges(mode);
+    }, true);
+  }
+  positionGlassContextToolbar(toolbar, rect);
+}
+
+function selectGlassObject(mode, type, target) {
+  clearGlassObjectSelection();
+  selectedGlassObject = target;
+  selectedGlassMode = mode;
+  target.classList.add('glass-selected-object');
+  showGlassContextToolbar(mode, type, target, target.getBoundingClientRect());
+}
+
 let autoHideTimers = {};
 
 export function initModernGlassEditorListeners(callbacks = {}) {
@@ -807,6 +1037,23 @@ export function initModernGlassEditorListeners(callbacks = {}) {
           linkifyGlassElement(editor);
           saveGlassEditorChanges(mode);
         }, 0);
+      });
+
+      editor.addEventListener('click', (event) => {
+        const image = event.target.closest('img');
+        const link = event.target.closest('a');
+        const checklist = event.target.closest('.checklist-item');
+        if (image && editor.contains(image)) {
+          event.preventDefault();
+          selectGlassObject(mode, 'image', image);
+        } else if (link && editor.contains(link)) {
+          event.preventDefault();
+          selectGlassObject(mode, 'link', link);
+        } else if (checklist && editor.contains(checklist)) {
+          selectGlassObject(mode, 'checklist', checklist);
+        } else {
+          clearGlassObjectSelection();
+        }
       });
 
       // Drag checklist items sorting
@@ -986,6 +1233,18 @@ export function initModernGlassEditorListeners(callbacks = {}) {
       
       window.wireGlassChecklistEvents(editor);
     }
+
+    const addMenu = document.getElementById(`${mode}-glass-add-menu`);
+    addMenu?.addEventListener('click', event => {
+      const action = event.target.closest('[data-glass-add]')?.dataset.glassAdd;
+      if (action) invokeGlassAddAction(mode, action);
+    });
+    const moreMenu = document.getElementById(`${mode}-glass-more-menu`);
+    moreMenu?.addEventListener('mousedown', event => event.preventDefault());
+    moreMenu?.addEventListener('click', event => {
+      const action = event.target.closest('[data-glass-more]')?.dataset.glassMore;
+      if (action) invokeGlassMoreAction(mode, action);
+    });
   });
 
   // Track selection and toolbar states
@@ -999,7 +1258,10 @@ export function initModernGlassEditorListeners(callbacks = {}) {
     
     const isCreatorActive = creatorEditor?.contains(node);
     const isModalActive = modalEditor?.contains(node);
-    if (!isCreatorActive && !isModalActive) return;
+    if (!isCreatorActive && !isModalActive) {
+      if (!selectedGlassObject) hideGlassContextToolbar(false);
+      return;
+    }
 
     const activeMode = isCreatorActive ? 'creator' : 'modal';
     
@@ -1009,6 +1271,11 @@ export function initModernGlassEditorListeners(callbacks = {}) {
         clearTimeout(autoHideTimers[activeMode]);
         toolbar.classList.remove('toolbar-hidden');
       }
+      clearGlassObjectSelection();
+      const rect = sel.getRangeAt(0).getBoundingClientRect();
+      if (rect.width || rect.height) showGlassContextToolbar(activeMode, 'text', null, rect);
+    } else if (!selectedGlassObject) {
+      hideGlassContextToolbar(false);
     }
 
     const toolbarId = `${activeMode}-glass-floating-toolbar`;
@@ -1049,6 +1316,13 @@ export function initModernGlassEditorListeners(callbacks = {}) {
 
   // Global dismissals for popups on click outside
   document.addEventListener('mousedown', (e) => {
+    if (!e.target.closest('.glass-toolbar-popover, .toolbar-add-btn, .toolbar-more-btn')) {
+      closeGlassToolbarPopovers();
+    }
+    if (!e.target.closest('.glass-context-toolbar, .glass-selected-object')) {
+      const insideEditor = e.target.closest('#creator-glass-editor, #modal-glass-editor');
+      if (!insideEditor) hideGlassContextToolbar();
+    }
     const ids = ['creator', 'modal'];
     ids.forEach(mode => {
       const linkPopover = document.getElementById(`${mode}-glass-link-popover`);
@@ -1058,10 +1332,31 @@ export function initModernGlassEditorListeners(callbacks = {}) {
       }
       
       const colorPopup = document.getElementById(`${mode}-glass-color-popup`);
-      const colorBtn = document.querySelector(`#${mode}-glass-floating-toolbar button[title="Highlight & Text color"]`);
+      const colorBtn = document.querySelector(`#${mode}-glass-floating-toolbar button[title="Highlight & Text color"], #${mode}-glass-context-toolbar`);
       if (colorPopup && colorPopup.style.display === 'flex' && !colorPopup.contains(e.target) && !colorBtn?.contains(e.target)) {
         colorPopup.style.display = 'none';
       }
     });
+  });
+
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    closeGlassToolbarPopovers();
+    hideGlassContextToolbar();
+    ['creator', 'modal'].forEach(mode => {
+      const linkPopover = document.getElementById(`${mode}-glass-link-popover`);
+      const colorPopup = document.getElementById(`${mode}-glass-color-popup`);
+      if (linkPopover) linkPopover.style.display = 'none';
+      if (colorPopup) colorPopup.style.display = 'none';
+    });
+  });
+
+  window.addEventListener('resize', () => {
+    if (selectedGlassObject?.isConnected && selectedGlassMode) {
+      const type = selectedGlassObject.matches('img') ? 'image' : selectedGlassObject.matches('a') ? 'link' : 'checklist';
+      showGlassContextToolbar(selectedGlassMode, type, selectedGlassObject, selectedGlassObject.getBoundingClientRect());
+    } else {
+      hideGlassContextToolbar(false);
+    }
   });
 }
