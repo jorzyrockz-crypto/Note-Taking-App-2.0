@@ -3245,8 +3245,9 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.6.12';
+  const CURRENT_VERSION = '2.6.13';
   const DEFAULT_CHANGELOG = [
+    'Glass Editor Performance (Phases 4–6): Paused background animations and disabled workspace pointer events when an editor is active, applied CSS containment to note cards, preserved scroll position, added async image decoding, and eliminated full workspace re-renders from voice recording and file attachment callbacks',
     'Glass Editor Performance (Phases 1–3): Eliminated typing lag by updating notes in-memory on input without workspace re-renders, debounced single-note disk persistence, added immediate save flushes on modal close/switch/pagehide, throttled selectionchange with requestAnimationFrame, and coalesced cloud sync writes',
     'Glass Editor Reliability: Kept voice and attachment chips above the floating toolbar, rendered local attachments immediately, restored the Scheduler overlay, and fixed contextual highlight tools for title and body selections',
     'Bug Fix: Glass reminder popover now successfully triggers from the Add menu; fixed inline mousedown handler preventing click events',
@@ -5542,9 +5543,9 @@ async function handleSelectedFiles(target, fileList) {
     if (!destinationNote) return;
     destinationNote.files = [...normalizeNoteFiles(destinationNote.files), ...prepared];
     destinationNote.updatedAt = Date.now();
-    saveToLocalStorage();
+    saveSingleNoteToLocalStorage(destinationNote);
+    updateNoteCardUI(destinationNote.id);
     renderModalFileAttachments(destinationNote);
-    renderNotes();
   }
 
   if (!pendingCloudUploads.length || !currentUser) return;
@@ -5559,7 +5560,8 @@ async function handleSelectedFiles(target, fileList) {
           saveCreatorNoteDraft();
         } else if (destinationNote) {
           destinationNote.updatedAt = Date.now();
-          saveToLocalStorage();
+          saveSingleNoteToLocalStorage(destinationNote);
+          updateNoteCardUI(destinationNote.id);
         }
       })
       .catch((uploadErr) => {
@@ -5638,9 +5640,9 @@ function renderNoteFileAttachments(container, note, options = {}) {
       }
       note.files = normalizeNoteFiles(note.files).filter(entry => entry.id !== file.id);
       note.updatedAt = Date.now();
-      saveToLocalStorage();
+      saveSingleNoteToLocalStorage(note);
+      updateNoteCardUI(note.id);
       renderModalFileAttachments(note);
-      renderNotes();
     });
     if (kind === 'image') {
       chip.querySelector('.file-attachment-copy')?.addEventListener('click', (e) => {
@@ -7077,19 +7079,12 @@ function openEditModal(note, autoFocus = false) {
     modalBreadcrumb.textContent = `${folders[0] || 'Personal'} / Ideas`;
   }
 
-  // Render modal inspector popover contents
-  renderModalPopoverCategories(note);
-  renderModalPopoverColors(note);
-  initModalPopoverReminder(note);
-
-  // Close popover on open
-  const modalMorePopover = document.getElementById('modal-more-popover');
-  if (modalMorePopover) {
-    modalMorePopover.style.display = 'none';
-  }
-
   editModal.classList.add('visible');
   document.body.classList.add('editor-focus-mode');
+  document.body.classList.add('modern-glass-active');
+  const feedEl = document.getElementById('notes-feed');
+  if (feedEl) feedEl.setAttribute('aria-hidden', 'true');
+  window.scrollTo(0, _savedWorkspaceScrollY);
 
   setTimeout(() => {
     modalText.style.height = 'auto';
@@ -7189,11 +7184,19 @@ function closeEditModal() {
         registerNoteFolders(note);
         note.type = note.recipeData ? 'recipe' : getNoteType(text);
         note.updatedAt = Date.now();
-        saveToLocalStorage();
-        renderNotes();
+        saveSingleNoteToLocalStorage(note);
+        updateNoteCardUI(note.id);
       }
     }
   }
+
+  // Stop active media playback on modal close
+  document.querySelectorAll('audio, video').forEach(media => {
+    try {
+      media.pause();
+      media.currentTime = 0;
+    } catch (err) {}
+  });
 
   currentEditingNoteId = null;
   editModalCard.classList.remove('properties-sheet-open');
@@ -7201,9 +7204,13 @@ function closeEditModal() {
   editModal.classList.remove('modern-glass-editor-active');
   editModal.classList.remove('visible');
   document.body.classList.remove('editor-focus-mode');
+  document.body.classList.remove('modern-glass-active');
+  const feedEl = document.getElementById('notes-feed');
+  if (feedEl) feedEl.removeAttribute('aria-hidden');
   modalColorPicker.classList.remove('visible');
   const glassColorPopup = document.getElementById('modal-glass-color-popup');
   if (glassColorPopup) glassColorPopup.style.display = 'none';
+  window.scrollTo(0, _savedWorkspaceScrollY);
 }
 
 function deleteNote(id) {
@@ -8719,8 +8726,9 @@ function saveVoiceNoteAudio(base64Audio, duration) {
     if (note) {
       if (!Array.isArray(note.audioClips)) note.audioClips = [];
       note.audioClips.push(clip);
-      saveToLocalStorage();
-      renderNotes();
+      note.updatedAt = Date.now();
+      saveSingleNoteToLocalStorage(note);
+      updateNoteCardUI(note.id);
       renderModalAudioPreview(note);
       showToast({ title: '🎙️ Voice note recorded', text: `Clip ${note.audioClips.length} — Duration: ${dur}` });
     }

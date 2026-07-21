@@ -729,6 +729,12 @@ window.handleGlassImage = function(input, mode) {
       const result = compressGlassImage(img, file);
       restoreGlassSelection();
       document.execCommand('insertImage', false, result.dataUrl);
+      const editor = document.getElementById(`${mode}-glass-editor`);
+      if (editor) {
+        editor.querySelectorAll('img').forEach(imageEl => {
+          imageEl.decoding = 'async';
+        });
+      }
       saveGlassSelection();
       triggerAutosaveFn();
       const finalKb = Math.round(estimateGlassBase64Bytes(result.dataUrl) / 1024);

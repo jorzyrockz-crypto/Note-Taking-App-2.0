@@ -1727,6 +1727,9 @@ body.dark-theme .tag-badge:hover {
   margin: 0;
   break-inside: auto;
   align-self: start;
+  contain: layout style paint;
+  content-visibility: auto;
+  contain-intrinsic-size: 304px;
 }
 
 
@@ -2780,7 +2783,7 @@ body.dark-theme .brush-slider::-webkit-slider-runnable-track {
   flex-direction: column;
   gap: 10px;
   min-width: 240px;
-  z-index: 120;
+  z-index: 100005;
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
@@ -8378,8 +8381,23 @@ body.dark-theme .auth-social-btn {
 
 /* Base Body Scroll Lock */
 body.advanced-editor-open,
-body.editor-focus-mode {
+body.editor-focus-mode,
+body.modern-glass-active {
   overflow: hidden !important;
+}
+
+body.editor-focus-mode #notes-feed,
+body.modern-glass-active #notes-feed {
+  pointer-events: none !important;
+}
+
+body.editor-focus-mode .ambient-background-glow,
+body.editor-focus-mode .sky-theme-clouds,
+body.editor-focus-mode .animated-gradient-bg,
+body.modern-glass-active .ambient-background-glow,
+body.modern-glass-active .sky-theme-clouds,
+body.modern-glass-active .animated-gradient-bg {
+  animation-play-state: paused !important;
 }
 
 /* Opening & Closing Animation for Cards */
