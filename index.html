@@ -105,18 +105,6 @@
       </div>
     </div>
     
-    <div class="header-center">
-      <div class="search-bar">
-        <button class="icon-btn search-icon-btn" aria-label="Search">
-          <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-        </button>
-        <input type="text" id="search-input" placeholder="Search notes..." autocomplete="off">
-        <button class="icon-btn clear-search-btn" id="search-clear" aria-label="Clear search" style="display: none;">
-          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-        </button>
-      </div>
-    </div>
-    
     <div class="header-right">
       <button class="icon-btn" id="view-toggle" aria-label="Toggle grid/list view">
         <svg id="grid-icon" viewBox="0 0 24 24" style="display: none;"><path d="M4 11h5V5H4v6zm0 7h5v-6H4v6zm6 0h5v-6h-5v6zm6 0h5v-6h-5v6zm-6-7h5V5h-5v6zm6-6v6h5V5h-5z"/></svg>
@@ -165,12 +153,14 @@
           <div class="profile-divider"></div>
           <div class="profile-version-section">
             <div class="version-header">
-              <span class="version-label">Version 2.6.15</span>
+              <span class="version-label">Version 2.6.17</span>
               <button class="update-btn" id="app-update-btn" type="button">Update</button>
             </div>
             <div class="changelog-container">
               <div class="changelog-title">What's New</div>
               <ul class="changelog-list">
+          <li><strong>Null Pointer Fix (v2.6.17):</strong> Resolved uncaught TypeError on app load caused by null searchInput reference after top-bar search removal, restoring normal workspace note rendering</li>
+          <li><strong>Spotlight Search Page & Tag Relocation (v2.6.16):</strong> Moved Tags section from sidebar to the dedicated Search page directly under search bar, removed global top-bar search across app views, updated Ctrl/Cmd+K to navigate to Search page and focus input, and verified 100% test pass</li>
           <li><strong>Runtime Error Repair (v2.6.15):</strong> Repaired workspace scroll state (_savedWorkspaceScrollY), parseMarkdown export, saveSingleNoteToLocalStorage import, restoreArchivedNote reference, getVideoBlob attachment getter, formatSelectedText helper, and replaced popup error alerts with non-blocking toasts</li>
           <li><strong>Glass Editor Performance & Polish (Phase 7):</strong> Completed interaction and accessibility polish, added ARIA expanded/controls attributes, focus restoration on Escape, touch target sizing (44px), viewport containment, and validated 100% test pass</li>
           <li><strong>Glass Editor Performance (Phases 4–6):</strong> Paused background animations and disabled workspace pointer events when an editor is active, applied CSS containment to note cards, preserved scroll position, added async image decoding, and eliminated full workspace re-renders from voice recording and file attachment callbacks</li>
@@ -775,6 +765,12 @@
       </div>
 
       <div class="search-page-body">
+        <!-- Tags Section -->
+        <div class="search-tags-section" id="search-tags-section">
+          <h3>Tags</h3>
+          <div class="search-tags-list" id="search-tags-list"></div>
+        </div>
+
         <!-- Browse All Section -->
         <div class="search-browse-section" id="search-browse-section">
           <h3>Browse all</h3>

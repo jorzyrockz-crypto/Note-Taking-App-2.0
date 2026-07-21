@@ -1,6 +1,7 @@
-import { getPageNotes, renderGrid, setActiveSidebarPage, openEditModal } from './app.js';
+import { getPageNotes, renderGrid, setActiveSidebarPage, openEditModal, scanUniqueTags } from './app.js';
 
 let dedSearchInput, dedSearchClear, searchBrowseSection, searchResultsSection, dedSearchResultsGrid, searchFilterPills, browseCards;
+let isTagsExpanded = false;
 
 export function renderSearchPage() {
   const settingsPageEl = document.getElementById('settings-page');
@@ -18,7 +19,81 @@ export function renderSearchPage() {
   if (searchPageEl) searchPageEl.style.display = 'flex';
 
   renderSearchMediaConsolidation();
+  renderSearchTags();
   setActiveSidebarPage('search');
+}
+
+export function renderSearchTags() {
+  if (typeof document === 'undefined') return;
+  const container = document.getElementById('search-tags-list');
+  if (!container) return;
+
+  const tags = typeof scanUniqueTags === 'function' ? scanUniqueTags() : [];
+  container.innerHTML = '';
+
+  if (!tags || tags.length === 0) {
+    const emptyMsg = document.createElement('span');
+    emptyMsg.className = 'empty-tags-text';
+    emptyMsg.textContent = 'No tags created yet';
+    container.appendChild(emptyMsg);
+    return;
+  }
+
+  const currentQuery = dedSearchInput ? dedSearchInput.value.toLowerCase().trim() : '';
+  let activeTag = '';
+  if (currentQuery.startsWith('tag:')) {
+    activeTag = currentQuery.substring(4).replace(/^#/, '').trim();
+  } else if (currentQuery.startsWith('#')) {
+    activeTag = currentQuery.substring(1).trim();
+  }
+
+  const INITIAL_TAG_LIMIT = 15;
+  const showLimit = isTagsExpanded ? tags.length : Math.min(tags.length, INITIAL_TAG_LIMIT);
+  const visibleTags = tags.slice(0, showLimit);
+
+  visibleTags.forEach(tag => {
+    const cleanTag = String(tag).replace(/^#/, '').trim();
+    const isSelected = activeTag === cleanTag.toLowerCase();
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `search-tag-pill${isSelected ? ' active' : ''}`;
+    btn.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+    btn.innerHTML = `<span aria-hidden="true">#</span><span>${escapeHtml(cleanTag)}</span>`;
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!dedSearchInput) return;
+
+      if (isSelected) {
+        dedSearchInput.value = '';
+      } else {
+        dedSearchInput.value = `tag:${cleanTag}`;
+      }
+
+      const inputWrapper = dedSearchInput.closest('.search-page-input-wrapper');
+      const hasVal = dedSearchInput.value.trim() !== '';
+      if (dedSearchClear) dedSearchClear.style.display = hasVal ? 'flex' : 'none';
+      if (inputWrapper) inputWrapper.classList.toggle('has-value', hasVal);
+
+      renderDedicatedSearchResults();
+      renderSearchTags();
+    });
+
+    container.appendChild(btn);
+  });
+
+  if (tags.length > INITIAL_TAG_LIMIT) {
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button';
+    toggleBtn.className = 'search-tag-show-more';
+    toggleBtn.textContent = isTagsExpanded ? 'Show less' : `Show all (${tags.length})`;
+    toggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      isTagsExpanded = !isTagsExpanded;
+      renderSearchTags();
+    });
+    container.appendChild(toggleBtn);
+  }
 }
 
 function getNoteImageSrc(note) {
@@ -199,6 +274,7 @@ export function initSearch() {
     dedSearchInput.addEventListener('input', () => {
       updateInputState();
       renderDedicatedSearchResults();
+      renderSearchTags();
     });
 
     if (dedSearchClear) {
@@ -206,22 +282,27 @@ export function initSearch() {
         dedSearchInput.value = '';
         updateInputState();
         renderDedicatedSearchResults();
+        renderSearchTags();
         dedSearchInput.focus();
       });
     }
   }
 
   // App-wide Ctrl + K / Cmd + K Shortcut to trigger Search Page & Focus Input
-  window.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-      e.preventDefault();
-      renderSearchPage();
-      if (dedSearchInput) {
-        dedSearchInput.focus();
-        dedSearchInput.select();
+  if (typeof window !== 'undefined' && !window._searchKeydownBound) {
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        renderSearchPage();
+        const input = document.getElementById('dedicated-search-input');
+        if (input) {
+          input.focus();
+          if (input.value) input.select();
+        }
       }
-    }
-  });
+    });
+    window._searchKeydownBound = true;
+  }
 
   genreCards.forEach(card => {
     card.addEventListener('click', () => {
@@ -232,6 +313,7 @@ export function initSearch() {
         if (inputWrapper) inputWrapper.classList.add('has-value');
         if (dedSearchClear) dedSearchClear.style.display = 'flex';
         renderDedicatedSearchResults();
+        renderSearchTags();
       }
     });
   });
@@ -243,6 +325,8 @@ export function initSearch() {
       renderDedicatedSearchResults();
     });
   });
+
+  renderSearchTags();
 }
 
 function renderDedicatedSearchResults() {
@@ -272,11 +356,20 @@ function renderDedicatedSearchResults() {
       if (kind === 'voice' && (getNoteAudioSrc(note) || (Array.isArray(note.files) && note.files.length > 0))) matchesQuery = true;
       if (kind === 'link' && (note.text || '').includes('http')) matchesQuery = true;
     } else if (query.startsWith('folder:')) {
-      matchesQuery = true; 
+      const folderTarget = query.substring(7).trim();
+      matchesQuery = folderTarget === '' ? !!note.folder : (note.folder && note.folder.toLowerCase().includes(folderTarget));
     } else if (query.startsWith('tag:')) {
-      matchesQuery = true;
+      const targetTag = query.substring(4).replace(/^#/, '').trim();
+      const hasInArray = Array.isArray(note.tags) && note.tags.some(t => String(t).replace(/^#/, '').toLowerCase() === targetTag);
+      const hasInText = (`${title} ${text}`).includes(`#${targetTag}`);
+      matchesQuery = targetTag === '' ? (hasInArray || hasInText) : (hasInArray || hasInText);
+    } else if (query.startsWith('#')) {
+      const targetTag = query.substring(1).trim();
+      const hasInArray = Array.isArray(note.tags) && note.tags.some(t => String(t).replace(/^#/, '').toLowerCase() === targetTag);
+      const hasInText = (`${title} ${text}`).includes(`#${targetTag}`);
+      matchesQuery = hasInArray || hasInText;
     } else {
-      matchesQuery = title.includes(query) || text.includes(query) || (note.folder && note.folder.toLowerCase().includes(query)) || (note.tags && note.tags.some(t => t.toLowerCase().includes(query)));
+      matchesQuery = title.includes(query) || text.includes(query) || (note.folder && note.folder.toLowerCase().includes(query)) || (note.tags && note.tags.some(t => String(t).toLowerCase().includes(query)));
     }
 
     if (!matchesQuery) return false;
@@ -289,7 +382,7 @@ function renderDedicatedSearchResults() {
 
   if (dedSearchResultsGrid) {
     if (filteredNotes.length === 0) {
-      dedSearchResultsGrid.innerHTML = `<div class="empty-state-message">No results found for "${query}"</div>`;
+      dedSearchResultsGrid.innerHTML = `<div class="empty-state-message">No results found for "${escapeHtml(query)}"</div>`;
     } else {
       renderGrid(dedSearchResultsGrid, filteredNotes);
     }

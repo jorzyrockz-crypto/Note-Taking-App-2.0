@@ -318,7 +318,7 @@ export function renderProductivityPage() {
   const notesMadeWrap = document.getElementById('productivity-day-notes');
   const todoWidget = document.getElementById('productivity-todo-widget');
   const dayCollections = getDayCollections(selectedCalendarDate);
-  const searchInput = document.getElementById('search-input');
+  const searchInput = document.getElementById('dedicated-search-input') || document.getElementById('search-input');
   const queryMatches = note => {
     const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
     if (query === '') return true;

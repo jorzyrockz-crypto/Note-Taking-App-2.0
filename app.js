@@ -1523,26 +1523,7 @@ function enhanceShell() {
     sidebarFoldersList = document.getElementById('sidebar-folders-list');
   }
 
-  if (sidebar && !document.getElementById('sidebar-tags-list')) {
-    const divider = document.createElement('div');
-    divider.className = 'sidebar-divider';
-    const title = document.createElement('div');
-    title.className = 'sidebar-section-title sidebar-label';
-    title.textContent = 'TAGS';
-    const tagsList = document.createElement('div');
-    tagsList.className = 'sidebar-tags-container';
-    tagsList.id = 'sidebar-tags-list';
-    if (sidebarSettings) {
-      sidebar.insertBefore(divider, sidebarSettings);
-      sidebar.insertBefore(title, sidebarSettings);
-      sidebar.insertBefore(tagsList, sidebarSettings);
-    } else {
-      sidebar.appendChild(divider);
-      sidebar.appendChild(title);
-      sidebar.appendChild(tagsList);
-    }
-  }
-  sidebarTagsList = document.getElementById('sidebar-tags-list');
+  // Tags are now rendered on the dedicated Search page beneath the search bar
 
   const chipsContainer = document.getElementById('creator-chips-container');
   if (chipsContainer && !document.getElementById('creator-folder')) {
@@ -2675,14 +2656,14 @@ function setupEventHandlers() {
 
   // Search filter
   searchInput?.addEventListener('input', () => {
-    searchClear.style.display = searchInput.value.trim() !== '' ? 'block' : 'none';
+    if (searchClear) searchClear.style.display = (searchInput?.value || '').trim() !== '' ? 'block' : 'none';
     renderAppView();
   });
   searchClear?.addEventListener('click', () => {
-    searchInput.value = '';
-    searchClear.style.display = 'none';
+    if (searchInput) searchInput.value = '';
+    if (searchClear) searchClear.style.display = 'none';
     renderAppView();
-    searchInput.focus();
+    searchInput?.focus();
   });
 
   // Sidebar navigation resets hashtag filter
@@ -2691,8 +2672,10 @@ function setupEventHandlers() {
       currentPage = 'notes';
       selectedFolderFilter = null;
       selectedTagFilter = null;
-      document.getElementById('search-input').value = '';
-      document.getElementById('search-clear').style.display = 'none';
+      const searchIn = document.getElementById('search-input') || document.getElementById('dedicated-search-input');
+      if (searchIn) searchIn.value = '';
+      const searchClr = document.getElementById('search-clear') || document.getElementById('dedicated-search-clear');
+      if (searchClr) searchClr.style.display = 'none';
       renderNotesPage();
       if (window.innerWidth <= 768) {
         sidebar?.classList.remove('sidebar-open');
@@ -2731,7 +2714,7 @@ function setupEventHandlers() {
       const page = button.dataset.tabletPage;
       if (page === 'search') {
         setActivePage('search');
-        requestAnimationFrame(() => document.getElementById('search-input')?.focus({ preventScroll: true }));
+        requestAnimationFrame(() => document.getElementById('dedicated-search-input')?.focus({ preventScroll: true }));
       } else if (page === 'productivity') {
         ensureCalendarSelection();
         setActivePage('productivity');
@@ -3269,8 +3252,11 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.6.14';
+  const CURRENT_VERSION = '2.6.17';
   const DEFAULT_CHANGELOG = [
+    'Null Pointer Fix (v2.6.17): Resolved uncaught TypeError on app load caused by null searchInput reference after top-bar search removal, restoring normal workspace note rendering',
+    'Spotlight Search Page & Tag Relocation (v2.6.16): Moved Tags section from sidebar to the dedicated Search page directly under search bar, removed global top-bar search across app views, updated Ctrl/Cmd+K to navigate to Search page and focus input, and verified 100% test pass',
+    'Runtime Error Repair (v2.6.15): Repaired workspace scroll state (_savedWorkspaceScrollY), parseMarkdown export, saveSingleNoteToLocalStorage import, restoreArchivedNote reference, getVideoBlob attachment getter, formatSelectedText helper, and replaced popup error alerts with non-blocking toasts',
     'Glass Editor Performance & Polish (Phase 7): Completed interaction and accessibility polish, added ARIA expanded/controls attributes, focus restoration on Escape, touch target sizing (44px), viewport containment, and validated 100% test pass',
     'Glass Editor Performance (Phases 4–6): Paused background animations and disabled workspace pointer events when an editor is active, applied CSS containment to note cards, preserved scroll position, added async image decoding, and eliminated full workspace re-renders from voice recording and file attachment callbacks',
     'Glass Editor Performance (Phases 1–3): Eliminated typing lag by updating notes in-memory on input without workspace re-renders, debounced single-note disk persistence, added immediate save flushes on modal close/switch/pagehide, throttled selectionchange with requestAnimationFrame, and coalesced cloud sync writes',
@@ -4979,45 +4965,38 @@ function closeAllNoteCardMenus() {
   });
 }
 
-function scanUniqueTags() {
-  const tagsSet = new Set();
+export function scanUniqueTags() {
+  const tagsMap = new Map();
   notes.forEach(note => {
     if (!isActiveNote(note)) return;
-    const words = `${note.title} ${note.text}`.split(/[\s,]+/);
+    if (Array.isArray(note.tags)) {
+      note.tags.forEach(t => {
+        if (!t) return;
+        const clean = String(t).replace(/^#/, '').trim();
+        const key = clean.toLowerCase();
+        if (clean && !tagsMap.has(key)) {
+          tagsMap.set(key, clean);
+        }
+      });
+    }
+    const words = `${note.title || ''} ${note.text || ''}`.split(/[\s,]+/);
     words.forEach(word => {
-      // Find hashtags like #work or #urgent (strictly letters/numbers)
       if (word.startsWith('#') && word.length > 2) {
-        const cleanTag = word.substring(1).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        if (cleanTag) tagsSet.add(cleanTag);
+        const cleanTag = word.substring(1).replace(/[^a-zA-Z0-9_-]/g, '');
+        const key = cleanTag.toLowerCase();
+        if (cleanTag && !tagsMap.has(key)) {
+          tagsMap.set(key, cleanTag);
+        }
       }
     });
   });
-  return Array.from(tagsSet).sort();
+  return Array.from(tagsMap.values()).sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: 'base' })
+  );
 }
 
 function renderSidebarTags() {
-  if (!sidebarTagsList) return;
-  sidebarTagsList.innerHTML = '';
-  const tags = scanUniqueTags();
-
-  tags.forEach(tag => {
-    const item = document.createElement('div');
-    item.className = `sidebar-item ${selectedTagFilter === tag ? 'active' : ''}`;
-    item.innerHTML = `
-      <span class="sidebar-icon sidebar-chip-icon">#</span>
-      <span class="sidebar-label">#${tag}</span>
-    `;
-    item.addEventListener('click', () => {
-      currentPage = 'notes';
-      selectedTagFilter = tag;
-      selectedFolderFilter = null;
-      clearSidebarActiveStates();
-      item.classList.add('active');
-      collapseSidebarAfterSelection();
-      renderAppView();
-    });
-    sidebarTagsList.appendChild(item);
-  });
+  // Legacy sidebar tags container removed; tags are rendered on Search page
 }
 
 // ==========================================================================
@@ -5965,7 +5944,8 @@ function renderNotesPage() {
     setActiveSidebarPage('notes');
   }
 
-  const query = searchInput.value.toLowerCase().trim();
+  const searchInEl = searchInput || (typeof document !== 'undefined' ? document.getElementById('dedicated-search-input') : null);
+  const query = (searchInEl?.value || '').toLowerCase().trim();
   const pageNotes = getPageNotes(currentPage);
 
   // Apply Search + Tag filters
@@ -6184,7 +6164,8 @@ function getTaskSortWeight(note) {
 }
 
 function getFilteredProductivityTasks() {
-  const query = searchInput.value.toLowerCase().trim();
+  const searchInEl = searchInput || (typeof document !== 'undefined' ? document.getElementById('dedicated-search-input') : null);
+  const query = (searchInEl?.value || '').toLowerCase().trim();
   const todayKey = getLocalDateKey(new Date());
   return getTaskNotes()
     .filter(note => {

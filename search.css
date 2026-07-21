@@ -148,6 +148,98 @@ body.dark-theme #dedicated-search-input:focus {
   transform: translateY(-50%) scale(1.1);
 }
 
+/* Tags Section on Search Page */
+.search-tags-section {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto 28px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.search-tags-section h3 {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.search-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.search-tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: 22px;
+  border: 1px solid var(--accent-border, rgba(0, 0, 0, 0.12));
+  background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  touch-action: manipulation;
+  box-sizing: border-box;
+}
+
+body.dark-theme .search-tag-pill {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.search-tag-pill:hover {
+  background: var(--accent-bg, rgba(56, 189, 248, 0.12));
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.search-tag-pill.active {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.search-tag-show-more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 22px;
+  border: 1px dashed var(--accent-border, rgba(0, 0, 0, 0.2));
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+  box-sizing: border-box;
+}
+
+.search-tag-show-more:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.empty-tags-text {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* Spotify-style Fluid Browse Grid */
 .search-browse-section h3 {
   font-size: 20px;

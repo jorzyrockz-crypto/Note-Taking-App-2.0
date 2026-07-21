@@ -472,8 +472,11 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '2.6.14',
+        version: '2.6.17',
         changelog: [
+          'Null Pointer Fix (v2.6.17): Resolved uncaught TypeError on app load caused by null searchInput reference after top-bar search removal, restoring normal workspace note rendering',
+          'Spotlight Search Page & Tag Relocation (v2.6.16): Moved Tags section from sidebar to the dedicated Search page directly under search bar, removed global top-bar search across app views, updated Ctrl/Cmd+K to navigate to Search page and focus input, and verified 100% test pass',
+          'Runtime Error Repair (v2.6.15): Repaired workspace scroll state (_savedWorkspaceScrollY), parseMarkdown export, saveSingleNoteToLocalStorage import, restoreArchivedNote reference, getVideoBlob attachment getter, formatSelectedText helper, and replaced popup error alerts with non-blocking toasts',
           'Glass Editor Performance & Polish (Phase 7): Completed interaction and accessibility polish, added ARIA expanded/controls attributes, focus restoration on Escape, touch target sizing (44px), viewport containment, and validated 100% test pass',
           'Glass Editor Performance (Phases 4–6): Paused background animations and disabled workspace pointer events when an editor is active, applied CSS containment to note cards, preserved scroll position, added async image decoding, and eliminated full workspace re-renders from voice recording and file attachment callbacks',
           'Glass Editor Performance (Phases 1–3): Eliminated typing lag by updating notes in-memory on input without workspace re-renders, debounced single-note disk persistence, added immediate save flushes on modal close/switch/pagehide, throttled selectionchange with requestAnimationFrame, and coalesced cloud sync writes',
