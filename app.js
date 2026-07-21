@@ -2651,14 +2651,14 @@ function setupEventHandlers() {
     }
   }, { passive: true });
 
-  themeBtn.addEventListener('click', (e) => {
+  themeBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
     const isDark = document.body.classList.contains('dark-theme');
     setTheme(isDark ? 'light' : 'dark');
   });
 
   // View toggle (Grid / List)
-  viewToggle.addEventListener('click', toggleViewLayout);
+  viewToggle?.addEventListener('click', toggleViewLayout);
 
   const pageActionBarBtn = document.getElementById('page-action-btn');
   pageActionBarBtn?.addEventListener('click', () => {
@@ -2674,11 +2674,11 @@ function setupEventHandlers() {
   });
 
   // Search filter
-  searchInput.addEventListener('input', () => {
+  searchInput?.addEventListener('input', () => {
     searchClear.style.display = searchInput.value.trim() !== '' ? 'block' : 'none';
     renderAppView();
   });
-  searchClear.addEventListener('click', () => {
+  searchClear?.addEventListener('click', () => {
     searchInput.value = '';
     searchClear.style.display = 'none';
     renderAppView();
@@ -2795,13 +2795,13 @@ function setupEventHandlers() {
 
 
   // Note Creator Focus / Expand
-  creatorCollapsed.addEventListener('click', (e) => {
+  creatorCollapsed?.addEventListener('click', (e) => {
     e.stopPropagation();
     expandCreator();
   });
 
   // Collapse checklist shortcut in creator
-  creatorListToggleBtn.addEventListener('click', (e) => {
+  creatorListToggleBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
     if (appSettings.modernGlassEditorEnabled) {
       const newNote = {
@@ -2866,15 +2866,15 @@ function setupEventHandlers() {
   });
 
   // Creator pin state
-  creatorPin.addEventListener('click', (e) => {
+  creatorPin?.addEventListener('click', (e) => {
     e.stopPropagation();
     creatorPinned = !creatorPinned;
-    creatorPin.classList.toggle('pinned', creatorPinned);
+    creatorPin?.classList.toggle('pinned', creatorPinned);
   });
 
   // Creator palette toggle
   const paletteTrigger = document.querySelector('.creator-palette-trigger');
-  paletteTrigger.addEventListener('click', (e) => {
+  paletteTrigger?.addEventListener('click', (e) => {
     e.stopPropagation();
     openThemePickerV2({ type: 'creator' });
   });
@@ -2882,7 +2882,7 @@ function setupEventHandlers() {
   // Creator reminder trigger
   const creatorReminderBtn = document.getElementById('creator-reminder-btn');
   const creatorReminderPicker = document.getElementById('creator-reminder-picker');
-  creatorReminderBtn.addEventListener('click', (e) => {
+  creatorReminderBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
     document.querySelectorAll('.color-picker-bubble, .reminder-picker-bubble').forEach(p => {
       if (p !== creatorReminderPicker) p.classList.remove('visible');
@@ -2891,27 +2891,27 @@ function setupEventHandlers() {
     buildReminderPicker(creatorReminderPicker, creatorReminder, (dateTime) => {
       creatorReminder = dateTime;
       renderCreatorReminderChip();
-      creatorReminderPicker.classList.remove('visible');
+      creatorReminderPicker?.classList.remove('visible');
     }, () => {
       creatorReminder = null;
       renderCreatorReminderChip();
-      creatorReminderPicker.classList.remove('visible');
+      creatorReminderPicker?.classList.remove('visible');
     });
-    creatorReminderPicker.classList.toggle('visible');
+    creatorReminderPicker?.classList.toggle('visible');
   });
 
   // Creator checklists convert trigger
-  creatorListBtn.addEventListener('click', () => {
+  creatorListBtn?.addEventListener('click', () => {
     window.execGlassCmd('insertUnorderedList', null, 'creator');
   });
 
   // Creator Drawing Canvas trigger
-  creatorDrawBtn.addEventListener('click', () => {
+  creatorDrawBtn?.addEventListener('click', () => {
     openDrawingWorkspace('creator');
   });
 
   // Creator image source picker
-  creatorImageBtn.addEventListener('click', (e) => {
+  creatorImageBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
     openImageSourcePicker('creator', creatorImageBtn);
   });
@@ -2919,7 +2919,7 @@ function setupEventHandlers() {
     e.stopPropagation();
     parseCreatorLinkManually();
   });
-  creatorImageInput.addEventListener('change', (e) => {
+  creatorImageInput?.addEventListener('change', (e) => {
     handleSelectedImageFile('creator', e.target.files[0]);
     e.target.value = '';
   });
@@ -2941,24 +2941,24 @@ function setupEventHandlers() {
   });
 
   // Remove Creator image banner
-  creatorRemoveImg.addEventListener('click', (e) => {
+  creatorRemoveImg?.addEventListener('click', (e) => {
     e.stopPropagation();
     creatorImage = null;
-    creatorImageBanner.style.display = 'none';
-    creatorImgPreview.src = '';
-    creatorImageInput.value = ''; // reset file input
+    if (creatorImageBanner) creatorImageBanner.style.display = 'none';
+    if (creatorImgPreview) creatorImgPreview.src = '';
+    if (creatorImageInput) creatorImageInput.value = ''; // reset file input
     if (creatorCameraInput) creatorCameraInput.value = '';
     syncCreatorFolderInput();
   });
 
   // Close / Save Note Creator
-  creatorSave.addEventListener('click', (e) => {
+  creatorSave?.addEventListener('click', (e) => {
     e.stopPropagation();
     saveCreatorNote();
     collapseCreator();
   });
 
-  creatorClose.addEventListener('click', (e) => {
+  creatorClose?.addEventListener('click', (e) => {
     e.stopPropagation();
     saveCreatorNote();
     collapseCreator();
@@ -3010,8 +3010,8 @@ function setupEventHandlers() {
   });
 
   // Edit Modal Event Handlers
-  modalClose.addEventListener('click', closeEditModal);
-  editModal.addEventListener('click', (e) => {
+  modalClose?.addEventListener('click', closeEditModal);
+  editModal?.addEventListener('click', (e) => {
     if (e.target === editModal) {
       // closeEditModal(); // Prevent accidentally closing the modal by clicking outside
     }
