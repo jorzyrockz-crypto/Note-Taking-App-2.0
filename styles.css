@@ -2199,7 +2199,7 @@ body.dark-theme .note-card-menu-action:hover {
   bottom: 0;
   background-color: var(--modal-overlay);
   backdrop-filter: blur(2px);
-  z-index: 200;
+  z-index: 1999;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -12346,7 +12346,7 @@ body.dark-theme .glass-ctx-resize-option:hover {
    ========================================================================== */
 #glass-reminder-popover {
   position: fixed !important;
-  z-index: 99999 !important;
+  z-index: 2000 !important;
   display: none;
   flex-direction: column !important;
   padding: 16px !important;
