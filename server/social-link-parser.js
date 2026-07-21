@@ -1,5 +1,8 @@
 const TRACKING_PARAMETERS = new Set([
   'fbclid',
+  'mibextid',
+  '__cft__',
+  '__tn__',
   'gclid',
   'dclid',
   'msclkid',
@@ -30,6 +33,7 @@ const SHORTENER_HOSTS = new Set([
   'fb.watch',
   'lnkd.in',
   'pin.it',
+  'spotify.link',
   'redd.it'
 ]);
 
@@ -43,6 +47,7 @@ export const SOCIAL_PROVIDER_NAMES = {
   reddit: 'Reddit',
   linkedin: 'LinkedIn',
   pinterest: 'Pinterest',
+  spotify: 'Spotify',
   bluesky: 'Bluesky',
   tumblr: 'Tumblr',
   mastodon: 'Mastodon'
@@ -64,6 +69,7 @@ export function parseAndNormalizeLink(inputUrl, options = {}) {
   if (isHost(url, 'reddit.com', 'redd.it')) return reddit(url, original);
   if (isHost(url, 'linkedin.com', 'lnkd.in')) return linkedin(url, original);
   if (isHost(url, 'pinterest.com', 'pin.it')) return pinterest(url, original);
+  if (isHost(url, 'open.spotify.com', 'spotify.com', 'spotify.link')) return spotify(url, original);
   if (isHost(url, 'bsky.app')) return bluesky(url, original);
   if (isHost(url, 'tumblr.com')) return tumblr(url, original);
   if (mastodonHosts.has(url.hostname)) return mastodon(url, original);
@@ -80,6 +86,11 @@ export function getOEmbedEndpoint(link, options = {}) {
       break;
     case 'x':
       if (link.kind === 'post') endpoint = new URL('https://publish.twitter.com/oembed');
+      break;
+    case 'spotify':
+      if (['track', 'album', 'playlist', 'artist', 'show', 'episode', 'audiobook'].includes(link.kind)) {
+        endpoint = new URL('https://open.spotify.com/oembed');
+      }
       break;
     case 'tiktok':
       if (['video', 'post', 'profile'].includes(link.kind)) endpoint = new URL('https://www.tiktok.com/oembed');
@@ -314,7 +325,8 @@ function facebook(url, original) {
     kind = parts[1].toLowerCase() === 'v' ? 'video' : 'post';
   } else if (postsIndex >= 0 && parts[postsIndex + 1]) {
     handle = postsIndex > 0 ? cleanHandle(parts[postsIndex - 1]) : undefined;
-    id = parts[postsIndex + 1];
+    const postPath = parts.slice(postsIndex + 1);
+    id = [...postPath].reverse().find(part => /^\d+$/.test(part)) || postPath.at(-1);
     kind = parts[postsIndex]?.toLowerCase() === 'videos' ? 'video' : 'post';
   } else if (parts[0]) {
     handle = cleanHandle(parts[0]);
@@ -402,6 +414,32 @@ function pinterest(url, original) {
   const id = pinIndex >= 0 ? cleanNumericId(parts[pinIndex + 1]) : undefined;
   if (id) url.pathname = `/pin/${id}/`;
   return buildResult(original, url, 'pinterest', id ? 'pin' : 'page', id ? { id } : {}, removeTrackingParameters(url, new Set()));
+}
+
+function spotify(url, original) {
+  forceHttps(url);
+  if (url.hostname === 'spotify.link') {
+    return buildResult(original, url, 'spotify', 'page', {}, removeTrackingParameters(url));
+  }
+
+  url.hostname = 'open.spotify.com';
+  const parts = url.pathname.split('/').filter(Boolean);
+  if (/^intl-[a-z-]+$/i.test(parts[0] || '')) parts.shift();
+  if (parts[0]?.toLowerCase() === 'embed') parts.shift();
+
+  const supportedKinds = new Set(['track', 'album', 'playlist', 'artist', 'show', 'episode', 'audiobook']);
+  const kind = supportedKinds.has(parts[0]?.toLowerCase()) ? parts[0].toLowerCase() : 'page';
+  const id = kind !== 'page' ? cleanId(parts[1]) : undefined;
+  if (id) url.pathname = `/${kind}/${id}`;
+
+  return buildResult(
+    original,
+    url,
+    'spotify',
+    id ? kind : 'page',
+    id ? { id } : {},
+    removeTrackingParameters(url, new Set())
+  );
 }
 
 function bluesky(url, original) {

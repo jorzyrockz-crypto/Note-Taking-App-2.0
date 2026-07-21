@@ -165,12 +165,13 @@
           <div class="profile-divider"></div>
           <div class="profile-version-section">
             <div class="version-header">
-              <span class="version-label">Version 2.4.4</span>
+              <span class="version-label">Version 2.4.5</span>
               <button class="update-btn" id="app-update-btn" type="button">Update</button>
             </div>
             <div class="changelog-container">
               <div class="changelog-title">What's New</div>
               <ul class="changelog-list">
+                <li>Added resilient Facebook, X, and Pinterest capture cards with editable captions, screenshot fallback, canonical links, and richer public metadata handling</li>
                 <li>Upgraded social link parsing with clean canonical URLs, official previews where available, safe fallbacks, and stronger redirect protection</li>
                 <li>Fixed modern glass editor modal opening empty note when receiving shared PWA launch data (loads data directly into modal note draft and enriches website metadata in modal)</li>
                 <li>Robust Web Share Target: supports receiving multiple shared files and resolves query parameters correctly offline</li>
@@ -1285,7 +1286,7 @@
                   <strong>Paperuss</strong>
                   <span>A beautiful, offline-first note-taking PWA</span>
                 </div>
-                <span class="settings-version-badge" id="settings-about-version">v2.4.4</span>
+                <span class="settings-version-badge" id="settings-about-version">v2.4.5</span>
               </div>
             </div>
           </div>
@@ -1340,6 +1341,21 @@
               <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
             </button>
           </div>
+
+          <section class="social-capture-panel" id="modal-social-capture" hidden aria-live="polite">
+            <div class="social-capture-heading">
+              <span class="social-platform-badge" id="modal-social-platform">Social link</span>
+              <span class="social-capture-status" id="modal-social-status">Preview saved</span>
+            </div>
+            <label class="social-caption-field">
+              <span>Caption or context</span>
+              <textarea id="modal-social-caption" rows="3" placeholder="Paste or edit the caption you want to keep"></textarea>
+            </label>
+            <div class="social-capture-actions">
+              <button type="button" class="social-capture-button" id="modal-social-screenshot">Attach screenshot</button>
+              <a class="social-capture-open" id="modal-social-open" target="_blank" rel="noopener noreferrer">Open original post</a>
+            </div>
+          </section>
 
           <input type="text" id="modal-title" placeholder="Title" autocomplete="off">
           <div class="editor-metadata" id="modal-metadata">Today • 12:00 PM</div>

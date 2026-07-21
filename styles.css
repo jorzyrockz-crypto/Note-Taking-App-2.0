@@ -7332,6 +7332,107 @@ body.dark-theme .seg-btn.active {
   gap: 6px;
 }
 
+.social-capture-panel {
+  margin: 12px 0 16px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--primary, #4f86ff) 24%, var(--border-light));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface-paper, #fff) 88%, var(--primary, #4f86ff) 12%);
+}
+
+.social-capture-panel[hidden] {
+  display: none;
+}
+
+.social-capture-heading,
+.social-capture-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.social-platform-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #fff;
+  background: #334155;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.social-capture-panel[data-platform="facebook"] .social-platform-badge { background: #1877f2; }
+.social-capture-panel[data-platform="x"] .social-platform-badge { background: #0f172a; }
+.social-capture-panel[data-platform="pinterest"] .social-platform-badge { background: #e60023; }
+
+.social-capture-status {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.social-caption-field {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.social-caption-field textarea {
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--surface-paper, #fff) 94%, transparent);
+  font: inherit;
+  line-height: 1.45;
+}
+
+.social-capture-button,
+.social-capture-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  color: var(--text-primary);
+  background: var(--surface-paper, #fff);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.social-capture-open {
+  color: #fff;
+  border-color: var(--primary, #4f86ff);
+  background: var(--primary, #4f86ff);
+}
+
+.link-preview-open-action {
+  display: inline-flex;
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 750;
+  color: var(--primary, #4f86ff);
+}
+
+@media (max-width: 520px) {
+  .social-capture-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 .time-field label {
   font-size: 12px;
   font-weight: 600;

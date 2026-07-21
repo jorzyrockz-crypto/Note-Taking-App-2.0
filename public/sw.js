@@ -1,20 +1,9 @@
-const CACHE_NAME = 'paperuss-v60';
-// Static assets that never get hashed — safe to precache by path
+const CACHE_NAME = 'paperuss-v61';
+// Files available at the same paths in both source and Vite production builds.
+// Hashed JS/CSS dependencies are cached on first controlled fetch below.
 const APP_ASSETS = [
   './',
   './index.html',
-  './styles.css',
-  './app.js',
-  './firebase.js',
-  './glass-editor.js',
-  './sync.js',
-  './settings.js',
-  './productivity.js',
-  './recipe.js',
-  './note-types/index.js',
-  './note-types/checklist-note.js',
-  './note-types/text-note.js',
-  './note-types/shared.js',
   './site.webmanifest',
   './icons/icon.svg',
   './icons/icon-192.png',
@@ -39,7 +28,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((key) => key !== CACHE_NAME)
+          .filter((key) => key.startsWith('paperuss-v') && key !== CACHE_NAME)
           .map((key) => caches.delete(key))
       )
     )

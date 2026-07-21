@@ -90,7 +90,7 @@ export async function getLinkPreview(inputUrl, internalOptions = {}) {
         throw new LinkPreviewError(422, 'The shared URL did not return an HTML page.', 'non_html_response');
       }
 
-      const html = await readLimitedText(fetched.response, MAX_HTML_BYTES);
+      const html = await readLimitedHtml(fetched.response, MAX_HTML_BYTES);
       link = parseAndNormalizeLink(fetched.finalUrl.toString(), {
         mastodonHosts: context.mastodonHosts
       });
@@ -155,6 +155,17 @@ export function extractLinkPreview(html, link, requestMeta = {}) {
     meta('meta[property="og:type"]'),
     meta('meta[name="twitter:card"]')
   ]);
+  const provider = providerName(link);
+  const hasSpecificTitle = Boolean(title && title.toLowerCase() !== provider.toLowerCase());
+  if (link.platform !== 'unknown' && !hasSpecificTitle && !description && !image) {
+    return buildSocialFallback(link, {
+      ...requestMeta,
+      warnings: [
+        ...(requestMeta.warnings || []),
+        { code: 'metadata_unavailable', message: `${provider} did not expose public preview metadata.` }
+      ]
+    });
+  }
 
   return buildPreviewEnvelope({
     link,
@@ -275,6 +286,9 @@ function inferLinkIntent(url, meta = {}) {
   if (meta.platform === 'youtube' || /(youtube\.|youtu\.be|vimeo\.|video|watch)/.test(haystack)) {
     return { kind: 'video', folder: 'Inspiration Wall', noteType: 'bookmark', theme: 'celebration', label: 'Video' };
   }
+  if (meta.platform === 'spotify') {
+    return { kind: 'audio', folder: 'Inspiration Wall', noteType: 'bookmark', theme: 'celebration', label: 'Spotify audio' };
+  }
   if (meta.platform && meta.platform !== 'unknown') {
     return { kind: 'social', folder: 'Social Saves', noteType: 'bookmark', theme: 'office', label: 'Social post' };
   }
@@ -373,6 +387,37 @@ async function fetchSingle(url, context, options = {}) {
 async function readLimitedText(response, maxBytes) {
   const bytes = await readLimitedBytes(response, maxBytes);
   return new TextDecoder().decode(bytes);
+}
+
+async function readLimitedHtml(response, maxBytes) {
+  if (!response.body) return '';
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let html = '';
+  let total = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const remaining = maxBytes - total;
+      const accepted = value.byteLength > remaining ? value.slice(0, remaining) : value;
+      total += accepted.byteLength;
+      html += decoder.decode(accepted, { stream: true });
+      const headEnd = html.search(/<\/head\s*>/i);
+      if (headEnd >= 0) {
+        html = html.slice(0, headEnd + html.slice(headEnd).match(/^<\/head\s*>/i)[0].length);
+        break;
+      }
+      if (value.byteLength > remaining || total >= maxBytes) {
+        throw new LinkPreviewError(413, 'The preview response was too large.', 'response_too_large');
+      }
+    }
+    html += decoder.decode();
+    return html;
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
 }
 
 async function readLimitedBytes(response, maxBytes) {
@@ -533,9 +578,16 @@ function absoluteUrl(value, baseUrl) {
   if (!value || typeof value !== 'string') return '';
   try {
     const parsed = new URL(value, baseUrl);
-    return ['http:', 'https:'].includes(parsed.protocol) && !parsed.username && !parsed.password
-      ? parsed.toString()
-      : '';
+    if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) return '';
+    const hostname = parsed.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+    if (
+      hostname === 'localhost'
+      || hostname.endsWith('.localhost')
+      || hostname.endsWith('.local')
+      || hostname.endsWith('.internal')
+      || (net.isIP(hostname) && isPrivateAddress(hostname))
+    ) return '';
+    return parsed.toString();
   } catch {
     return '';
   }
@@ -556,6 +608,13 @@ function friendlyKind(kind) {
     comment: 'comment',
     pin: 'pin',
     article: 'article',
+    track: 'track',
+    album: 'album',
+    playlist: 'playlist',
+    artist: 'artist',
+    show: 'show',
+    episode: 'episode',
+    audiobook: 'audiobook',
     page: 'link'
   };
   return labels[kind] || 'link';

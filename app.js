@@ -13,6 +13,12 @@ import {
 } from './note-types/index.js';
 import { initModernGlassEditorListeners, saveGlassSelection, restoreGlassSelection } from './glass-editor.js';
 import { renderSearchPage, initSearch } from './search.js';
+import {
+  createFallbackSocialPreview,
+  isSupportedSocialPlatform,
+  normalizeSocialCaptureUrl,
+  parseSharedLaunchData
+} from './social-capture.js';
 
 import {
   isRealFirebase,
@@ -1248,6 +1254,12 @@ const modalCameraInput = document.getElementById('modal-camera-input');
 const modalFileBtn = document.getElementById('modal-file-btn');
 const modalFileInput = document.getElementById('modal-file-input');
 const modalShareBtn = document.getElementById('modal-share-btn');
+const modalSocialCapture = document.getElementById('modal-social-capture');
+const modalSocialPlatform = document.getElementById('modal-social-platform');
+const modalSocialStatus = document.getElementById('modal-social-status');
+const modalSocialCaption = document.getElementById('modal-social-caption');
+const modalSocialScreenshot = document.getElementById('modal-social-screenshot');
+const modalSocialOpen = document.getElementById('modal-social-open');
 const modalListBtn = document.getElementById('modal-list-btn');
 const modalDrawBtn = document.getElementById('modal-draw-btn');
 const modalTagsContainer = document.getElementById('modal-popover-tags-container');
@@ -3051,6 +3063,28 @@ function setupEventHandlers() {
     handleSelectedImageFile('modal', e.target.files[0]);
     e.target.value = '';
   });
+  modalSocialScreenshot?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    modalImageInput?.click();
+  });
+  modalSocialCaption?.addEventListener('input', () => {
+    const note = notes.find(n => n.id === currentEditingNoteId);
+    if (!note?.linkPreview || !isSupportedSocialPlatform(note.linkPreview.platform)) return;
+    const caption = modalSocialCaption.value.trim();
+    const requestedUrl = note.linkPreview.canonicalUrl || note.linkPreview.sourceUrl || '';
+    const canonicalUrl = normalizeSocialCaptureUrl(requestedUrl)?.canonicalUrl || '';
+    note.linkPreview.userCaption = caption;
+    note.text = [caption, canonicalUrl].filter(Boolean).join('\n\n');
+    modalText.value = note.text;
+    const glassEditor = document.getElementById('modal-glass-editor');
+    if (appSettings.modernGlassEditorEnabled && glassEditor) {
+      glassEditor.innerText = note.text;
+      window.updateGlassEmptyState(glassEditor);
+    }
+    note.updatedAt = Date.now();
+    debouncedSave();
+    renderNotes();
+  });
   modalCameraInput?.addEventListener('change', (e) => {
     handleSelectedImageFile('modal', e.target.files[0]);
     e.target.value = '';
@@ -3119,8 +3153,9 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.4.4';
+  const CURRENT_VERSION = '2.4.5';
   const DEFAULT_CHANGELOG = [
+    'Added resilient Facebook, X, and Pinterest capture cards with editable captions, screenshot fallback, canonical links, and richer public metadata handling',
     'Upgraded social link parsing with clean canonical URLs, official previews where available, safe fallbacks, and stronger redirect protection',
     'Fixed modern glass editor modal opening empty note when receiving shared PWA launch data (loads data directly into modal note draft and enriches website metadata in modal)',
     'Robust Web Share Target: supports receiving multiple shared files and resolves query parameters correctly offline',
@@ -6301,7 +6336,11 @@ export function renderGrid(gridContainer, notesArray) {
     if (bannerImage) {
       const banner = document.createElement('div');
       banner.className = 'card-image-banner';
-      banner.innerHTML = `<img src="${bannerImage}" alt="Note banner" loading="lazy">`;
+      const bannerImg = document.createElement('img');
+      bannerImg.src = bannerImage;
+      bannerImg.alt = 'Note banner';
+      bannerImg.loading = 'lazy';
+      banner.appendChild(bannerImg);
       banner.addEventListener('click', (e) => {
         e.stopPropagation();
         openImageViewer(bannerImage, cleanTitleTags(note.title || 'Note image'));
@@ -6490,10 +6529,11 @@ export function renderGrid(gridContainer, notesArray) {
     // 5.5 Link Preview Box rendering
     const firstUrl = getFirstUrlInText(note.text);
     if (firstUrl) {
-      const domain = extractDomain(firstUrl);
+      const previewUrl = normalizeSocialCaptureUrl(note.linkPreview?.canonicalUrl)?.canonicalUrl || firstUrl;
+      const domain = extractDomain(previewUrl);
       const cleanDomain = domain.replace(/^www\./, '');
-      const mediaKind = getMediaKindFromUrl(firstUrl);
-      const mockMeta = getLinkMetadata(firstUrl, note);
+      const mediaKind = getMediaKindFromUrl(previewUrl);
+      const mockMeta = getLinkMetadata(previewUrl, note);
 
       if (mediaKind) {
         const mediaBox = document.createElement('div');
@@ -6501,23 +6541,24 @@ export function renderGrid(gridContainer, notesArray) {
         mediaBox.addEventListener('click', (e) => e.stopPropagation());
         const media = document.createElement(mediaKind);
         media.className = 'link-media-player';
-        media.src = firstUrl;
+        media.src = previewUrl;
         media.controls = true;
         media.preload = 'metadata';
         if (mediaKind === 'video') media.playsInline = true;
         mediaBox.innerHTML = `
           <div class="link-preview-info">
             <div class="link-preview-title">${mediaKind === 'video' ? 'Video link' : 'Audio link'}</div>
-            <a class="link-preview-url" href="${escapeHtml(firstUrl)}" target="_blank" rel="noopener noreferrer">Open source</a>
+            <a class="link-preview-url" href="${escapeHtml(previewUrl)}" target="_blank" rel="noopener noreferrer">Open source</a>
           </div>
         `;
         mediaBox.prepend(media);
         previewBody.appendChild(mediaBox);
       } else {
         const previewBox = document.createElement('a');
-        previewBox.href = firstUrl;
+        previewBox.href = previewUrl;
         previewBox.target = '_blank';
         previewBox.rel = 'noopener noreferrer';
+        if (note.linkPreview?.platform) previewBox.dataset.platform = note.linkPreview.platform;
         previewBox.className = 'link-preview-box';
         previewBox.addEventListener('click', (e) => e.stopPropagation());
 
@@ -6542,6 +6583,7 @@ export function renderGrid(gridContainer, notesArray) {
             <svg viewBox="0 0 24 24" style="width: 10px; height: 10px; margin-right: 2px;"><path fill="currentColor" d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
             ${escapeHtml(mockMeta.badge)}
           </div>
+          <span class="link-preview-open-action">${escapeHtml(mockMeta.actionLabel || 'Open original post')}</span>
         `;
         previewBox.appendChild(cover);
         previewBox.appendChild(richContent);
@@ -6551,7 +6593,7 @@ export function renderGrid(gridContainer, notesArray) {
           <svg class="link-preview-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
           <div class="link-preview-info">
             <div class="link-preview-title">${escapeHtml(domain || 'Visit Link')}</div>
-            <div class="link-preview-url">${escapeHtml(firstUrl)}</div>
+            <div class="link-preview-url">${escapeHtml(previewUrl)}</div>
           </div>
         `;
         }
@@ -6853,8 +6895,12 @@ function openEditModal(note, autoFocus = false) {
 
     const glassTitle = document.getElementById('modal-glass-title');
     const glassEditor = document.getElementById('modal-glass-editor');
-    glassTitle.innerHTML = note.title || '';
-    glassEditor.innerHTML = note.text || '';
+    glassTitle.textContent = note.title || '';
+    if (isSupportedSocialPlatform(note.linkPreview?.platform)) {
+      glassEditor.innerText = cleanTextTags(note.text || '');
+    } else {
+      glassEditor.innerHTML = note.text || '';
+    }
     window.wireGlassChecklistEvents(glassEditor);
 
     const date = note.updatedAt ? new Date(note.updatedAt) : new Date();
@@ -7011,6 +7057,7 @@ function openEditModal(note, autoFocus = false) {
   renderModalReminderChip(note);
   renderModalAudioPreview(note);
   renderModalFileAttachments(note);
+  renderSocialCapturePanel(note);
 
   // Seed the live markdown mirror
   requestAnimationFrame(() => {
@@ -7557,7 +7604,7 @@ function buildAutofillTextFromPreview(preview, url) {
   return parts.join('\n\n').trim();
 }
 
-function buildStoredLinkPreview(preview, sourceUrl) {
+function buildStoredLinkPreview(preview, sourceUrl, existingPreview = null) {
   if (!preview) return null;
   return {
     sourceUrl,
@@ -7565,8 +7612,49 @@ function buildStoredLinkPreview(preview, sourceUrl) {
     platform: preview.social?.platform || 'website',
     kind: preview.social?.kind || preview.intent?.kind || 'bookmark',
     provider: preview.previewProvider || 'fallback',
+    providerName: preview.social?.providerName || preview.siteName || '',
+    title: preview.title || '',
+    description: preview.description || '',
+    image: preview.image || '',
+    type: preview.type || '',
+    warnings: Array.isArray(preview.warnings) ? preview.warnings.slice(0, 5) : [],
+    userCaption: existingPreview?.userCaption || '',
     updatedAt: Date.now()
   };
+}
+
+function renderSocialCapturePanel(note) {
+  if (!modalSocialCapture) return;
+  const preview = note?.linkPreview;
+  if (!preview || !isSupportedSocialPlatform(preview.platform)) {
+    modalSocialCapture.hidden = true;
+    modalSocialCapture.removeAttribute('data-platform');
+    return;
+  }
+
+  const platformNames = { facebook: 'Facebook', x: 'X', pinterest: 'Pinterest' };
+  const kind = preview.kind || 'post';
+  const requestedUrl = preview.canonicalUrl || preview.sourceUrl || getFirstUrlInText(note.text || '');
+  const canonicalUrl = normalizeSocialCaptureUrl(requestedUrl)?.canonicalUrl || '';
+  const caption = preview.userCaption ?? getUserCaptionFromNote(note, canonicalUrl);
+  const isFallback = preview.provider === 'fallback';
+
+  modalSocialCapture.hidden = false;
+  modalSocialCapture.dataset.platform = preview.platform;
+  modalSocialCapture.classList.toggle('is-fallback', isFallback);
+  modalSocialPlatform.textContent = `${platformNames[preview.platform]} ${kind}`;
+  modalSocialStatus.textContent = isFallback
+    ? 'Public preview unavailable — your caption, screenshot, and link are still saved.'
+    : 'Public preview captured';
+  modalSocialCaption.value = caption;
+  modalSocialOpen.href = canonicalUrl;
+  modalSocialOpen.hidden = !canonicalUrl;
+}
+
+function getUserCaptionFromNote(note, canonicalUrl = '') {
+  const plainText = cleanTextTags(note?.text || '').trim();
+  if (!plainText) return '';
+  return canonicalUrl ? plainText.replace(canonicalUrl, '').trim() : plainText;
 }
 
 function shouldApplyLinkPreview(url) {
@@ -7627,6 +7715,12 @@ async function fetchCreatorLinkPreview(url) {
   } catch (error) {
     if (error?.name !== 'AbortError') {
       console.warn('Link preview unavailable:', getRecipeImporterUnavailableMessage(), error);
+      const fallback = createFallbackSocialPreview(url, {
+        title: creatorTitle.value,
+        caption: creatorText.value.replace(url, '').trim(),
+        image: creatorImage
+      });
+      if (fallback) applyCreatorLinkPreview(fallback, url);
     }
   }
 }
@@ -7674,7 +7768,7 @@ async function parseCreatorLinkManually() {
 function applyLinkPreviewToNote(note, preview, sourceUrl) {
   if (!note || !preview) return;
   const intent = preview.intent || {};
-  note.linkPreview = buildStoredLinkPreview(preview, sourceUrl);
+  note.linkPreview = buildStoredLinkPreview(preview, sourceUrl, note.linkPreview);
   const previewText = buildAutofillTextFromPreview(preview, sourceUrl);
 
   if (!note.title?.trim() && preview.title) {
@@ -7714,7 +7808,19 @@ async function parseExistingNoteLink(note) {
     renderNotes();
     showToast({ title: 'Link parsed', text: 'The note was enriched with available metadata.' });
   } catch (error) {
-    showToast({ title: 'Link parser unavailable', text: error.message || getRecipeImporterUnavailableMessage() });
+    const fallback = createFallbackSocialPreview(url, {
+      title: note.title,
+      caption: getUserCaptionFromNote(note, url),
+      image: note.image
+    });
+    if (fallback) {
+      applyLinkPreviewToNote(note, fallback, url);
+      saveToLocalStorage();
+      renderNotes();
+      showToast({ title: 'Saved with fallback', text: 'The original link and your content were kept.' });
+    } else {
+      showToast({ title: 'Link parser unavailable', text: error.message || getRecipeImporterUnavailableMessage() });
+    }
   }
 }
 
@@ -7726,12 +7832,12 @@ function scheduleCreatorLinkPreview(delay = 350) {
 }
 
 async function handleSharedLaunchData() {
-  const params = new URLSearchParams(window.location.search);
-  const sharedTitle = params.get('title') || '';
-  const sharedText = params.get('text') || '';
-  const sharedUrl = params.get('url') || '';
-  const sharedImage = params.get('image') || '';
-  const hasSharedFile = params.get('sharedFile') === '1' || params.has('sharedFilesCount');
+  const sharedLaunch = parseSharedLaunchData(window.location.search);
+  const sharedTitle = sharedLaunch.title;
+  const sharedText = sharedLaunch.text;
+  const sharedUrl = sharedLaunch.suppliedUrl;
+  const sharedImage = sharedLaunch.image;
+  const hasSharedFile = sharedLaunch.hasSharedFile;
   if (!sharedTitle && !sharedText && !sharedUrl && !hasSharedFile) return;
 
   // Gather files/images from cache first if any
@@ -7784,23 +7890,37 @@ async function handleSharedLaunchData() {
     sharedImageBanner = sharedImage;
   }
 
-  const url = getFirstUrlFromSharedText(sharedUrl, sharedText);
+  const url = sharedLaunch.url || getFirstUrlFromSharedText(sharedUrl, sharedText);
+  const sharedCaption = sharedLaunch.social
+    ? sharedText.replace(URL_REGEX, '').replace(/\s+/g, ' ').trim()
+    : sharedText;
   const bodyParts = [];
-  if (sharedText && sharedText !== sharedTitle) bodyParts.push(sharedText);
-  if (sharedUrl && !sharedText.includes(sharedUrl)) bodyParts.push(sharedUrl);
+  if (sharedCaption && sharedCaption !== sharedTitle) bodyParts.push(sharedCaption);
+  if (url && !sharedCaption.includes(url)) bodyParts.push(url);
   const finalBodyText = bodyParts.join('\n\n').trim();
+  const fallbackPreview = createFallbackSocialPreview(url, {
+    title: sharedTitle,
+    caption: sharedCaption,
+    image: sharedImageBanner
+  });
+  const storedFallback = fallbackPreview ? buildStoredLinkPreview(fallbackPreview, url) : null;
+  if (storedFallback) storedFallback.userCaption = sharedCaption;
 
   if (appSettings.modernGlassEditorEnabled) {
     // Construct note object directly with all shared parameters pre-populated!
     const newNote = {
       id: 'note-' + Date.now(),
-      title: sharedTitle,
+      title: sharedTitle || fallbackPreview?.title || '',
       text: finalBodyText,
       image: sharedImageBanner,
+      linkPreview: storedFallback,
       files: sharedNoteFiles,
       pinned: false,
       color: 'default',
-      folder: 'Personal',
+      folder: fallbackPreview?.intent?.folder || 'Inbox',
+      folders: [fallbackPreview?.intent?.folder || 'Inbox'],
+      type: fallbackPreview?.intent?.noteType || 'text',
+      theme: fallbackPreview?.intent?.theme || null,
       status: 'active',
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -7826,6 +7946,8 @@ async function handleSharedLaunchData() {
     expandCreator();
     if (!creatorTitle.value.trim() && sharedTitle) {
       creatorTitle.value = sharedTitle;
+    } else if (!creatorTitle.value.trim() && fallbackPreview?.title) {
+      creatorTitle.value = fallbackPreview.title;
     }
     if (!creatorText.value.trim()) {
       creatorText.value = finalBodyText;
@@ -7840,16 +7962,19 @@ async function handleSharedLaunchData() {
         ...sharedNoteFiles
       ];
     }
+    creatorLinkPreviewData = storedFallback;
+    if (fallbackPreview?.intent?.folder) {
+      setCreatorFolderValue([fallbackPreview.intent.folder], { preserveDraft: true });
+    }
+    if (fallbackPreview?.intent?.noteType) creatorIntentType = fallbackPreview.intent.noteType;
     syncCreatorInputs();
     syncCreatorFolderInput(true);
     autoGrowTextarea.call(creatorText);
     renderCreatorFileAttachments();
     
-    if (url && !hasSharedFile && !sharedImage) {
+    if (url) {
       creatorLinkPreviewUrl = null;
       fetchCreatorLinkPreview(url);
-    } else if (url) {
-      creatorLinkPreviewUrl = url;
     }
   }
 
@@ -7867,7 +7992,7 @@ async function fetchModalLinkPreview(note, url) {
       const glassEditor = document.getElementById('modal-glass-editor');
 
       const intent = preview.intent || {};
-      note.linkPreview = buildStoredLinkPreview(preview, url);
+      note.linkPreview = buildStoredLinkPreview(preview, url, note.linkPreview);
       if (!note.title && preview.title) {
         note.title = preview.title;
         if (glassTitle) {
@@ -7909,11 +8034,23 @@ async function fetchModalLinkPreview(note, url) {
       // Save changes and update notes list
       saveToLocalStorage();
       renderNotes();
+      renderSocialCapturePanel(note);
 
       showToast({ title: 'Link parsed', text: 'The note was enriched with website metadata.' });
     }
   } catch (error) {
     console.warn('Failed to fetch link preview for modal:', error);
+    const fallback = createFallbackSocialPreview(url, {
+      title: note.title,
+      caption: getUserCaptionFromNote(note, url),
+      image: note.image
+    });
+    if (fallback) {
+      note.linkPreview = buildStoredLinkPreview(fallback, url, note.linkPreview);
+      saveToLocalStorage();
+      renderNotes();
+      renderSocialCapturePanel(note);
+    }
   }
 }
 
@@ -7951,6 +8088,23 @@ function formatCardTimestamp(timestamp) {
 
 function getLinkMetadata(url, note) {
   const domain = extractDomain(url).replace(/^www\./, '');
+  const stored = note.linkPreview;
+  if (stored && isSupportedSocialPlatform(stored.platform)) {
+    const provider = stored.providerName || ({ facebook: 'Facebook', x: 'X', pinterest: 'Pinterest' })[stored.platform];
+    const canonicalUrl = stored.canonicalUrl || url;
+    const description = stored.userCaption
+      || getUserCaptionFromNote(note, canonicalUrl)
+      || stored.description
+      || `Saved from ${provider}.`;
+    const title = cleanTitleTags(note.title || stored.title || `${provider} ${stored.kind || 'post'}`);
+    return {
+      title,
+      description: cleanTextTags(description).slice(0, 240),
+      image: note.image || stored.image || createPreviewFallbackImage(provider, title),
+      badge: `${provider} ${stored.kind || 'post'}`,
+      actionLabel: 'Open original post'
+    };
+  }
   const mockMeta = SOCIAL_MOCK_METADATA[domain];
   const inferredImage = inferPreviewImageFromUrl(url, note);
   if (mockMeta) {
