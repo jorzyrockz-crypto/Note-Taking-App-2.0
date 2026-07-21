@@ -1625,14 +1625,22 @@ export function setActiveSidebarPage(pageId) {
 
 function setActivePage(page) {
   currentPage = page;
-    if (page === 'settings') {
-      selectedTagFilter = null;
-      selectedFolderFilter = null;
-      setActiveSidebarPage('settings');
-      collapseSidebarAfterSelection();
-      renderAppView();
-      return;
-    }
+  if (page === 'settings') {
+    selectedTagFilter = null;
+    selectedFolderFilter = null;
+    setActiveSidebarPage('settings');
+    collapseSidebarAfterSelection();
+    renderAppView();
+    return;
+  }
+  if (page === 'search') {
+    selectedTagFilter = null;
+    selectedFolderFilter = null;
+    setActiveSidebarPage('search');
+    collapseSidebarAfterSelection();
+    renderSearchPage();
+    return;
+  }
   if (page === 'productivity') {
     selectedTagFilter = null;
     selectedFolderFilter = null;
@@ -3252,8 +3260,11 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.6.17';
+  const CURRENT_VERSION = '2.6.20';
   const DEFAULT_CHANGELOG = [
+    'Rectangular Checklist Cards & High-Contrast Elevation (v2.6.20): Introduced rectangular checklist cards matching photo grid aspect ratios with top glowing progress bars and completion statistics, and updated card container styling across Files, Voice Memos, Links, and Checklists with crisp solid backgrounds and elevated borders to prevent blending into light themes',
+    'Sectioned Overview & Checklist Refinements (v2.6.19): Aligned Checklist genre card icon and orange gradient, fixed HTML and markdown checklist detection, resolved matchingNotes extraction for sectioned overview layout, ensured non-sticky search header, and verified guaranteed search page re-rendering on page switch',
+    'Unified Search & Content Browser (v2.6.18): Enhanced dedicated Search page into a unified media browser with interactive fluid genre filters, compact notes feed, photo gallery with glassmorphic Lightbox viewer, file attachment list, voice memo audio player, link tiles, contextual action popovers with touch long-press support, and canonical attachment deletion',
     'Null Pointer Fix (v2.6.17): Resolved uncaught TypeError on app load caused by null searchInput reference after top-bar search removal, restoring normal workspace note rendering',
     'Spotlight Search Page & Tag Relocation (v2.6.16): Moved Tags section from sidebar to the dedicated Search page directly under search bar, removed global top-bar search across app views, updated Ctrl/Cmd+K to navigate to Search page and focus input, and verified 100% test pass',
     'Runtime Error Repair (v2.6.15): Repaired workspace scroll state (_savedWorkspaceScrollY), parseMarkdown export, saveSingleNoteToLocalStorage import, restoreArchivedNote reference, getVideoBlob attachment getter, formatSelectedText helper, and replaced popup error alerts with non-blocking toasts',

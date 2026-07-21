@@ -153,12 +153,15 @@
           <div class="profile-divider"></div>
           <div class="profile-version-section">
             <div class="version-header">
-              <span class="version-label">Version 2.6.17</span>
+              <span class="version-label">Version 2.6.20</span>
               <button class="update-btn" id="app-update-btn" type="button">Update</button>
             </div>
             <div class="changelog-container">
               <div class="changelog-title">What's New</div>
               <ul class="changelog-list">
+          <li><strong>Rectangular Checklist Cards & High-Contrast Elevation (v2.6.20):</strong> Introduced rectangular checklist cards matching photo grid aspect ratios with top glowing progress bars and completion statistics, and updated card container styling across Files, Voice Memos, Links, and Checklists with crisp solid backgrounds and elevated borders to prevent blending into light themes</li>
+          <li><strong>Sectioned Overview & Checklist Refinements (v2.6.19):</strong> Aligned Checklist genre card icon and orange gradient, fixed HTML and markdown checklist detection, resolved matchingNotes extraction for sectioned overview layout, ensured non-sticky search header, and verified guaranteed search page re-rendering on page switch</li>
+          <li><strong>Unified Search & Content Browser (v2.6.18):</strong> Enhanced dedicated Search page into a unified media browser with interactive fluid genre filters, compact notes feed, photo gallery with glassmorphic Lightbox viewer, file attachment list, voice memo audio player, link tiles, contextual action popovers with touch long-press support, and canonical attachment deletion</li>
           <li><strong>Null Pointer Fix (v2.6.17):</strong> Resolved uncaught TypeError on app load caused by null searchInput reference after top-bar search removal, restoring normal workspace note rendering</li>
           <li><strong>Spotlight Search Page & Tag Relocation (v2.6.16):</strong> Moved Tags section from sidebar to the dedicated Search page directly under search bar, removed global top-bar search across app views, updated Ctrl/Cmd+K to navigate to Search page and focus input, and verified 100% test pass</li>
           <li><strong>Runtime Error Repair (v2.6.15):</strong> Repaired workspace scroll state (_savedWorkspaceScrollY), parseMarkdown export, saveSingleNoteToLocalStorage import, restoreArchivedNote reference, getVideoBlob attachment getter, formatSelectedText helper, and replaced popup error alerts with non-blocking toasts</li>
@@ -771,81 +774,105 @@
           <div class="search-tags-list" id="search-tags-list"></div>
         </div>
 
-        <!-- Browse All Section -->
+        <!-- Browse All Section (Fluid Genre Filter Cards) -->
         <div class="search-browse-section" id="search-browse-section">
           <h3>Browse all</h3>
-          <div class="search-browse-grid">
-            <div class="fluid-genre-card card-checklists" data-search-filter="kind:checklist">
+          <div class="search-browse-grid" role="tablist" aria-label="Content Type Filters">
+            <div class="fluid-genre-card card-all active" data-type="all" role="tab" aria-selected="true" tabindex="0">
+              <span class="genre-card-title">All</span>
+              <svg class="genre-card-icon" viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+            </div>
+            <div class="fluid-genre-card card-checklists" data-type="checklist" role="tab" aria-selected="false" tabindex="0">
               <span class="genre-card-title">Checklists</span>
               <svg class="genre-card-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
             </div>
-            <div class="fluid-genre-card card-photos" data-search-filter="kind:image">
+            <div class="fluid-genre-card card-photos" data-type="photos" role="tab" aria-selected="false" tabindex="0">
               <span class="genre-card-title">Photos</span>
               <svg class="genre-card-icon" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
             </div>
-            <div class="fluid-genre-card card-voice" data-search-filter="kind:voice">
+            <div class="fluid-genre-card card-files" data-type="files" role="tab" aria-selected="false" tabindex="0">
+              <span class="genre-card-title">Files</span>
+              <svg class="genre-card-icon" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+            </div>
+            <div class="fluid-genre-card card-voice" data-type="voice" role="tab" aria-selected="false" tabindex="0">
               <span class="genre-card-title">Voice Memos</span>
               <svg class="genre-card-icon" viewBox="0 0 24 24"><path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
             </div>
-            <div class="fluid-genre-card card-bookmarks" data-search-filter="kind:link">
-              <span class="genre-card-title">Bookmarks</span>
+            <div class="fluid-genre-card card-bookmarks" data-type="links" role="tab" aria-selected="false" tabindex="0">
+              <span class="genre-card-title">Links</span>
               <svg class="genre-card-icon" viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
             </div>
-            <div class="fluid-genre-card card-notebooks" data-search-filter="folder:">
-              <span class="genre-card-title">Notebooks</span>
-              <svg class="genre-card-icon" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
-            </div>
-            <div class="fluid-genre-card card-tags" data-search-filter="tag:">
-              <span class="genre-card-title">Tags</span>
-              <svg class="genre-card-icon" viewBox="0 0 24 24"><path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/></svg>
-            </div>
-          </div>
-          
-          <!-- Consolidated Media Sections -->
-          <div class="search-media-consolidation" id="search-media-consolidation">
-            
-            <div class="media-section" id="search-photos-section" style="display: none;">
-              <h3 class="section-title">
-                <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
-                PHOTOS
-              </h3>
-              <div class="notes-grid" id="search-photos-grid"></div>
-            </div>
-
-            <div class="media-section" id="search-files-section" style="display: none;">
-              <h3 class="section-title">
-                <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
-                FILES & VOICE
-              </h3>
-              <div class="notes-grid" id="search-files-grid"></div>
-            </div>
-
-            <div class="media-section" id="search-links-section" style="display: none;">
-              <h3 class="section-title">
-                <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
-                LINKS
-              </h3>
-              <div class="notes-grid" id="search-links-grid"></div>
-            </div>
-            
           </div>
         </div>
 
-        <!-- Search Results Section -->
-        <div class="search-results-section" id="search-results-section" style="display: none;">
-          <div class="search-results-filters" id="search-results-filters">
-            <button class="search-filter-pill active" data-filter="all">All</button>
-            <button class="search-filter-pill" data-filter="notes">Notes</button>
-            <button class="search-filter-pill" data-filter="folders">Notebooks</button>
-            <button class="search-filter-pill" data-filter="tags">Tags</button>
+        <!-- Dynamic Search Results Section -->
+        <div class="search-results-section" id="search-results-section">
+          <div class="search-results-header" id="search-results-header">
+            <h2 class="search-results-title" id="search-results-title">All Content</h2>
+            <span class="search-results-count-badge" id="search-results-count">0 items</span>
           </div>
-          <!-- We can reuse .notes-feed layout here, but let's give it an id -->
-          <div class="notes-feed" id="dedicated-search-results-grid" style="display: grid; padding: 0; margin-top: 16px;">
-            <!-- Results populated here -->
+          <div class="search-results-content" id="search-results-content">
+            <div class="notes-feed" id="dedicated-search-results-grid" style="display: grid; padding: 0; margin-top: 16px;"></div>
           </div>
         </div>
       </div>
     </section>
+
+    <!-- Photo Lightbox Viewer Modal -->
+    <div class="photo-lightbox-modal" id="photo-lightbox-modal" role="dialog" aria-modal="true" aria-label="Photo Lightbox Gallery" style="display: none;">
+      <div class="lightbox-header">
+        <div class="lightbox-title-container">
+          <span class="lightbox-photo-title" id="lightbox-photo-title">Photo Title</span>
+          <span class="lightbox-counter" id="lightbox-counter">Photo 1 of 1</span>
+        </div>
+        <button type="button" class="lightbox-source-note-btn" id="lightbox-source-note-btn">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+          <span id="lightbox-note-title">Open Source Note</span>
+        </button>
+        <button type="button" class="lightbox-close-btn" id="lightbox-close-btn" aria-label="Close gallery">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+
+      <div class="lightbox-viewport" id="lightbox-viewport">
+        <button type="button" class="lightbox-nav-btn nav-prev" id="lightbox-prev-btn" aria-label="Previous photo">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+        </button>
+
+        <div class="lightbox-img-wrapper" id="lightbox-img-wrapper">
+          <img src="" class="lightbox-img" id="lightbox-img" alt="Gallery Photo" draggable="false">
+        </div>
+
+        <button type="button" class="lightbox-nav-btn nav-next" id="lightbox-next-btn" aria-label="Next photo">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </button>
+      </div>
+
+      <div class="lightbox-toolbar" id="lightbox-toolbar">
+        <button type="button" class="lightbox-tool-btn" id="lightbox-zoom-out" title="Zoom Out (-)">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 13H5v-2h14v2z"/></svg>
+        </button>
+        <span class="lightbox-zoom-level" id="lightbox-zoom-level">100%</span>
+        <button type="button" class="lightbox-tool-btn" id="lightbox-zoom-in" title="Zoom In (+)">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        </button>
+        <button type="button" class="lightbox-tool-btn" id="lightbox-zoom-reset" title="Reset Zoom (0)">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+        </button>
+        <div class="lightbox-divider"></div>
+        <button type="button" class="lightbox-tool-btn" id="lightbox-download-btn" title="Download Photo">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        </button>
+        <button type="button" class="lightbox-tool-btn danger-btn" id="lightbox-delete-btn" title="Delete Photo">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Shared Contextual Action Menu Popover -->
+    <div class="search-action-menu-popover" id="search-action-menu-popover" role="menu" aria-label="Item Actions" style="display: none;">
+      <div class="action-menu-content" id="action-menu-content"></div>
+    </div>
 
     <section class="settings-page" id="settings-page" style="display: none;">
       <!-- Settings Header -->
