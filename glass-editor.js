@@ -191,30 +191,31 @@ window.toggleGlassColorPopup = function(mode, anchorBtn = null) {
   const p = document.getElementById(`${mode}-glass-color-popup`);
   if (!p) return;
   
-  if (p.style.display === 'flex') {
-    p.style.display = 'none';
-  } else {
-    p.style.display = 'flex';
+  const isOpening = p.style.display !== 'flex';
+  p.style.display = isOpening ? 'flex' : 'none';
+  
+  if (anchorBtn) {
+    anchorBtn.setAttribute('aria-expanded', isOpening ? 'true' : 'false');
+    anchorBtn.setAttribute('aria-controls', `${mode}-glass-color-popup`);
+  }
+
+  if (isOpening && anchorBtn) {
+    const btnRect = anchorBtn.getBoundingClientRect();
+    const popupH = p.offsetHeight || 130;
+    const margin = 8;
     
-    // Dynamically position it relative to the anchor button or context toolbar
-    if (anchorBtn) {
-      const btnRect = anchorBtn.getBoundingClientRect();
-      const popupH = p.offsetHeight || 130;
-      const margin = 8;
-      
-      let top = btnRect.top - popupH - margin;
-      if (top < margin) {
-        top = btnRect.bottom + margin; // Flip below if too close to top
-      }
-      
-      let left = btnRect.left + (btnRect.width / 2);
-      
-      p.style.position = 'fixed';
-      p.style.top = `${top}px`;
-      p.style.left = `${left}px`;
-      p.style.bottom = 'auto'; // override CSS
-      p.style.transform = 'translateX(-50%)'; // center horizontally over the point
+    let top = btnRect.top - popupH - margin;
+    if (top < margin) {
+      top = btnRect.bottom + margin; // Flip below if too close to top
     }
+    
+    let left = btnRect.left + (btnRect.width / 2);
+    
+    p.style.position = 'fixed';
+    p.style.top = `${top}px`;
+    p.style.left = `${left}px`;
+    p.style.bottom = 'auto'; // override CSS
+    p.style.transform = 'translateX(-50%)'; // center horizontally over the point
   }
 
   // Dismiss link popover if open
@@ -531,8 +532,14 @@ window.toggleGlassLinkPopover = function(mode, anchorBtn = null) {
   const popover = document.getElementById(`${mode}-glass-link-popover`);
   if (!popover) return;
   const input = document.getElementById(`${mode}-glass-link-input`);
+  const isOpening = popover.style.display !== 'flex';
   
-  if (popover.style.display === 'flex') {
+  if (anchorBtn) {
+    anchorBtn.setAttribute('aria-expanded', isOpening ? 'true' : 'false');
+    anchorBtn.setAttribute('aria-controls', `${mode}-glass-link-popover`);
+  }
+
+  if (!isOpening) {
     popover.style.display = 'none';
   } else {
     // Dismiss color popup if open
@@ -1148,12 +1155,14 @@ export function initModernGlassEditorListeners(callbacks = {}) {
       const linkBtn = document.querySelector(`#${mode}-glass-floating-toolbar button[title="Insert link"]`);
       if (linkPopover && linkPopover.style.display === 'flex' && !linkPopover.contains(e.target) && !linkBtn?.contains(e.target)) {
         linkPopover.style.display = 'none';
+        if (linkBtn) linkBtn.setAttribute('aria-expanded', 'false');
       }
       
       const colorPopup = document.getElementById(`${mode}-glass-color-popup`);
       const colorBtn = document.querySelector(`#${mode}-glass-floating-toolbar button[title="Highlight & Text color"]`);
       if (colorPopup && colorPopup.style.display === 'flex' && !colorPopup.contains(e.target) && !colorBtn?.contains(e.target)) {
         colorPopup.style.display = 'none';
+        if (colorBtn) colorBtn.setAttribute('aria-expanded', 'false');
       }
     });
   });
@@ -1163,12 +1172,22 @@ export function initModernGlassEditorListeners(callbacks = {}) {
       const ids = ['creator', 'modal'];
       ids.forEach(mode => {
         const linkPopover = document.getElementById(`${mode}-glass-link-popover`);
+        const linkBtn = document.querySelector(`#${mode}-glass-floating-toolbar button[title="Insert link"]`);
         if (linkPopover && linkPopover.style.display === 'flex') {
           linkPopover.style.display = 'none';
+          if (linkBtn) {
+            linkBtn.setAttribute('aria-expanded', 'false');
+            linkBtn.focus();
+          }
         }
         const colorPopup = document.getElementById(`${mode}-glass-color-popup`);
+        const colorBtn = document.querySelector(`#${mode}-glass-floating-toolbar button[title="Highlight & Text color"]`);
         if (colorPopup && colorPopup.style.display === 'flex') {
           colorPopup.style.display = 'none';
+          if (colorBtn) {
+            colorBtn.setAttribute('aria-expanded', 'false');
+            colorBtn.focus();
+          }
         }
       });
     }

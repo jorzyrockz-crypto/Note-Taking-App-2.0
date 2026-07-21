@@ -12469,3 +12469,18 @@ body.dark-theme .inline-reminder-chip {
   background: rgba(56,189,248,0.1);
   border-color: rgba(56,189,248,0.25);
 }
+
+/* Touch layout 44px minimum target sizes for primary toolbar buttons */
+@media (pointer: coarse) {
+  .glass-floating-toolbar .toolbar-btn,
+  .glass-ctx-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Guarantee primary toolbar does not cause horizontal page overflow */
+.glass-floating-toolbar {
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
+}
