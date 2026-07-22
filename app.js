@@ -3553,8 +3553,9 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.8.1';
+  const CURRENT_VERSION = '2.8.2';
   const DEFAULT_CHANGELOG = [
+    'Mobile Layout Refinements & Context Menu Overhaul (v2.8.2): Tightened mobile top nav bar height to 54px, added 12px left clearance to feed filter pills, unlocked context menu overflow for un-clipped ellipsis popovers with 500ms touch long-press support, unified Edit Modal scrolling, and removed legacy bottom toolbar in favor of a single floating pill toolbar.',
     'New Phone Layout Card View (v2.8.1): Refined 2-column mobile grid cards with a fixed 280px height, preserved inner surface elevation with rich content fill, micro header row, 2-line title clamping, pinned timestamp, and bottom gradient fade.',
     'Phone Experience Enhancement (v2.8.0): Integrated user profile avatar into top header navigation bar on mobile, introduced experimental 2-column compact mobile grid card view with 2-line title clamping and 3-line text previews, and enabled 1-tap view layout toggling.',
     'Mobile Ergonomics & UI Polish (v2.7.3): Added high-density compact mobile spacing across note cards, creator, and workspace; scaled Edit Modal title font size to prevent word splitting; automatically concealed bottom navigation dock during note editing; fixed filter bar left padding; and cleared toast notifications below the app header.',
@@ -5265,6 +5266,9 @@ function closeAllNoteCardMenus() {
     menu.classList.remove('open');
     menu.classList.remove('theme-picker-open');
   });
+  document.querySelectorAll('.note-card.menu-open').forEach(card => {
+    card.classList.remove('menu-open');
+  });
   document.querySelectorAll('.note-card-menu-panel .color-picker-bubble.visible').forEach(picker => {
     picker.classList.remove('visible');
   });
@@ -6974,6 +6978,7 @@ export function createNoteCardElement(note) {
     closeAllNoteCardMenus();
     if (!isOpen) {
       cardMenu.classList.add('open');
+      card.classList.add('menu-open');
     }
   });
 
@@ -6982,8 +6987,68 @@ export function createNoteCardElement(note) {
   stamp.textContent = formatCardTimestamp(note.updatedAt);
   surface.appendChild(stamp);
 
-  // Open Edit Modal on Click
+  // Touch Long-Press Handler for Mobile/Touch Devices (~500ms Hold)
+  let longPressTimer = null;
+  let longPressStartX = 0;
+  let longPressStartY = 0;
+  let isLongPressTriggered = false;
+  let longPressSuppressClickUntil = 0;
+
+  card.addEventListener('touchstart', (e) => {
+    if (!e.touches || e.touches.length !== 1) return;
+    if (e.target.closest('.icon-btn') || e.target.closest('.note-card-menu-action') || e.target.closest('.checklist-checkbox')) return;
+
+    longPressStartX = e.touches[0].clientX;
+    longPressStartY = e.touches[0].clientY;
+    isLongPressTriggered = false;
+
+    if (longPressTimer) clearTimeout(longPressTimer);
+    longPressTimer = setTimeout(() => {
+      isLongPressTriggered = true;
+      longPressSuppressClickUntil = Date.now() + 400;
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        try { navigator.vibrate(40); } catch (_) {}
+      }
+      closeAllNoteCardMenus();
+      cardMenu.classList.add('open');
+      card.classList.add('menu-open');
+    }, 500);
+  }, { passive: true });
+
+  card.addEventListener('touchmove', (e) => {
+    if (!longPressTimer) return;
+    if (e.touches && e.touches[0]) {
+      const diffX = Math.abs(e.touches[0].clientX - longPressStartX);
+      const diffY = Math.abs(e.touches[0].clientY - longPressStartY);
+      if (diffX > 10 || diffY > 10) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    }
+  }, { passive: true });
+
+  card.addEventListener('touchend', () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  }, { passive: true });
+
+  card.addEventListener('touchcancel', () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  }, { passive: true });
+
+  // Open Edit Modal on Click (Suppressed if Long-Press Triggered)
   card.addEventListener('click', (e) => {
+    if (Date.now() < longPressSuppressClickUntil || isLongPressTriggered) {
+      e.stopPropagation();
+      e.preventDefault();
+      isLongPressTriggered = false;
+      return;
+    }
     if (!e.target.closest('.icon-btn') && !e.target.closest('.note-card-menu-action') && !e.target.closest('.color-picker-bubble') && !e.target.closest('.checklist-checkbox')) {
       openEditModal(note);
     }

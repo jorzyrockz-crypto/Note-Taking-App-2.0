@@ -8671,30 +8671,9 @@ body.dark-theme .editor-render-mirror pre { background: rgba(255,255,255,0.05); 
   max-width: 780px;
 }
 
-/* Docked Formatting Toolbar */
+/* Legacy Docked Formatting Toolbar — replaced by single glass-floating-toolbar */
 .floating-toolbar {
-  position: absolute !important;
-  bottom: 0 !important;
-  left: 0 !important;
-  transform: none !important;
-  width: 100% !important;
-  background: var(--note-default) !important;
-  border-top: 1px solid var(--border-light) !important;
-  border-bottom: none !important;
-  border-left: none !important;
-  border-right: none !important;
-  border-radius: 0 !important;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.03) !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 24px;
-  gap: 8px;
-  z-index: 100;
-  box-sizing: border-box;
-  flex-shrink: 0;
-  flex-wrap: nowrap;
-  overflow-x: auto;
+  display: none !important;
 }
 
 body.dark-theme .floating-toolbar {
@@ -11716,10 +11695,9 @@ body.dark-theme.card-style-notebook .note-card::before {
     padding-bottom: 96px !important;
   }
 
-  .floating-toolbar,
-  .glass-floating-toolbar {
-    bottom: max(18px, env(safe-area-inset-bottom)) !important;
-    max-width: calc(100% - 32px);
+  .floating-toolbar {
+    bottom: 0 !important;
+    max-width: 100% !important;
   }
 
   .editor-more-popover {
@@ -12800,16 +12778,18 @@ body.dark-theme .mobile-sheet-opt-label {
     display: flex;
   }
 
-  /* Compact Workspace & Page Paddings */
+  /* Compact Workspace & Page Paddings - Closer to Top Nav Bar */
   .main-content-area,
   #search-page-container,
-  #productivity-page-container {
-    padding: 10px 10px calc(80px + env(safe-area-inset-bottom, 0px)) 10px !important;
+  #productivity-page-container,
+  #settings-page-container,
+  #recipe-importer-container {
+    padding: 4px 8px calc(80px + env(safe-area-inset-bottom, 0px)) 8px !important;
   }
 
   /* Compact Note Creator */
   .creator-wrapper {
-    margin: 6px auto 10px auto !important;
+    margin: 2px auto 6px auto !important;
   }
 
   .note-creator,
@@ -12829,18 +12809,27 @@ body.dark-theme .mobile-sheet-opt-label {
     margin-bottom: 4px !important;
   }
 
-  /* Compact Feed Filter Bar with Left Edge Padding */
+  /* Compact Feed Filter Bar with Left Edge Clearance */
   .feed-filter-row {
-    padding: 6px 14px !important;
-    scroll-padding-left: 14px !important;
-    gap: 6px !important;
+    padding: 6px 12px 6px 12px !important;
+    scroll-padding-left: 12px !important;
+    margin: 0 !important;
+    gap: 8px !important;
     box-sizing: border-box !important;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 
   .feed-filter-row .filter-pill {
-    padding: 6px 12px !important;
+    padding: 6px 14px !important;
     font-size: 12px !important;
     min-height: 34px !important;
+    scroll-snap-align: start !important;
+  }
+
+  .feed-filter-row .filter-pill:first-child {
+    margin-left: 0 !important;
   }
 
   /* Mobile Edit Modal Full-Screen Card */
@@ -12852,6 +12841,45 @@ body.dark-theme .mobile-sheet-opt-label {
     max-height: 100vh !important;
     border-radius: 0 !important;
     margin: 0 !important;
+  }
+
+  /* Unified Single Scroll Container in Edit Modal (Eliminates Touch Scroll Lock) */
+  .edit-modal-card .glass-editor-workspace {
+    overflow-y: visible !important;
+    height: auto !important;
+    flex: none !important;
+    padding: 12px 0 24px 0 !important;
+  }
+
+  /* Hide legacy bottom action bar — single floating pill toolbar is used instead */
+  .edit-modal-card .floating-toolbar,
+  #modal-floating-toolbar {
+    display: none !important;
+  }
+
+  /* Single Glass Floating Pill Toolbar in Edit Modal */
+  .glass-floating-toolbar {
+    position: fixed !important;
+    bottom: max(20px, env(safe-area-inset-bottom, 0px)) !important;
+    left: 50% !important;
+    transform: translateX(-50%) translateY(0) !important;
+    max-width: calc(100vw - 24px) !important;
+    overflow-x: auto !important;
+    z-index: 2500 !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  .glass-floating-toolbar.toolbar-hidden {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateX(-50%) translateY(32px) !important;
+  }
+
+  .edit-modal-card .editor-scroll-container {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 12px 14px calc(70px + env(safe-area-inset-bottom, 0px)) 14px !important;
   }
 
   /* Title Fluid Font Scaling & Word Wrapping in Edit Modal */
@@ -12870,10 +12898,6 @@ body.dark-theme .mobile-sheet-opt-label {
 
   .advanced-editor-header {
     padding: 8px 14px !important;
-  }
-
-  .editor-scroll-container {
-    padding: 12px 14px calc(80px + env(safe-area-inset-bottom, 0px)) 14px !important;
   }
 
   /* Hide Mobile Navigation Dock while Edit Modal is active */
@@ -13182,6 +13206,13 @@ body.dark-theme .mobile-sheet-opt-label {
   /* ==========================================================================
      PHASE 1: MOBILE TOP HEADER USER PROFILE INTEGRATION (< 640px)
      ========================================================================== */
+  /* Mobile Top Header Compression */
+  .app-header {
+    height: 54px !important;
+    min-height: 54px !important;
+    padding: max(4px, env(safe-area-inset-top, 0px)) 12px 4px !important;
+  }
+
   .app-header .header-right {
     display: flex !important;
     align-items: center !important;
@@ -13270,6 +13301,28 @@ body.dark-theme .mobile-sheet-opt-label {
     justify-content: flex-start !important;
     margin: 0 !important;
     box-sizing: border-box !important;
+    position: relative !important;
+  }
+
+  /* Unlock overflow and elevate stacking context when note card context menu is active */
+  .notes-grid:not(.list-view) .note-card.menu-open,
+  .notes-grid:not(.list-view) .note-card:has(.note-card-menu.open),
+  .notes-grid:not(.list-view) .note-card .note-board-header:has(.note-card-menu.open),
+  .notes-grid:not(.list-view) .note-card .note-board-meta:has(.note-card-menu.open),
+  .notes-grid:not(.list-view) .note-card .note-card-menu.open {
+    overflow: visible !important;
+    z-index: 500 !important;
+  }
+
+  .notes-grid:not(.list-view) .note-card-menu.open .note-card-menu-panel {
+    display: flex !important;
+    position: absolute !important;
+    top: calc(100% + 4px) !important;
+    right: 0 !important;
+    z-index: 2000 !important;
+    min-width: 155px !important;
+    max-width: calc(100vw - 32px) !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25), 0 4px 10px rgba(0, 0, 0, 0.12) !important;
   }
 
   /* Board header — micro-row, fixed height at top */

@@ -472,8 +472,9 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '2.8.1',
+        version: '2.8.2',
         changelog: [
+          'Mobile Layout Refinements & Context Menu Overhaul (v2.8.2): Tightened mobile top nav bar height to 54px, added 12px left clearance to feed filter pills, unlocked context menu overflow for un-clipped ellipsis popovers with 500ms touch long-press support, unified Edit Modal scrolling, and removed legacy bottom toolbar in favor of a single floating pill toolbar',
           'New Phone Layout Card View (v2.8.1): Refined 2-column mobile grid cards with a fixed 280px height, preserved inner surface elevation with rich content fill, micro header row, 2-line title clamping, pinned timestamp, and bottom gradient fade',
           'Phone Experience Enhancement (v2.8.0): Integrated user profile avatar into top header navigation bar on mobile, introduced experimental 2-column compact mobile grid card view with 2-line title clamping and 3-line text previews, and enabled 1-tap view layout toggling',
           'Mobile Ergonomics & UI Polish (v2.7.3): Added high-density compact mobile spacing across note cards, creator, and workspace; scaled Edit Modal title font size to prevent word splitting; automatically concealed bottom navigation dock during note editing; fixed filter bar left padding; and cleared toast notifications below the app header',

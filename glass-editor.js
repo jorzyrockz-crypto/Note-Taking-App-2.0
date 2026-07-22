@@ -1102,18 +1102,18 @@ export function initModernGlassEditorListeners(callbacks = {}) {
       saveGlassSelection();
 
       const activeMode = isCreatorActive ? 'creator' : 'modal';
-      
-      if (!sel.isCollapsed) {
-        const toolbar = document.getElementById(`${activeMode}-glass-floating-toolbar`);
-        if (toolbar) {
-          clearTimeout(autoHideTimers[activeMode]);
-          toolbar.classList.remove('toolbar-hidden');
-        }
-      }
 
       const toolbarId = `${activeMode}-glass-floating-toolbar`;
       const toolbar = document.getElementById(toolbarId);
       if (toolbar) {
+        if (!sel.isCollapsed && sel.toString().trim().length > 0) {
+          clearTimeout(autoHideTimers[activeMode]);
+          toolbar.classList.remove('toolbar-hidden');
+          toolbar.classList.add('selection-active');
+        } else {
+          toolbar.classList.remove('selection-active');
+        }
+
         toolbar.querySelectorAll('.toolbar-btn[data-cmd]').forEach(btn => {
           const cmd = btn.dataset.cmd;
           let active = false;
