@@ -112,11 +112,11 @@ if (typeof window !== 'undefined') {
 // 1. Initial State & Data Definition (Upgraded v2.7.0)
 // ==========================================================================
 
-export const CURRENT_VERSION = '2.8.0';
+export const CURRENT_VERSION = '2.8.1';
 export const DEFAULT_CHANGELOG = [
+  'Guaranteed PWA Cache Buster & Network-First Sync (v2.8.1): Implemented Network-First service worker fetch strategy for app scripts and enabled 1-tap cache purge force update button.',
   'Phone Experience Enhancement (v2.8.0): Anchored User Profile avatar in top mobile header, introduced experimental 2-Column Compact Grid View for smaller note cards (inspired by Spotify Browse All cards), and enabled 1-tap view switching.',
-  'Mobile Ergonomics & UI Polish (v2.7.3): Added high-density compact mobile spacing across note cards, creator, and workspace; scaled Edit Modal title font size to prevent word splitting; automatically concealed bottom navigation dock during note editing; fixed filter bar left padding; and cleared toast notifications below the app header.',
-  'Settings Panel Mobile Overflow Fix (v2.7.2): Resolved mobile viewport overflow across all settings tabs by converting two-column layouts to fluid single-column cards, wrapping segmented controls & color swatches, stacking time pickers, and enabling touch horizontal tab scrolling.'
+  'Mobile Ergonomics & UI Polish (v2.7.3): Added high-density compact mobile spacing across note cards, creator, and workspace; scaled Edit Modal title font size to prevent word splitting; automatically concealed bottom navigation dock during note editing; fixed filter bar left padding; and cleared toast notifications below the app header.'
 ];
 
 /**
@@ -3566,11 +3566,9 @@ function setupEventHandlers() {
     handlePasteImage(e, 'modal');
   });
 
-  // App Update Cache Buster
-  const appUpdateBtn = document.getElementById('app-update-btn');
-
-  const CURRENT_VERSION = '2.8.0';
+  const CURRENT_VERSION = '2.8.1';
   const DEFAULT_CHANGELOG = [
+    'Guaranteed PWA Cache Buster & Network-First Sync (v2.8.1): Implemented Network-First service worker fetch strategy for app scripts and enabled 1-tap cache purge force update button.',
     'Phone Experience Enhancement (v2.8.0): Anchored User Profile avatar in top mobile header, introduced experimental 2-Column Compact Grid View for smaller note cards (inspired by Spotify Browse All cards), and enabled 1-tap view switching.',
     'Mobile Ergonomics & UI Polish (v2.7.3): Added high-density compact mobile spacing across note cards, creator, and workspace; scaled Edit Modal title font size to prevent word splitting; automatically concealed bottom navigation dock during note editing; fixed filter bar left padding; and cleared toast notifications below the app header.',
     'Settings Panel Mobile Overflow Fix (v2.7.2): Resolved mobile viewport overflow across all settings tabs by converting two-column layouts to fluid single-column cards, wrapping segmented controls & color swatches, stacking time pickers, and enabling touch horizontal tab scrolling.',
@@ -3632,13 +3630,12 @@ function setupEventHandlers() {
       versionLabel.textContent = `Version ${CURRENT_VERSION}`;
     }
 
+    appUpdateBtn.disabled = false;
     if (serverVersion && serverVersion !== CURRENT_VERSION) {
-      appUpdateBtn.disabled = false;
       appUpdateBtn.textContent = 'Update';
       appUpdateBtn.classList.add('update-available');
     } else {
-      appUpdateBtn.disabled = true;
-      appUpdateBtn.textContent = 'Latest';
+      appUpdateBtn.textContent = 'Refresh';
       appUpdateBtn.classList.remove('update-available');
     }
   });
@@ -3662,15 +3659,16 @@ function setupEventHandlers() {
         await Promise.all(registrations.map(reg => reg.unregister()));
       }
 
-      // 3. Restart / Reload the app
+      // 3. Restart / Reload the app with cache buster query parameter
       setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+        const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname + '?v=' + Date.now();
+        window.location.href = cleanUrl;
+      }, 600);
     } catch (err) {
       console.warn('Failed to clear app cache during update:', err);
       setTimeout(() => {
         window.location.reload();
-      }, 1000);
+      }, 600);
     }
   });
 
