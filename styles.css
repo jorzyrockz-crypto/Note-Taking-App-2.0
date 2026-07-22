@@ -12800,16 +12800,50 @@ body.dark-theme .mobile-sheet-opt-label {
     display: flex;
   }
 
+  /* Compact Workspace & Page Paddings */
   .main-content-area,
   #search-page-container,
   #productivity-page-container {
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 10px 10px calc(80px + env(safe-area-inset-bottom, 0px)) 10px !important;
   }
 
+  /* Compact Note Creator */
   .creator-wrapper {
-    margin-bottom: 12px;
+    margin: 6px auto 10px auto !important;
   }
 
+  .note-creator,
+  .creator-collapsed {
+    padding: 10px 14px !important;
+    border-radius: 18px !important;
+  }
+
+  /* Compact Note Cards */
+  .note-card {
+    padding: 12px 14px !important;
+    border-radius: 16px !important;
+  }
+
+  .note-card .note-title {
+    font-size: 15px !important;
+    margin-bottom: 4px !important;
+  }
+
+  /* Compact Feed Filter Bar with Left Edge Padding */
+  .feed-filter-row {
+    padding: 6px 14px !important;
+    scroll-padding-left: 14px !important;
+    gap: 6px !important;
+    box-sizing: border-box !important;
+  }
+
+  .feed-filter-row .filter-pill {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+    min-height: 34px !important;
+  }
+
+  /* Mobile Edit Modal Full-Screen Card */
   .edit-modal-card {
     width: 100vw !important;
     height: 100vh !important;
@@ -12818,6 +12852,45 @@ body.dark-theme .mobile-sheet-opt-label {
     max-height: 100vh !important;
     border-radius: 0 !important;
     margin: 0 !important;
+  }
+
+  /* Title Fluid Font Scaling & Word Wrapping in Edit Modal */
+  .creator-wrapper.advanced-editor-active #creator-title,
+  .edit-modal-card #modal-title,
+  #modal-glass-title,
+  #creator-glass-title {
+    font-size: clamp(18px, 5.5vw, 22px) !important;
+    line-height: 1.3 !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    hyphens: manual !important;
+    margin-top: 8px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .advanced-editor-header {
+    padding: 8px 14px !important;
+  }
+
+  .editor-scroll-container {
+    padding: 12px 14px calc(80px + env(safe-area-inset-bottom, 0px)) 14px !important;
+  }
+
+  /* Hide Mobile Navigation Dock while Edit Modal is active */
+  body.editor-focus-mode .mobile-bottom-dock,
+  body.advanced-editor-open .mobile-bottom-dock,
+  body.edit-modal-open .mobile-bottom-dock {
+    display: none !important;
+  }
+
+  /* Toast Notification Banner Header Clearance */
+  .toast-container,
+  #toast-container {
+    top: calc(60px + env(safe-area-inset-top, 0px)) !important;
+    left: 12px !important;
+    right: 12px !important;
+    max-width: calc(100vw - 24px) !important;
+    z-index: 9999 !important;
   }
 
   .glass-floating-toolbar.keyboard-elevated {
