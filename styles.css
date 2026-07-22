@@ -12800,45 +12800,6 @@ body.dark-theme .mobile-sheet-opt-label {
     display: flex;
   }
 
-  /* Visible Top Nav Profile Avatar on Mobile */
-  .app-header .header-right {
-    display: flex !important;
-    align-items: center !important;
-    gap: 6px !important;
-  }
-
-  .app-header .user-avatar-container {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    position: relative !important;
-  }
-
-  .app-header .user-avatar {
-    display: flex !important;
-    width: 36px !important;
-    height: 36px !important;
-    margin-left: 2px !important;
-    font-size: 15px !important;
-    border: 2px solid var(--accent-border, rgba(56, 189, 248, 0.4)) !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
-  }
-
-  .profile-dropdown {
-    position: fixed !important;
-    top: 58px !important;
-    right: 12px !important;
-    left: auto !important;
-    width: calc(100vw - 24px) !important;
-    max-width: 360px !important;
-    z-index: 99999 !important;
-    border-radius: 20px !important;
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25) !important;
-    background: var(--bg-popup, rgba(255, 255, 255, 0.96)) !important;
-    backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
-  }
-
   /* Compact Workspace & Page Paddings */
   .main-content-area,
   #search-page-container,
@@ -12857,90 +12818,15 @@ body.dark-theme .mobile-sheet-opt-label {
     border-radius: 18px !important;
   }
 
-  /* Experimental 2-Column Compact Grid View for Mobile Phones (< 640px) */
-  .notes-grid:not(.list-view) {
-    display: grid !important;
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 10px !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-  }
-
-  .notes-grid:not(.list-view) .note-card {
-    padding: 10px 12px !important;
+  /* Compact Note Cards */
+  .note-card {
+    padding: 12px 14px !important;
     border-radius: 16px !important;
-    min-height: 110px !important;
-    max-height: 220px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: space-between !important;
-    overflow: hidden !important;
-    box-sizing: border-box !important;
   }
 
-  .notes-grid:not(.list-view) .note-card .note-title {
-    font-size: 14px !important;
-    font-weight: 700 !important;
-    line-height: 1.3 !important;
-    display: -webkit-box !important;
-    -webkit-line-clamp: 2 !important;
-    -webkit-box-orient: vertical !important;
-    overflow: hidden !important;
+  .note-card .note-title {
+    font-size: 15px !important;
     margin-bottom: 4px !important;
-    margin-top: 2px !important;
-  }
-
-  .notes-grid:not(.list-view) .note-card .note-text {
-    font-size: 11.5px !important;
-    line-height: 1.4 !important;
-    display: -webkit-box !important;
-    -webkit-line-clamp: 3 !important;
-    -webkit-box-orient: vertical !important;
-    overflow: hidden !important;
-    max-height: 52px !important;
-  }
-
-  .notes-grid:not(.list-view) .note-card .note-kind-pill,
-  .notes-grid:not(.list-view) .note-card .note-folder-pill {
-    min-height: 20px !important;
-    font-size: 9.5px !important;
-    padding: 0 6px !important;
-    border-radius: 999px !important;
-  }
-
-  .notes-grid:not(.list-view) .note-card .note-card-actions .icon-btn {
-    width: 28px !important;
-    height: 28px !important;
-    padding: 4px !important;
-  }
-
-  /* Full-Width 1-Column List View for Mobile Phones (< 640px) */
-  .notes-grid.list-view {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 10px !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-  }
-
-  .notes-grid.list-view .note-card {
-    width: 100% !important;
-    padding: 14px 16px !important;
-    border-radius: 18px !important;
-    min-height: 0 !important;
-    max-height: none !important;
-  }
-
-  .notes-grid.list-view .note-card .note-title {
-    font-size: 16px !important;
-    line-height: 1.35 !important;
-    margin-bottom: 6px !important;
-  }
-
-  .notes-grid.list-view .note-card .note-text {
-    font-size: 13px !important;
-    line-height: 1.45 !important;
-    max-height: none !important;
   }
 
   /* Compact Feed Filter Bar with Left Edge Padding */

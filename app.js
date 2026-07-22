@@ -112,11 +112,11 @@ if (typeof window !== 'undefined') {
 // 1. Initial State & Data Definition (Upgraded v2.7.0)
 // ==========================================================================
 
-export const CURRENT_VERSION = '2.8.5';
+export const CURRENT_VERSION = '2.7.3';
 export const DEFAULT_CHANGELOG = [
-  'Universal Login Modal Accessibility & Hash Routing (v2.8.5): Exposed global window.openAuthModal() launcher and added automatic URL hash routing (/#login, /#auth, /#signin, /#register) for instant login modal access.',
-  'App Initialization & Strict Mode Fix (v2.8.4): Fixed implicit undeclared DOM element variables in setupEventHandlers to eliminate Strict Mode ReferenceError exceptions and guarantee 100% app startup reliability.',
-  'View Toggle Architecture Refactor (v2.8.3): Separated desktop and mobile view toggling into dedicated handlers (toggleViewLayout, toggleViewLayoutMobile, and smart router toggleViewLayoutAuto) with haptic feedback and eliminated duplicate function declarations.'
+  'Mobile Ergonomics & UI Polish (v2.7.3): Added high-density compact mobile spacing across note cards, creator, and workspace; scaled Edit Modal title font size to prevent word splitting; automatically concealed bottom navigation dock during note editing; fixed filter bar left padding; and cleared toast notifications below the app header.',
+  'Settings Panel Mobile Overflow Fix (v2.7.2): Resolved mobile viewport overflow across all settings tabs by converting two-column layouts to fluid single-column cards, wrapping segmented controls & color swatches, stacking time pickers, and enabling touch horizontal tab scrolling.',
+  'Universal Multi-Page Mobile Responsiveness (v2.7.1): Ensured full mobile viewport adaptation across every page (Search, Productivity, Settings, Recipe Importer, and Modals) with responsive bottom dock page sync, horizontal scrollable tab bars, and 100vw touch safe-area layouts.'
 ];
 
 /**
@@ -2725,60 +2725,17 @@ function setTheme(theme) {
 
 function initViewLayout() {
   const viewMode = localStorage.getItem(STORAGE_KEYS.view) || 'grid';
-  const isList = viewMode === 'list';
-  const pinnedGrid = document.getElementById('pinned-grid') || document.getElementById('pinned-notes-grid');
-  const othersGrid = document.getElementById('others-grid') || document.getElementById('others-notes-grid');
-  const searchGrid = document.getElementById('dedicated-search-results-grid');
-  if (pinnedGrid) pinnedGrid.classList.toggle('list-view', isList);
-  if (othersGrid) othersGrid.classList.toggle('list-view', isList);
-  if (searchGrid) searchGrid.classList.toggle('list-view', isList);
-
-  const gridIcon = document.getElementById('grid-icon');
-  const listIcon = document.getElementById('list-icon');
-  if (gridIcon) gridIcon.style.display = isList ? 'block' : 'none';
-  if (listIcon) listIcon.style.display = isList ? 'none' : 'block';
-}
-
-function toggleViewLayout() {
-  const pinnedGrid = document.getElementById('pinned-grid') || document.getElementById('pinned-notes-grid');
-  const othersGrid = document.getElementById('others-grid') || document.getElementById('others-notes-grid');
-  const searchGrid = document.getElementById('dedicated-search-results-grid');
-
-  const isCurrentlyList = (pinnedGrid && pinnedGrid.classList.contains('list-view')) || (othersGrid && othersGrid.classList.contains('list-view'));
-  const nextIsList = !isCurrentlyList;
-
-  if (pinnedGrid) pinnedGrid.classList.toggle('list-view', nextIsList);
-  if (othersGrid) othersGrid.classList.toggle('list-view', nextIsList);
-  if (searchGrid) searchGrid.classList.toggle('list-view', nextIsList);
-
-  localStorage.setItem(STORAGE_KEYS.view, nextIsList ? 'list' : 'grid');
-
-  const gridIcon = document.getElementById('grid-icon');
-  const listIcon = document.getElementById('list-icon');
-  if (gridIcon) gridIcon.style.display = nextIsList ? 'block' : 'none';
-  if (listIcon) listIcon.style.display = nextIsList ? 'none' : 'block';
-}
-
-function toggleViewLayoutMobile() {
-  if (typeof navigator !== 'undefined' && navigator.vibrate) {
-    try { navigator.vibrate(10); } catch (e) {}
-  }
-  toggleViewLayout();
-}
-
-function toggleViewLayoutAuto() {
-  const isMobile = window.innerWidth < 768;
-  if (isMobile) {
-    toggleViewLayoutMobile();
+  if (viewMode === 'list') {
+    pinnedGrid.classList.add('list-view');
+    othersGrid.classList.add('list-view');
+    document.getElementById('grid-icon').style.display = 'block';
+    document.getElementById('list-icon').style.display = 'none';
   } else {
-    toggleViewLayout();
+    pinnedGrid.classList.remove('list-view');
+    othersGrid.classList.remove('list-view');
+    document.getElementById('grid-icon').style.display = 'none';
+    document.getElementById('list-icon').style.display = 'block';
   }
-}
-
-if (typeof window !== 'undefined') {
-  window.toggleViewLayout = toggleViewLayout;
-  window.toggleViewLayoutMobile = toggleViewLayoutMobile;
-  window.toggleViewLayoutAuto = toggleViewLayoutAuto;
 }
 
 function initData() {
@@ -2902,20 +2859,10 @@ function initData() {
 }
 
 function setupEventHandlers() {
-  const settingsBtn = document.getElementById('settings-btn');
-  const sidebarSettings = document.getElementById('sidebar-settings');
-  const sidebarAllNotes = document.getElementById('sidebar-all-notes');
-  const sidebarSearch = document.getElementById('sidebar-search');
-  const sidebarProductivity = document.getElementById('sidebar-productivity');
-  const sidebarArchive = document.getElementById('sidebar-archive');
-  const sidebarDeleted = document.getElementById('sidebar-deleted');
-  const folderDrawer = document.getElementById('folder-drawer');
-  const themeBtn = document.getElementById('theme-btn');
-  const viewToggle = document.getElementById('view-toggle');
-  const searchInput = document.getElementById('search-input');
-  const searchClear = document.getElementById('search-clear');
-  const feedFilterRow = document.querySelector('.feed-filter-row');
 
+
+
+  settingsBtn = document.getElementById('settings-btn');
   settingsBtn?.addEventListener('click', () => setActivePage('settings'));
   sidebarSettings?.addEventListener('click', () => setActivePage('settings'));
   // Toggle sidebar drawer on mobile / pin layout on desktop
@@ -2993,7 +2940,7 @@ function setupEventHandlers() {
   });
 
   // View toggle (Grid / List)
-  viewToggle?.addEventListener('click', toggleViewLayoutAuto);
+  viewToggle?.addEventListener('click', toggleViewLayout);
 
   const pageActionBarBtn = document.getElementById('page-action-btn');
   pageActionBarBtn?.addEventListener('click', () => {
@@ -3603,12 +3550,14 @@ function setupEventHandlers() {
     handlePasteImage(e, 'modal');
   });
 
-  const CURRENT_VERSION = '2.8.5';
+  // App Update Cache Buster
+  const appUpdateBtn = document.getElementById('app-update-btn');
+
+  const CURRENT_VERSION = '2.7.3';
   const DEFAULT_CHANGELOG = [
-    'Universal Login Modal Accessibility & Hash Routing (v2.8.5): Exposed global window.openAuthModal() launcher and added automatic URL hash routing (/#login, /#auth, /#signin, /#register) for instant login modal access.',
-    'App Initialization & Strict Mode Fix (v2.8.4): Fixed implicit undeclared DOM element variables in setupEventHandlers to eliminate Strict Mode ReferenceError exceptions and guarantee 100% app startup reliability.',
-    'View Toggle Architecture Refactor (v2.8.3): Separated desktop and mobile view toggling into dedicated handlers (toggleViewLayout, toggleViewLayoutMobile, and smart router toggleViewLayoutAuto) with haptic feedback and eliminated duplicate function declarations.',
+    'Mobile Ergonomics & UI Polish (v2.7.3): Added high-density compact mobile spacing across note cards, creator, and workspace; scaled Edit Modal title font size to prevent word splitting; automatically concealed bottom navigation dock during note editing; fixed filter bar left padding; and cleared toast notifications below the app header.',
     'Settings Panel Mobile Overflow Fix (v2.7.2): Resolved mobile viewport overflow across all settings tabs by converting two-column layouts to fluid single-column cards, wrapping segmented controls & color swatches, stacking time pickers, and enabling touch horizontal tab scrolling.',
+    'Universal Multi-Page Mobile Responsiveness (v2.7.1): Ensured full mobile viewport adaptation across every page (Search, Productivity, Settings, Recipe Importer, and Modals) with responsive bottom dock page sync, horizontal scrollable tab bars, and 100vw touch safe-area layouts.',
     'Sectioned Overview & Checklist Refinements (v2.6.19): Aligned Checklist genre card icon and orange gradient, fixed HTML and markdown checklist detection, resolved matchingNotes extraction for sectioned overview layout, ensured non-sticky search header, and verified guaranteed search page re-rendering on page switch',
     'Unified Search & Content Browser (v2.6.18): Enhanced dedicated Search page into a unified media browser with interactive fluid genre filters, compact notes feed, photo gallery with glassmorphic Lightbox viewer, file attachment list, voice memo audio player, link tiles, contextual action popovers with touch long-press support, and canonical attachment deletion',
     'Null Pointer Fix (v2.6.17): Resolved uncaught TypeError on app load caused by null searchInput reference after top-bar search removal, restoring normal workspace note rendering',
@@ -3667,12 +3616,13 @@ function setupEventHandlers() {
       versionLabel.textContent = `Version ${CURRENT_VERSION}`;
     }
 
-    appUpdateBtn.disabled = false;
     if (serverVersion && serverVersion !== CURRENT_VERSION) {
+      appUpdateBtn.disabled = false;
       appUpdateBtn.textContent = 'Update';
       appUpdateBtn.classList.add('update-available');
     } else {
-      appUpdateBtn.textContent = 'Refresh';
+      appUpdateBtn.disabled = true;
+      appUpdateBtn.textContent = 'Latest';
       appUpdateBtn.classList.remove('update-available');
     }
   });
@@ -3696,16 +3646,15 @@ function setupEventHandlers() {
         await Promise.all(registrations.map(reg => reg.unregister()));
       }
 
-      // 3. Restart / Reload the app with cache buster query parameter
+      // 3. Restart / Reload the app
       setTimeout(() => {
-        const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname + '?v=' + Date.now();
-        window.location.href = cleanUrl;
-      }, 600);
+        window.location.reload();
+      }, 1000);
     } catch (err) {
       console.warn('Failed to clear app cache during update:', err);
       setTimeout(() => {
         window.location.reload();
-      }, 600);
+      }, 1000);
     }
   });
 
@@ -7603,7 +7552,24 @@ function deleteNote(id) {
 // 12. Layout UI Toggle Handlers
 // ==========================================================================
 
-// Handled via toggleViewLayout, toggleViewLayoutMobile, and toggleViewLayoutAuto above
+// Unused toggleTheme replaced by setTheme framework
+
+function toggleViewLayout() {
+  const isListView = pinnedGrid.classList.contains('list-view');
+  if (isListView) {
+    pinnedGrid.classList.remove('list-view');
+    othersGrid.classList.remove('list-view');
+    localStorage.setItem(STORAGE_KEYS.view, 'grid');
+    document.getElementById('grid-icon').style.display = 'none';
+    document.getElementById('list-icon').style.display = 'block';
+  } else {
+    pinnedGrid.classList.add('list-view');
+    othersGrid.classList.add('list-view');
+    localStorage.setItem(STORAGE_KEYS.view, 'list');
+    document.getElementById('grid-icon').style.display = 'block';
+    document.getElementById('list-icon').style.display = 'none';
+  }
+}
 
 // ==========================================================================
 // 13. Helpers
@@ -9847,20 +9813,12 @@ function initAuth() {
     e.stopPropagation();
   });
 
-  function openAuthModal(tab = 'login') {
+  // Open Auth Modal
+  signinBtn?.addEventListener('click', () => {
     dropdown?.classList.remove('is-open');
     authModal?.classList.add('visible');
     if (authErrorMsg) authErrorMsg.style.display = 'none';
-    if (tab === 'register' && authTabRegister) {
-      authTabRegister.click();
-    } else if (authTabLogin) {
-      authTabLogin.click();
-    }
-  }
-  window.openAuthModal = openAuthModal;
-
-  // Open Auth Modal via signin buttons
-  signinBtn?.addEventListener('click', () => openAuthModal('login'));
+  });
 
   // Guest button inside auth modal
   guestBtn?.addEventListener('click', () => {
@@ -9868,19 +9826,10 @@ function initAuth() {
   });
 
   // Guest banner: Sign In CTA
-  guestBannerSignin?.addEventListener('click', () => openAuthModal('login'));
-
-  // Hash route listener for direct #login / #auth / #signin navigation
-  const handleAuthHashRoute = () => {
-    const hash = (window.location.hash || '').toLowerCase();
-    if (hash === '#login' || hash === '#auth' || hash === '#signin') {
-      openAuthModal('login');
-    } else if (hash === '#register' || hash === '#signup') {
-      openAuthModal('register');
-    }
-  };
-  window.addEventListener('hashchange', handleAuthHashRoute);
-  handleAuthHashRoute();
+  guestBannerSignin?.addEventListener('click', () => {
+    authModal?.classList.add('visible');
+    if (authErrorMsg) authErrorMsg.style.display = 'none';
+  });
 
   // Guest banner: Dismiss
   guestBannerDismiss?.addEventListener('click', () => {
