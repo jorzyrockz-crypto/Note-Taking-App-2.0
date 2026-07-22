@@ -112,11 +112,11 @@ if (typeof window !== 'undefined') {
 // 1. Initial State & Data Definition (Upgraded v2.7.0)
 // ==========================================================================
 
-export const CURRENT_VERSION = '2.8.2';
+export const CURRENT_VERSION = '2.8.3';
 export const DEFAULT_CHANGELOG = [
+  'View Toggle Architecture Refactor (v2.8.3): Separated desktop and mobile view toggling into dedicated handlers (toggleViewLayout, toggleViewLayoutMobile, and smart router toggleViewLayoutAuto) with haptic feedback and eliminated duplicate function declarations.',
   'Vercel & SW Reliability Hotfix (v2.8.2): Removed unsupported Service Worker fetch cache mode options, added resilient offline fallbacks, and resolved Vercel build compatibility.',
-  'Guaranteed PWA Cache Buster & Network-First Sync (v2.8.1): Implemented Network-First service worker fetch strategy for app scripts and enabled 1-tap cache purge force update button.',
-  'Phone Experience Enhancement (v2.8.0): Anchored User Profile avatar in top mobile header, introduced experimental 2-Column Compact Grid View for smaller note cards (inspired by Spotify Browse All cards), and enabled 1-tap view switching.'
+  'Guaranteed PWA Cache Buster & Network-First Sync (v2.8.1): Implemented Network-First service worker fetch strategy for app scripts and enabled 1-tap cache purge force update button.'
 ];
 
 /**
@@ -2754,6 +2754,28 @@ function toggleViewLayout() {
   if (listIcon) listIcon.style.display = nextIsList ? 'none' : 'block';
 }
 
+function toggleViewLayoutMobile() {
+  if (typeof navigator !== 'undefined' && navigator.vibrate) {
+    try { navigator.vibrate(10); } catch (e) {}
+  }
+  toggleViewLayout();
+}
+
+function toggleViewLayoutAuto() {
+  const isMobile = window.innerWidth < 768;
+  if (isMobile) {
+    toggleViewLayoutMobile();
+  } else {
+    toggleViewLayout();
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.toggleViewLayout = toggleViewLayout;
+  window.toggleViewLayoutMobile = toggleViewLayoutMobile;
+  window.toggleViewLayoutAuto = toggleViewLayoutAuto;
+}
+
 function initData() {
   initSync({
     getCurrentUser: () => currentUser,
@@ -2956,7 +2978,7 @@ function setupEventHandlers() {
   });
 
   // View toggle (Grid / List)
-  viewToggle?.addEventListener('click', toggleViewLayout);
+  viewToggle?.addEventListener('click', toggleViewLayoutAuto);
 
   const pageActionBarBtn = document.getElementById('page-action-btn');
   pageActionBarBtn?.addEventListener('click', () => {
@@ -3566,11 +3588,11 @@ function setupEventHandlers() {
     handlePasteImage(e, 'modal');
   });
 
-  const CURRENT_VERSION = '2.8.2';
+  const CURRENT_VERSION = '2.8.3';
   const DEFAULT_CHANGELOG = [
+    'View Toggle Architecture Refactor (v2.8.3): Separated desktop and mobile view toggling into dedicated handlers (toggleViewLayout, toggleViewLayoutMobile, and smart router toggleViewLayoutAuto) with haptic feedback and eliminated duplicate function declarations.',
     'Vercel & SW Reliability Hotfix (v2.8.2): Removed unsupported Service Worker fetch cache mode options, added resilient offline fallbacks, and resolved Vercel build compatibility.',
     'Guaranteed PWA Cache Buster & Network-First Sync (v2.8.1): Implemented Network-First service worker fetch strategy for app scripts and enabled 1-tap cache purge force update button.',
-    'Phone Experience Enhancement (v2.8.0): Anchored User Profile avatar in top mobile header, introduced experimental 2-Column Compact Grid View for smaller note cards (inspired by Spotify Browse All cards), and enabled 1-tap view switching.',
     'Settings Panel Mobile Overflow Fix (v2.7.2): Resolved mobile viewport overflow across all settings tabs by converting two-column layouts to fluid single-column cards, wrapping segmented controls & color swatches, stacking time pickers, and enabling touch horizontal tab scrolling.',
     'Sectioned Overview & Checklist Refinements (v2.6.19): Aligned Checklist genre card icon and orange gradient, fixed HTML and markdown checklist detection, resolved matchingNotes extraction for sectioned overview layout, ensured non-sticky search header, and verified guaranteed search page re-rendering on page switch',
     'Unified Search & Content Browser (v2.6.18): Enhanced dedicated Search page into a unified media browser with interactive fluid genre filters, compact notes feed, photo gallery with glassmorphic Lightbox viewer, file attachment list, voice memo audio player, link tiles, contextual action popovers with touch long-press support, and canonical attachment deletion',
@@ -7566,24 +7588,7 @@ function deleteNote(id) {
 // 12. Layout UI Toggle Handlers
 // ==========================================================================
 
-// Unused toggleTheme replaced by setTheme framework
-
-function toggleViewLayout() {
-  const isListView = pinnedGrid.classList.contains('list-view');
-  if (isListView) {
-    pinnedGrid.classList.remove('list-view');
-    othersGrid.classList.remove('list-view');
-    localStorage.setItem(STORAGE_KEYS.view, 'grid');
-    document.getElementById('grid-icon').style.display = 'none';
-    document.getElementById('list-icon').style.display = 'block';
-  } else {
-    pinnedGrid.classList.add('list-view');
-    othersGrid.classList.add('list-view');
-    localStorage.setItem(STORAGE_KEYS.view, 'list');
-    document.getElementById('grid-icon').style.display = 'block';
-    document.getElementById('list-icon').style.display = 'none';
-  }
-}
+// Handled via toggleViewLayout, toggleViewLayoutMobile, and toggleViewLayoutAuto above
 
 // ==========================================================================
 // 13. Helpers

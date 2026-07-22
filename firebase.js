@@ -472,8 +472,9 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '2.8.2',
+        version: '2.8.3',
         changelog: [
+          'View Toggle Architecture Refactor (v2.8.3): Separated desktop and mobile view toggling into dedicated handlers (toggleViewLayout, toggleViewLayoutMobile, and smart router toggleViewLayoutAuto) with haptic feedback and eliminated duplicate function declarations',
           'Vercel & SW Reliability Hotfix (v2.8.2): Removed unsupported Service Worker fetch cache mode options, added resilient offline fallbacks, and resolved Vercel build compatibility',
           'Guaranteed PWA Cache Buster & Network-First Sync (v2.8.1): Implemented Network-First service worker fetch strategy for app scripts and enabled 1-tap cache purge force update button',
           'Phone Experience Enhancement (v2.8.0): Anchored User Profile avatar in top mobile header, introduced experimental 2-Column Compact Grid View for smaller note cards (inspired by Spotify Browse All cards), and enabled 1-tap view switching',
