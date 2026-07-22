@@ -153,12 +153,13 @@
           <div class="profile-divider"></div>
           <div class="profile-version-section">
             <div class="version-header">
-              <span class="version-label">Version 2.8.4</span>
+              <span class="version-label">Version 2.8.5</span>
               <button class="update-btn" id="app-update-btn" type="button">Update</button>
             </div>
             <div class="changelog-container">
               <div class="changelog-title">What's New</div>
               <ul class="changelog-list">
+          <li><strong>Universal Login Modal Accessibility & Hash Routing (v2.8.5):</strong> Exposed global `window.openAuthModal()` launcher and added automatic URL hash routing (`/#login`, `/#auth`, `/#signin`, `/#register`) for instant login modal access.</li>
           <li><strong>App Initialization & Strict Mode Fix (v2.8.4):</strong> Fixed implicit undeclared DOM element variables in setupEventHandlers to eliminate Strict Mode ReferenceError exceptions and guarantee 100% app startup reliability.</li>
           <li><strong>View Toggle Architecture Refactor (v2.8.3):</strong> Separated desktop and mobile view toggling into dedicated handlers (`toggleViewLayout`, `toggleViewLayoutMobile`, and smart router `toggleViewLayoutAuto`) with haptic feedback and eliminated duplicate function declarations.</li>
           <li><strong>Vercel & SW Reliability Hotfix (v2.8.2):</strong> Removed unsupported Service Worker fetch cache mode options, added resilient offline fallbacks, and resolved Vercel build compatibility.</li>

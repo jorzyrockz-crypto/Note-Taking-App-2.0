@@ -112,11 +112,11 @@ if (typeof window !== 'undefined') {
 // 1. Initial State & Data Definition (Upgraded v2.7.0)
 // ==========================================================================
 
-export const CURRENT_VERSION = '2.8.4';
+export const CURRENT_VERSION = '2.8.5';
 export const DEFAULT_CHANGELOG = [
+  'Universal Login Modal Accessibility & Hash Routing (v2.8.5): Exposed global window.openAuthModal() launcher and added automatic URL hash routing (/#login, /#auth, /#signin, /#register) for instant login modal access.',
   'App Initialization & Strict Mode Fix (v2.8.4): Fixed implicit undeclared DOM element variables in setupEventHandlers to eliminate Strict Mode ReferenceError exceptions and guarantee 100% app startup reliability.',
-  'View Toggle Architecture Refactor (v2.8.3): Separated desktop and mobile view toggling into dedicated handlers (toggleViewLayout, toggleViewLayoutMobile, and smart router toggleViewLayoutAuto) with haptic feedback and eliminated duplicate function declarations.',
-  'Vercel & SW Reliability Hotfix (v2.8.2): Removed unsupported Service Worker fetch cache mode options, added resilient offline fallbacks, and resolved Vercel build compatibility.'
+  'View Toggle Architecture Refactor (v2.8.3): Separated desktop and mobile view toggling into dedicated handlers (toggleViewLayout, toggleViewLayoutMobile, and smart router toggleViewLayoutAuto) with haptic feedback and eliminated duplicate function declarations.'
 ];
 
 /**
@@ -3603,11 +3603,11 @@ function setupEventHandlers() {
     handlePasteImage(e, 'modal');
   });
 
-  const CURRENT_VERSION = '2.8.4';
+  const CURRENT_VERSION = '2.8.5';
   const DEFAULT_CHANGELOG = [
+    'Universal Login Modal Accessibility & Hash Routing (v2.8.5): Exposed global window.openAuthModal() launcher and added automatic URL hash routing (/#login, /#auth, /#signin, /#register) for instant login modal access.',
     'App Initialization & Strict Mode Fix (v2.8.4): Fixed implicit undeclared DOM element variables in setupEventHandlers to eliminate Strict Mode ReferenceError exceptions and guarantee 100% app startup reliability.',
     'View Toggle Architecture Refactor (v2.8.3): Separated desktop and mobile view toggling into dedicated handlers (toggleViewLayout, toggleViewLayoutMobile, and smart router toggleViewLayoutAuto) with haptic feedback and eliminated duplicate function declarations.',
-    'Vercel & SW Reliability Hotfix (v2.8.2): Removed unsupported Service Worker fetch cache mode options, added resilient offline fallbacks, and resolved Vercel build compatibility.',
     'Settings Panel Mobile Overflow Fix (v2.7.2): Resolved mobile viewport overflow across all settings tabs by converting two-column layouts to fluid single-column cards, wrapping segmented controls & color swatches, stacking time pickers, and enabling touch horizontal tab scrolling.',
     'Sectioned Overview & Checklist Refinements (v2.6.19): Aligned Checklist genre card icon and orange gradient, fixed HTML and markdown checklist detection, resolved matchingNotes extraction for sectioned overview layout, ensured non-sticky search header, and verified guaranteed search page re-rendering on page switch',
     'Unified Search & Content Browser (v2.6.18): Enhanced dedicated Search page into a unified media browser with interactive fluid genre filters, compact notes feed, photo gallery with glassmorphic Lightbox viewer, file attachment list, voice memo audio player, link tiles, contextual action popovers with touch long-press support, and canonical attachment deletion',
@@ -9847,12 +9847,20 @@ function initAuth() {
     e.stopPropagation();
   });
 
-  // Open Auth Modal
-  signinBtn?.addEventListener('click', () => {
+  function openAuthModal(tab = 'login') {
     dropdown?.classList.remove('is-open');
     authModal?.classList.add('visible');
     if (authErrorMsg) authErrorMsg.style.display = 'none';
-  });
+    if (tab === 'register' && authTabRegister) {
+      authTabRegister.click();
+    } else if (authTabLogin) {
+      authTabLogin.click();
+    }
+  }
+  window.openAuthModal = openAuthModal;
+
+  // Open Auth Modal via signin buttons
+  signinBtn?.addEventListener('click', () => openAuthModal('login'));
 
   // Guest button inside auth modal
   guestBtn?.addEventListener('click', () => {
@@ -9860,10 +9868,19 @@ function initAuth() {
   });
 
   // Guest banner: Sign In CTA
-  guestBannerSignin?.addEventListener('click', () => {
-    authModal?.classList.add('visible');
-    if (authErrorMsg) authErrorMsg.style.display = 'none';
-  });
+  guestBannerSignin?.addEventListener('click', () => openAuthModal('login'));
+
+  // Hash route listener for direct #login / #auth / #signin navigation
+  const handleAuthHashRoute = () => {
+    const hash = (window.location.hash || '').toLowerCase();
+    if (hash === '#login' || hash === '#auth' || hash === '#signin') {
+      openAuthModal('login');
+    } else if (hash === '#register' || hash === '#signup') {
+      openAuthModal('register');
+    }
+  };
+  window.addEventListener('hashchange', handleAuthHashRoute);
+  handleAuthHashRoute();
 
   // Guest banner: Dismiss
   guestBannerDismiss?.addEventListener('click', () => {

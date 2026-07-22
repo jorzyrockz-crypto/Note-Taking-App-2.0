@@ -1,4 +1,4 @@
-const CACHE_NAME = 'paperuss-v93';
+const CACHE_NAME = 'paperuss-v94';
 // Files available at the same paths in both source and Vite production builds.
 // Hashed JS/CSS dependencies are cached on first controlled fetch below.
 const APP_ASSETS = [
