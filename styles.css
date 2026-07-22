@@ -4828,9 +4828,9 @@ body.dark-theme .share-sheet-overlay {
   }
 
   .main-content-area {
-    margin-top: 118px;
+    margin-top: 58px;
     margin-left: 0;
-    padding: 12px 8px 28px;
+    padding: 6px 8px 28px;
   }
 
   .creator-wrapper {
@@ -4942,8 +4942,8 @@ body.dark-theme .share-sheet-overlay {
   }
 
   .main-content-area {
-    margin-top: 112px;
-    padding: 10px 8px 22px;
+    margin-top: 58px;
+    padding: 6px 8px 22px;
   }
 
   .search-bar input {
@@ -12778,24 +12778,40 @@ body.dark-theme .mobile-sheet-opt-label {
     display: flex;
   }
 
-  /* Compact Workspace & Page Paddings - Closer to Top Nav Bar */
+  /* Compact Workspace & Page Paddings - Flush Below Top Header */
   .main-content-area,
-  #search-page-container,
-  #productivity-page-container,
-  #settings-page-container,
+  #search-page,
+  .search-page-container,
+  #productivity-page,
+  .productivity-page-container,
+  #settings-page,
+  .settings-page-container,
   #recipe-importer-container {
+    margin-top: 58px !important;
     padding: 4px 8px calc(80px + env(safe-area-inset-bottom, 0px)) 8px !important;
   }
 
-  /* Compact Note Creator */
+  /* Compact Note Creator with Side Edge Breathing Room */
   .creator-wrapper {
-    margin: 2px auto 6px auto !important;
+    width: calc(100% - 12px) !important;
+    max-width: calc(100% - 12px) !important;
+    margin: 4px auto 8px auto !important;
   }
 
   .note-creator,
   .creator-collapsed {
-    padding: 10px 14px !important;
-    border-radius: 18px !important;
+    padding: 8px 12px !important;
+    border-radius: 16px !important;
+    min-height: 44px !important;
+  }
+
+  .creator-placeholder {
+    font-size: 13.5px !important;
+  }
+
+  .ctrl-v-badge {
+    font-size: 10px !important;
+    padding: 2px 6px !important;
   }
 
   /* Compact Note Cards */
@@ -12809,12 +12825,13 @@ body.dark-theme .mobile-sheet-opt-label {
     margin-bottom: 4px !important;
   }
 
-  /* Compact Feed Filter Bar with Left Edge Clearance */
+  /* Compact Feed Filter Bar with Un-clipped Right End Clearance */
   .feed-filter-row {
-    padding: 6px 12px 6px 12px !important;
+    padding: 4px 24px 8px 12px !important;
     scroll-padding-left: 12px !important;
+    scroll-padding-right: 24px !important;
     margin: 0 !important;
-    gap: 8px !important;
+    gap: 6px !important;
     box-sizing: border-box !important;
     overflow-x: auto !important;
     overflow-y: visible !important;
@@ -12822,9 +12839,9 @@ body.dark-theme .mobile-sheet-opt-label {
   }
 
   .feed-filter-row .filter-pill {
-    padding: 6px 14px !important;
-    font-size: 12px !important;
-    min-height: 34px !important;
+    padding: 5px 12px !important;
+    font-size: 11.5px !important;
+    min-height: 30px !important;
     scroll-snap-align: start !important;
   }
 
@@ -12835,20 +12852,25 @@ body.dark-theme .mobile-sheet-opt-label {
   /* Mobile Edit Modal Full-Screen Card */
   .edit-modal-card {
     width: 100vw !important;
-    height: 100vh !important;
-    height: 100dvh !important;
+    height: calc(100dvh - 32px) !important;
     max-width: 100vw !important;
-    max-height: 100vh !important;
-    border-radius: 0 !important;
+    max-height: calc(100dvh - 32px) !important;
+    border-radius: 20px 20px 0 0 !important;
     margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
   }
 
-  /* Unified Single Scroll Container in Edit Modal (Eliminates Touch Scroll Lock) */
-  .edit-modal-card .glass-editor-workspace {
-    overflow-y: visible !important;
+  /* Re-enable Glass Editor Internal Vertical Touch Scroll */
+  .edit-modal-card .glass-editor-workspace,
+  .edit-modal-card.modern-glass-editor-active .glass-editor-workspace {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
     height: auto !important;
-    flex: none !important;
-    padding: 12px 0 24px 0 !important;
+    padding: 16px 16px 80px 16px !important;
   }
 
   /* Hide legacy bottom action bar — single floating pill toolbar is used instead */
@@ -13522,7 +13544,262 @@ body.dark-theme .mobile-sheet-opt-label {
   }
 }
 
+/* ==========================================================================
+   SPECIFIC VIEWPORT: Tecno Camon 20 & Compact Phone Profile (Width <= 410px, Height ~800px)
+   Devices larger than 410px automatically follow the next viewport rules.
+   ========================================================================== */
+@media screen and (max-width: 410px) {
+  :root {
+    --dock-height: 64px;
+    --header-height: 56px;
+  }
 
+  /* Safe-area inset paddings for top punch-hole and bottom gesture bar */
+  body {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 
+  /* Un-clipped active note highlight ring & outer breathing room */
+  .notes-grid:not(.list-view) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    padding: 4px !important;
+    overflow: visible !important;
+  }
 
+  .notes-grid:not(.list-view) .note-card {
+    height: 245px !important;
+    min-height: 245px !important;
+    max-height: 245px !important;
+    contain-intrinsic-size: 245px !important;
+    border-radius: 16px !important;
+    padding: 6px !important;
+    box-sizing: border-box !important;
+  }
 
+  .notes-grid:not(.list-view) .note-card:focus,
+  .notes-grid:not(.list-view) .note-card:focus-within,
+  .notes-grid:not(.list-view) .note-card.menu-open {
+    outline-offset: -1px !important;
+    box-shadow: 0 0 0 2px var(--accent, #38bdf8), 0 8px 24px rgba(0, 0, 0, 0.16) !important;
+    z-index: 500 !important;
+    overflow: visible !important;
+  }
+
+  /* Compact Context Menu Popover with Move-to-Trash Cushion */
+  .notes-grid:not(.list-view) .note-card-menu.open .note-card-menu-panel {
+    padding: 6px !important;
+    gap: 2px !important;
+    border-radius: 16px !important;
+    min-width: 150px !important;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28) !important;
+    max-height: 210px !important;
+    overflow-y: auto !important;
+  }
+
+  .notes-grid:not(.list-view) .note-card-menu-panel .note-card-menu-action {
+    padding: 6px 10px !important;
+    border-radius: 10px !important;
+  }
+
+  .notes-grid:not(.list-view) .note-card-menu-panel .note-card-menu-action span {
+    font-size: 11.5px !important;
+  }
+
+  .notes-grid:not(.list-view) .note-card-menu-panel .note-card-menu-action svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  /* Bottom Dock Clearance for 800px height */
+  .mobile-bottom-dock {
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    height: calc(60px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .main-content,
+  .notes-feed,
+  .search-page-container,
+  #search-page,
+  #productivity-page,
+  #settings-page {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* Modals constrained to 800px height viewport */
+  .modal-content,
+  .editor-modal,
+  .settings-modal {
+    max-height: calc(100dvh - 32px) !important;
+    overflow-y: auto !important;
+    border-radius: 20px !important;
+  }
+}
+
+/* ==========================================================================
+   NOTEBOOK SPINE UI (Responsive)
+   ========================================================================== */
+
+/* 1. Mobile Default (Hide Desktop elements) */
+@media screen and (max-width: 640px) {
+  .desktop-only {
+    display: none !important;
+  }
+}
+
+/* 2. Desktop Styles (min-width: 641px) */
+@media screen and (min-width: 641px) {
+  .mobile-only {
+    display: none !important;
+  }
+
+  /* Reset the base card structure */
+  .notes-grid .note-card {
+    display: flex !important;
+    flex-direction: row !important;
+    padding: 0 !important;
+    background-color: var(--bg-primary) !important;
+    border: 1px solid var(--border-light) !important;
+    overflow: hidden !important;
+    gap: 0 !important;
+  }
+  
+  .notes-grid:not(.list-view) .note-card {
+    height: 320px !important;
+  }
+
+  /* Spine */
+  .notes-grid .note-card .note-card-spine {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 48px;
+    flex-shrink: 0;
+    padding: 12px 0;
+    gap: 12px;
+    box-shadow: inset -3px 0 6px rgba(0,0,0,0.05);
+  }
+
+  /* Dynamically apply colors to the spine based on data-color */
+  .notes-grid .note-card[data-color="default"] .note-card-spine { background-color: var(--note-default); }
+  .notes-grid .note-card[data-color="red"] .note-card-spine { background-color: var(--note-red); }
+  .notes-grid .note-card[data-color="orange"] .note-card-spine { background-color: var(--note-orange); }
+  .notes-grid .note-card[data-color="yellow"] .note-card-spine { background-color: var(--note-yellow); }
+  .notes-grid .note-card[data-color="green"] .note-card-spine { background-color: var(--note-green); }
+  .notes-grid .note-card[data-color="teal"] .note-card-spine { background-color: var(--note-teal); }
+  .notes-grid .note-card[data-color="blue"] .note-card-spine { background-color: var(--note-blue); }
+  .notes-grid .note-card[data-color="darkblue"] .note-card-spine { background-color: var(--note-darkblue); }
+  .notes-grid .note-card[data-color="purple"] .note-card-spine { background-color: var(--note-purple); }
+  .notes-grid .note-card[data-color="pink"] .note-card-spine { background-color: var(--note-pink); }
+  .notes-grid .note-card[data-color="brown"] .note-card-spine { background-color: var(--note-brown); }
+  .notes-grid .note-card[data-color="gray"] .note-card-spine { background-color: var(--note-gray); }
+
+  .notes-grid .note-card-spine .spine-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: transparent;
+    color: rgba(255,255,255,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    font-size: 14px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  }
+  
+  body.dark-theme .notes-grid .note-card[data-color="default"] .note-card-spine .spine-btn {
+    color: rgba(255,255,255,0.5);
+  }
+
+  .notes-grid .note-card-spine .spine-btn:hover {
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+  }
+  .notes-grid .note-card-spine .spine-btn.active {
+    color: #fff;
+    background: rgba(255,255,255,0.3);
+  }
+
+  /* Main Content Area */
+  .notes-grid .note-card-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 14px;
+    min-width: 0;
+  }
+
+  /* Topbar */
+  .notes-grid .note-card-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .notes-grid .topbar-folder-badge {
+    background: var(--bg-secondary);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .notes-grid .topbar-type-badge {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    letter-spacing: 1px;
+  }
+
+  /* Body */
+  .notes-grid .note-surface {
+    padding: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .notes-grid .note-card .card-image-banner {
+    margin: 0 0 12px 0 !important;
+    width: 100% !important;
+    border-radius: 12px !important;
+    height: 120px !important;
+  }
+
+  /* Footer */
+  .notes-grid .note-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-light);
+  }
+
+  .notes-grid .note-card-footer .note-stamp {
+    font-size: 11px;
+    color: var(--text-tertiary);
+  }
+
+  .notes-grid .note-badges-tray {
+    display: flex;
+    gap: 6px;
+  }
+  .notes-grid .tray-badge {
+    background: var(--bg-secondary);
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 10px;
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+  }
+}

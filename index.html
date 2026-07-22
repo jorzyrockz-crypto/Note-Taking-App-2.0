@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="Paperuss is a visual bookmarking and note-taking studio for links, voice notes, checklists, and quick ideas.">
   <meta name="theme-color" content="#38bdf8">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -153,12 +153,13 @@
           <div class="profile-divider"></div>
           <div class="profile-version-section">
             <div class="version-header">
-              <span class="version-label">Version 2.8.2</span>
+              <span class="version-label">Version 2.8.3</span>
               <button class="update-btn" id="app-update-btn" type="button">Update</button>
             </div>
             <div class="changelog-container">
               <div class="changelog-title">What's New</div>
               <ul class="changelog-list">
+          <li><strong>Desktop Notebook Spine UI (v2.8.3):</strong> Completely redesigned desktop and tablet note cards to feature a horizontal flex layout with a vibrant colored spine, pinned topbar metadata, and quick access action buttons (Pin, Star, Theme, More) without needing to open a menu. Added functional Star/Favorite flag.</li>
           <li><strong>Mobile Layout Refinements & Context Menu Overhaul (v2.8.2):</strong> Tightened mobile top nav bar height to 54px, added 12px left clearance to feed filter pills, unlocked context menu overflow for un-clipped ellipsis popovers with 500ms touch long-press support, unified Edit Modal scrolling, and removed legacy bottom toolbar in favor of a single floating pill toolbar.</li>
           <li><strong>New Phone Layout Card View (v2.8.1):</strong> Refined 2-column mobile grid cards with a fixed 280px height, preserved inner surface elevation with rich content fill, micro header row, 2-line title clamping, pinned timestamp, and bottom gradient fade.</li>
           <li><strong>Phone Experience Enhancement (v2.8.0):</strong> Integrated user profile avatar into top header navigation bar on mobile, introduced experimental 2-column compact mobile grid card view with 2-line title clamping and 3-line text previews, and enabled 1-tap view layout toggling.</li>
@@ -592,31 +593,31 @@
 
           <!-- Phase 2: Content Insertion Menu (Add Menu) for creator glass editor -->
           <div class="glass-add-menu" id="creator-add-menu" aria-hidden="true">
-            <button class="glass-add-menu-item" id="creator-add-image" onmousedown="event.preventDefault(); closeGlassAddMenu('creator'); document.getElementById('creator-glass-img-upload').click()" title="Add Image">
+            <button class="glass-add-menu-item" id="creator-add-image" onclick="event.preventDefault(); event.stopPropagation(); closeGlassAddMenu('creator'); document.getElementById('creator-glass-img-upload').click()" title="Add Image">
               <span class="glass-add-menu-icon">
                 <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
               </span>
               <span class="glass-add-menu-label">Image</span>
             </button>
-            <button class="glass-add-menu-item" id="creator-add-camera" onmousedown="event.preventDefault(); closeGlassAddMenu('creator'); document.getElementById('creator-glass-camera-upload').click()" title="Take Photo">
+            <button class="glass-add-menu-item" id="creator-add-camera" onclick="event.preventDefault(); event.stopPropagation(); closeGlassAddMenu('creator'); document.getElementById('creator-glass-camera-upload').click()" title="Take Photo">
               <span class="glass-add-menu-icon">
                 <svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/><path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
               </span>
               <span class="glass-add-menu-label">Camera</span>
             </button>
-            <button class="glass-add-menu-item" id="creator-add-voice" onmousedown="event.preventDefault(); closeGlassAddMenu('creator'); toggleVoiceRecording('creator')" title="Voice Recording">
+            <button class="glass-add-menu-item" id="creator-add-voice" onclick="event.preventDefault(); event.stopPropagation(); closeGlassAddMenu('creator'); toggleVoiceRecording('creator')" title="Voice Recording">
               <span class="glass-add-menu-icon">
                 <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
               </span>
               <span class="glass-add-menu-label">Voice Recording</span>
             </button>
-            <button type="button" class="glass-add-menu-item" id="creator-add-reminder" onclick="closeGlassAddMenu('creator')" title="Set Reminder">
+            <button type="button" class="glass-add-menu-item" id="creator-add-reminder" onclick="event.stopPropagation(); closeGlassAddMenu('creator')" title="Set Reminder">
               <span class="glass-add-menu-icon">
                 <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
               </span>
               <span class="glass-add-menu-label">Scheduler</span>
             </button>
-            <button class="glass-add-menu-item" id="creator-add-file" onmousedown="event.preventDefault(); closeGlassAddMenu('creator'); document.getElementById('creator-file-input')?.click()" title="Attach File">
+            <button class="glass-add-menu-item" id="creator-add-file" onclick="event.preventDefault(); event.stopPropagation(); closeGlassAddMenu('creator'); document.getElementById('creator-file-input')?.click()" title="Attach File">
               <span class="glass-add-menu-icon">
                 <svg viewBox="0 0 24 24"><path d="M16.5 6.5v10a4.5 4.5 0 0 1-9 0v-11a3 3 0 0 1 6 0v10.5a1.5 1.5 0 0 1-3 0V7h-2v9a3.5 3.5 0 0 0 7 0V5.5a5 5 0 0 0-10 0v11a6.5 6.5 0 0 0 13 0v-10h-2Z"/></svg>
               </span>
@@ -1737,31 +1738,31 @@
 
       <!-- Phase 2: Content Insertion Menu (Add Menu) for modal glass editor -->
       <div class="glass-add-menu" id="modal-add-menu" aria-hidden="true">
-        <button class="glass-add-menu-item" id="modal-add-image" onmousedown="event.preventDefault(); closeGlassAddMenu('modal'); document.getElementById('modal-glass-img-upload').click()" title="Add Image">
+        <button class="glass-add-menu-item" id="modal-add-image" onclick="event.preventDefault(); event.stopPropagation(); closeGlassAddMenu('modal'); document.getElementById('modal-glass-img-upload').click()" title="Add Image">
           <span class="glass-add-menu-icon">
             <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
           </span>
           <span class="glass-add-menu-label">Image</span>
         </button>
-        <button class="glass-add-menu-item" id="modal-add-camera" onmousedown="event.preventDefault(); closeGlassAddMenu('modal'); document.getElementById('modal-glass-camera-upload').click()" title="Take Photo">
+        <button class="glass-add-menu-item" id="modal-add-camera" onclick="event.preventDefault(); event.stopPropagation(); closeGlassAddMenu('modal'); document.getElementById('modal-glass-camera-upload').click()" title="Take Photo">
           <span class="glass-add-menu-icon">
             <svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/><path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
           </span>
           <span class="glass-add-menu-label">Camera</span>
         </button>
-        <button class="glass-add-menu-item" id="modal-add-voice" onmousedown="event.preventDefault(); closeGlassAddMenu('modal'); toggleVoiceRecording('modal')" title="Voice Recording">
+        <button class="glass-add-menu-item" id="modal-add-voice" onclick="event.preventDefault(); event.stopPropagation(); closeGlassAddMenu('modal'); toggleVoiceRecording('modal')" title="Voice Recording">
           <span class="glass-add-menu-icon">
             <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
           </span>
           <span class="glass-add-menu-label">Voice Recording</span>
         </button>
-        <button type="button" class="glass-add-menu-item" id="modal-add-reminder" onclick="closeGlassAddMenu('modal')" title="Set Reminder">
+        <button type="button" class="glass-add-menu-item" id="modal-add-reminder" onclick="event.stopPropagation(); closeGlassAddMenu('modal')" title="Set Reminder">
           <span class="glass-add-menu-icon">
             <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
           </span>
           <span class="glass-add-menu-label">Scheduler</span>
         </button>
-        <button class="glass-add-menu-item" id="modal-add-file" onmousedown="event.preventDefault(); closeGlassAddMenu('modal'); document.getElementById('modal-file-input')?.click()" title="Attach File">
+        <button class="glass-add-menu-item" id="modal-add-file" onclick="event.preventDefault(); event.stopPropagation(); closeGlassAddMenu('modal'); document.getElementById('modal-file-input')?.click()" title="Attach File">
           <span class="glass-add-menu-icon">
             <svg viewBox="0 0 24 24"><path d="M16.5 6.5v10a4.5 4.5 0 0 1-9 0v-11a3 3 0 0 1 6 0v10.5a1.5 1.5 0 0 1-3 0V7h-2v9a3.5 3.5 0 0 0 7 0V5.5a5 5 0 0 0-10 0v11a6.5 6.5 0 0 0 13 0v-10h-2Z"/></svg>
           </span>

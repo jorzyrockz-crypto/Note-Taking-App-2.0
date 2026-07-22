@@ -112,7 +112,7 @@ if (typeof window !== 'undefined') {
 // 1. Initial State & Data Definition (Upgraded v2.7.0)
 // ==========================================================================
 
-export const CURRENT_VERSION = '2.7.3';
+export const CURRENT_VERSION = '2.8.3';
 export const DEFAULT_CHANGELOG = [
   'Mobile Ergonomics & UI Polish (v2.7.3): Added high-density compact mobile spacing across note cards, creator, and workspace; scaled Edit Modal title font size to prevent word splitting; automatically concealed bottom navigation dock during note editing; fixed filter bar left padding; and cleared toast notifications below the app header.',
   'Settings Panel Mobile Overflow Fix (v2.7.2): Resolved mobile viewport overflow across all settings tabs by converting two-column layouts to fluid single-column cards, wrapping segmented controls & color swatches, stacking time pickers, and enabling touch horizontal tab scrolling.',
@@ -329,6 +329,11 @@ export function initMobilePhoneExperience() {
   const pullIndicator = document.getElementById('mobile-pull-indicator');
 
   document.addEventListener('touchstart', (e) => {
+    if (document.querySelector('.edit-modal-overlay.visible') || e.target.closest('.edit-modal-overlay, .modal-content, .glass-editor-workspace, .creator-wrapper')) {
+      pullStartY = 0;
+      pullDistance = 0;
+      return;
+    }
     if (window.scrollY === 0 && e.touches.length === 1) {
       pullStartY = e.touches[0].clientY;
       pullDistance = 0;
@@ -336,6 +341,12 @@ export function initMobilePhoneExperience() {
   }, { passive: true });
 
   document.addEventListener('touchmove', (e) => {
+    if (document.querySelector('.edit-modal-overlay.visible') || e.target.closest('.edit-modal-overlay, .modal-content, .glass-editor-workspace, .creator-wrapper')) {
+      pullStartY = 0;
+      pullDistance = 0;
+      if (pullIndicator) pullIndicator.classList.remove('visible');
+      return;
+    }
     if (pullStartY > 0 && window.scrollY === 0 && e.touches.length === 1) {
       const currentY = e.touches[0].clientY;
       const dist = currentY - pullStartY;
@@ -3486,6 +3497,7 @@ function setupEventHandlers() {
     renderNotes();
   });
   modalCameraInput?.addEventListener('change', (e) => {
+    e.stopPropagation();
     handleSelectedImageFile('modal', e.target.files[0]);
     e.target.value = '';
   });
@@ -3494,6 +3506,7 @@ function setupEventHandlers() {
     modalFileInput?.click();
   });
   modalFileInput?.addEventListener('change', async (e) => {
+    e.stopPropagation();
     await handleSelectedFiles('modal', e.target.files);
     e.target.value = '';
   });
@@ -3553,8 +3566,9 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.8.2';
+  const CURRENT_VERSION = '2.8.3';
   const DEFAULT_CHANGELOG = [
+    'Desktop Notebook Spine UI (v2.8.3): Completely redesigned desktop and tablet note cards to feature a horizontal flex layout with a vibrant colored spine, pinned topbar metadata, and quick access action buttons (Pin, Star, Theme, More) without needing to open a menu. Added functional Star/Favorite flag.',
     'Mobile Layout Refinements & Context Menu Overhaul (v2.8.2): Tightened mobile top nav bar height to 54px, added 12px left clearance to feed filter pills, unlocked context menu overflow for un-clipped ellipsis popovers with 500ms touch long-press support, unified Edit Modal scrolling, and removed legacy bottom toolbar in favor of a single floating pill toolbar.',
     'New Phone Layout Card View (v2.8.1): Refined 2-column mobile grid cards with a fixed 280px height, preserved inner surface elevation with rich content fill, micro header row, 2-line title clamping, pinned timestamp, and bottom gradient fade.',
     'Phone Experience Enhancement (v2.8.0): Integrated user profile avatar into top header navigation bar on mobile, introduced experimental 2-column compact mobile grid card view with 2-line title clamping and 3-line text previews, and enabled 1-tap view layout toggling.',
@@ -6547,8 +6561,65 @@ export function createNoteCardElement(note) {
   if (note.image || note.videoId) card.setAttribute('data-has-image', 'true');
   card.setAttribute('data-id', note.id);
 
+  // === NEW SPINE UI (Desktop) ===
+  const spine = document.createElement('div');
+  spine.className = 'note-card-spine desktop-only';
+  
+  // Pin Button (Spine)
+  const spinePin = document.createElement('button');
+  spinePin.className = `spine-btn ${note.pinned ? 'active' : ''}`;
+  spinePin.innerHTML = '📌';
+  spinePin.title = note.pinned ? 'Unpin' : 'Pin';
+  spinePin.addEventListener('click', (e) => {
+    e.stopPropagation();
+    note.pinned = !note.pinned;
+    saveToLocalStorage();
+    renderNotes();
+  });
+  spine.appendChild(spinePin);
+
+  // Star Button (Spine)
+  const spineStar = document.createElement('button');
+  spineStar.className = `spine-btn ${note.starred ? 'active' : ''}`;
+  spineStar.innerHTML = note.starred ? '⭐' : '☆';
+  spineStar.title = note.starred ? 'Unstar' : 'Star';
+  spineStar.addEventListener('click', (e) => {
+    e.stopPropagation();
+    note.starred = !note.starred;
+    saveToLocalStorage();
+    renderNotes();
+  });
+  spine.appendChild(spineStar);
+
+  // Theme Button (Spine)
+  const spineTheme = document.createElement('button');
+  spineTheme.className = 'spine-btn';
+  spineTheme.innerHTML = '🎨';
+  spineTheme.title = 'Change Theme';
+  spineTheme.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openThemePickerV2({ type: 'note', note });
+  });
+  spine.appendChild(spineTheme);
+
+  // More Button (Spine)
+  const spineMore = document.createElement('button');
+  spineMore.className = 'spine-btn note-card-menu-toggle-desktop';
+  spineMore.innerHTML = '⋮';
+  spineMore.title = 'More Actions';
+  // Note: the popup panel will be attached inside the classic mobile menu, but we can toggle it from here
+  spine.appendChild(spineMore);
+
+  card.appendChild(spine);
+
+  // === MAIN CONTENT WRAPPER ===
+  const mainContent = document.createElement('div');
+  mainContent.className = 'note-card-main';
+  card.appendChild(mainContent);
+
+  // === CLASSIC HEADER (Mobile) ===
   const boardHeader = document.createElement('div');
-  boardHeader.className = 'note-board-header';
+  boardHeader.className = 'note-board-header mobile-only';
   const boardTitle = document.createElement('span');
   boardTitle.className = 'note-board-title';
   boardTitle.textContent = getFolderSummaryLabel(note, getVisualTypeLabel(noteKind));
@@ -6560,16 +6631,36 @@ export function createNoteCardElement(note) {
     pinIndicator.innerHTML = `<svg viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zM9.8 4h4.4v8H9.8V4z" /></svg>`;
     boardHeaderMeta.appendChild(pinIndicator);
   }
+  if (note.starred) {
+    const starIndicator = document.createElement('span');
+    starIndicator.className = 'note-star-indicator-wrapper';
+    starIndicator.innerHTML = '⭐';
+    starIndicator.style.fontSize = '12px';
+    boardHeaderMeta.appendChild(starIndicator);
+  }
   const boardAccent = document.createElement('span');
   boardAccent.className = 'note-board-accent';
   boardAccent.textContent = getVisualTypeLabel(noteKind);
   boardHeader.appendChild(boardTitle);
   boardHeader.appendChild(boardHeaderMeta);
-  card.appendChild(boardHeader);
+  mainContent.appendChild(boardHeader);
+
+  // === NEW TOPBAR (Desktop) ===
+  const topbar = document.createElement('div');
+  topbar.className = 'note-card-topbar desktop-only';
+  const topFolder = document.createElement('span');
+  topFolder.className = 'topbar-folder-badge';
+  topFolder.innerHTML = `<span>📂</span> ${getFolderSummaryLabel(note, 'Inbox')}`;
+  const topType = document.createElement('span');
+  topType.className = 'topbar-type-badge';
+  topType.textContent = getVisualTypeLabel(noteKind);
+  topbar.appendChild(topFolder);
+  topbar.appendChild(topType);
+  mainContent.appendChild(topbar);
 
   const surface = document.createElement('div');
   surface.className = 'note-surface';
-  card.appendChild(surface);
+  mainContent.appendChild(surface);
 
   // 1. Image Banner
   const bannerImage = note.image || null;
@@ -6982,10 +7073,49 @@ export function createNoteCardElement(note) {
     }
   });
 
+  // Wire up Desktop Spine More Button to open the same menu
+  spineMore.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = cardMenu.classList.contains('open');
+    closeAllNoteCardMenus();
+    if (!isOpen) {
+      cardMenu.classList.add('open');
+      card.classList.add('menu-open');
+    }
+  });
+
+  const footer = document.createElement('div');
+  footer.className = 'note-card-footer';
+
   const stamp = document.createElement('div');
-  stamp.className = 'note-stamp';
+  stamp.className = 'note-stamp classic-footer';
   stamp.textContent = formatCardTimestamp(note.updatedAt);
-  surface.appendChild(stamp);
+  
+  const desktopStamp = document.createElement('div');
+  desktopStamp.className = 'note-stamp desktop-only';
+  desktopStamp.textContent = formatCardTimestamp(note.updatedAt);
+  
+  const desktopTray = document.createElement('div');
+  desktopTray.className = 'note-badges-tray desktop-only';
+  // Attachments badge
+  if (note.fileAttachments && note.fileAttachments.length > 0) {
+    const attachBadge = document.createElement('span');
+    attachBadge.className = 'tray-badge attach-badge';
+    attachBadge.innerHTML = `📎 ${note.fileAttachments.length}`;
+    desktopTray.appendChild(attachBadge);
+  }
+  // Audio badge
+  if (note.audio) {
+    const audioBadge = document.createElement('span');
+    audioBadge.className = 'tray-badge audio-badge';
+    audioBadge.innerHTML = `🎤 1`;
+    desktopTray.appendChild(audioBadge);
+  }
+
+  footer.appendChild(stamp);
+  footer.appendChild(desktopStamp);
+  footer.appendChild(desktopTray);
+  surface.appendChild(footer);
 
   // Touch Long-Press Handler for Mobile/Touch Devices (~500ms Hold)
   let longPressTimer = null;
@@ -9038,13 +9168,36 @@ function startVoiceRecording(target) {
   voiceRecordingElapsedSeconds = 0;
   updateVoiceRecordingIndicators();
 
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+    showToast({
+      title: 'Microphone Restricted',
+      text: 'Voice recording requires a secure origin (localhost or HTTPS).'
+    });
+    return;
+  }
+
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
   navigator.mediaDevices.getUserMedia({ audio: true })
     .then(stream => {
-      mediaRecorder = new MediaRecorder(stream);
+      let options = {};
+      if (typeof MediaRecorder !== 'undefined' && typeof MediaRecorder.isTypeSupported === 'function') {
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          options = { mimeType: 'audio/webm;codecs=opus' };
+        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+          options = { mimeType: 'audio/webm' };
+        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          options = { mimeType: 'audio/mp4' };
+        } else if (MediaRecorder.isTypeSupported('audio/aac')) {
+          options = { mimeType: 'audio/aac' };
+        }
+      }
+
+      mediaRecorder = options.mimeType ? new MediaRecorder(stream, options) : new MediaRecorder(stream);
       mediaRecorder.ondataavailable = (e) => {
-        audioChunks.push(e.data);
+        if (e.data && e.data.size > 0) {
+          audioChunks.push(e.data);
+        }
       };
 
       mediaRecorder.onstop = () => {
@@ -9060,7 +9213,8 @@ function startVoiceRecording(target) {
           voiceRecordingTimer = null;
         }
 
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const mimeType = mediaRecorder.mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunks, { type: mimeType });
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = () => {
@@ -9080,12 +9234,8 @@ function startVoiceRecording(target) {
       // Real-time elapsed counter displayed on overlay
       voiceRecordingTimer = setInterval(() => {
         voiceRecordingElapsedSeconds++;
-        const m = Math.floor(voiceRecordingElapsedSeconds / 60);
-        const s = (voiceRecordingElapsedSeconds % 60).toString().padStart(2, '0');
         updateVoiceRecordingIndicators();
       }, 1000);
-
-
     })
     .catch(err => {
       console.warn("Audio recording not supported or permitted:", err);
