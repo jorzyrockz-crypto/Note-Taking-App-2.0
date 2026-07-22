@@ -13178,6 +13178,137 @@ body.dark-theme .mobile-sheet-opt-label {
     box-sizing: border-box !important;
     padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
   }
+
+  /* ==========================================================================
+     PHASE 1: MOBILE TOP HEADER USER PROFILE INTEGRATION (< 640px)
+     ========================================================================== */
+  .app-header .header-right {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    margin-left: auto !important;
+  }
+
+  .app-header .user-avatar-container {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative !important;
+  }
+
+  .app-header .user-avatar,
+  .app-header #user-avatar-btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    border-radius: 50% !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    background-color: var(--accent, #38bdf8) !important;
+    color: #ffffff !important;
+    cursor: pointer !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18) !important;
+    border: 2px solid color-mix(in srgb, var(--accent) 35%, transparent) !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+  }
+
+  .app-header .user-avatar:active,
+  .app-header #user-avatar-btn:active {
+    transform: scale(0.92) !important;
+  }
+
+  /* Mobile Profile Dropdown Popover Elevation */
+  .profile-dropdown {
+    position: fixed !important;
+    top: calc(62px + env(safe-area-inset-top, 0px)) !important;
+    right: 12px !important;
+    left: auto !important;
+    width: calc(100vw - 24px) !important;
+    max-width: 350px !important;
+    z-index: 99999 !important;
+    border-radius: 20px !important;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28), 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+  }
+
+  /* ==========================================================================
+     PHASE 2 & 3: EXPERIMENTAL 2-COLUMN COMPACT MOBILE GRID CARD VIEW (< 640px)
+     ========================================================================== */
+  .notes-grid:not(.list-view) {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .notes-grid:not(.list-view) .note-card {
+    padding: 10px 10px !important;
+    border-radius: 14px !important;
+    min-height: 105px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    margin: 0 !important;
+  }
+
+  .notes-grid:not(.list-view) .note-title {
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    line-height: 1.3 !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    margin-bottom: 4px !important;
+    word-break: break-word !important;
+  }
+
+  .notes-grid:not(.list-view) .note-text {
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 3 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    opacity: 0.85 !important;
+  }
+
+  .notes-grid:not(.list-view) .note-card-footer {
+    margin-top: 6px !important;
+    gap: 4px !important;
+    flex-wrap: wrap !important;
+  }
+
+  .notes-grid:not(.list-view) .note-kind-pill,
+  .notes-grid:not(.list-view) .note-folder-pill {
+    font-size: 9px !important;
+    min-height: 20px !important;
+    padding: 0 5px !important;
+    border-radius: 6px !important;
+  }
+
+  /* List View Toggle Override for 1-Column Mobile */
+  .notes-grid.list-view {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .notes-grid.list-view .note-card {
+    width: 100% !important;
+    padding: 12px 14px !important;
+    border-radius: 16px !important;
+  }
 }
+
 
 
