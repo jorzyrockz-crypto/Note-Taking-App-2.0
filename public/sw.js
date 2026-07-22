@@ -1,4 +1,4 @@
-const CACHE_NAME = 'paperuss-v90';
+const CACHE_NAME = 'paperuss-v91';
 // Files available at the same paths in both source and Vite production builds.
 // Hashed JS/CSS dependencies are cached on first controlled fetch below.
 const APP_ASSETS = [
@@ -86,10 +86,10 @@ self.addEventListener('fetch', (event) => {
   const isNavigation = event.request.mode === 'navigate';
   const isAppScriptOrStyle = url.pathname.endsWith('.js') || url.pathname.endsWith('.css') || url.pathname === '/' || url.pathname.endsWith('index.html');
 
-  // Network-First for Navigation & App Scripts (guarantees instant PWA updates when online)
+  // Network-First for Navigation & App Scripts (guarantees instant updates when online)
   if (isNavigation || isAppScriptOrStyle) {
     event.respondWith(
-      fetch(event.request, { cache: 'no-cache' })
+      fetch(event.request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const responseClone = networkResponse.clone();
@@ -101,7 +101,7 @@ self.addEventListener('fetch', (event) => {
           return caches.match(event.request, { ignoreSearch: isNavigation }).then((cachedResponse) => {
             if (cachedResponse) return cachedResponse;
             if (isNavigation) return caches.match('./index.html');
-            return Response.error();
+            return new Response('', { status: 404, statusText: 'Not Found' });
           });
         })
     );

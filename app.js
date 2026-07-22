@@ -112,11 +112,11 @@ if (typeof window !== 'undefined') {
 // 1. Initial State & Data Definition (Upgraded v2.7.0)
 // ==========================================================================
 
-export const CURRENT_VERSION = '2.8.1';
+export const CURRENT_VERSION = '2.8.2';
 export const DEFAULT_CHANGELOG = [
+  'Vercel & SW Reliability Hotfix (v2.8.2): Removed unsupported Service Worker fetch cache mode options, added resilient offline fallbacks, and resolved Vercel build compatibility.',
   'Guaranteed PWA Cache Buster & Network-First Sync (v2.8.1): Implemented Network-First service worker fetch strategy for app scripts and enabled 1-tap cache purge force update button.',
-  'Phone Experience Enhancement (v2.8.0): Anchored User Profile avatar in top mobile header, introduced experimental 2-Column Compact Grid View for smaller note cards (inspired by Spotify Browse All cards), and enabled 1-tap view switching.',
-  'Mobile Ergonomics & UI Polish (v2.7.3): Added high-density compact mobile spacing across note cards, creator, and workspace; scaled Edit Modal title font size to prevent word splitting; automatically concealed bottom navigation dock during note editing; fixed filter bar left padding; and cleared toast notifications below the app header.'
+  'Phone Experience Enhancement (v2.8.0): Anchored User Profile avatar in top mobile header, introduced experimental 2-Column Compact Grid View for smaller note cards (inspired by Spotify Browse All cards), and enabled 1-tap view switching.'
 ];
 
 /**
@@ -3566,11 +3566,11 @@ function setupEventHandlers() {
     handlePasteImage(e, 'modal');
   });
 
-  const CURRENT_VERSION = '2.8.1';
+  const CURRENT_VERSION = '2.8.2';
   const DEFAULT_CHANGELOG = [
+    'Vercel & SW Reliability Hotfix (v2.8.2): Removed unsupported Service Worker fetch cache mode options, added resilient offline fallbacks, and resolved Vercel build compatibility.',
     'Guaranteed PWA Cache Buster & Network-First Sync (v2.8.1): Implemented Network-First service worker fetch strategy for app scripts and enabled 1-tap cache purge force update button.',
     'Phone Experience Enhancement (v2.8.0): Anchored User Profile avatar in top mobile header, introduced experimental 2-Column Compact Grid View for smaller note cards (inspired by Spotify Browse All cards), and enabled 1-tap view switching.',
-    'Mobile Ergonomics & UI Polish (v2.7.3): Added high-density compact mobile spacing across note cards, creator, and workspace; scaled Edit Modal title font size to prevent word splitting; automatically concealed bottom navigation dock during note editing; fixed filter bar left padding; and cleared toast notifications below the app header.',
     'Settings Panel Mobile Overflow Fix (v2.7.2): Resolved mobile viewport overflow across all settings tabs by converting two-column layouts to fluid single-column cards, wrapping segmented controls & color swatches, stacking time pickers, and enabling touch horizontal tab scrolling.',
     'Sectioned Overview & Checklist Refinements (v2.6.19): Aligned Checklist genre card icon and orange gradient, fixed HTML and markdown checklist detection, resolved matchingNotes extraction for sectioned overview layout, ensured non-sticky search header, and verified guaranteed search page re-rendering on page switch',
     'Unified Search & Content Browser (v2.6.18): Enhanced dedicated Search page into a unified media browser with interactive fluid genre filters, compact notes feed, photo gallery with glassmorphic Lightbox viewer, file attachment list, voice memo audio player, link tiles, contextual action popovers with touch long-press support, and canonical attachment deletion',

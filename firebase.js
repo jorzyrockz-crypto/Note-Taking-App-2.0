@@ -472,8 +472,9 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '2.8.1',
+        version: '2.8.2',
         changelog: [
+          'Vercel & SW Reliability Hotfix (v2.8.2): Removed unsupported Service Worker fetch cache mode options, added resilient offline fallbacks, and resolved Vercel build compatibility',
           'Guaranteed PWA Cache Buster & Network-First Sync (v2.8.1): Implemented Network-First service worker fetch strategy for app scripts and enabled 1-tap cache purge force update button',
           'Phone Experience Enhancement (v2.8.0): Anchored User Profile avatar in top mobile header, introduced experimental 2-Column Compact Grid View for smaller note cards (inspired by Spotify Browse All cards), and enabled 1-tap view switching',
           'Mobile Ergonomics & UI Polish (v2.7.3): Added high-density compact mobile spacing across note cards, creator, and workspace; scaled Edit Modal title font size to prevent word splitting; automatically concealed bottom navigation dock during note editing; fixed filter bar left padding; and cleared toast notifications below the app header',
