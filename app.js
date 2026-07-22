@@ -112,11 +112,11 @@ if (typeof window !== 'undefined') {
 // 1. Initial State & Data Definition (Upgraded v2.7.0)
 // ==========================================================================
 
-export const CURRENT_VERSION = '2.7.3';
+export const CURRENT_VERSION = '2.8.0';
 export const DEFAULT_CHANGELOG = [
+  'Phone Experience Enhancement (v2.8.0): Anchored User Profile avatar in top mobile header, introduced experimental 2-Column Compact Grid View for smaller note cards (inspired by Spotify Browse All cards), and enabled 1-tap view switching.',
   'Mobile Ergonomics & UI Polish (v2.7.3): Added high-density compact mobile spacing across note cards, creator, and workspace; scaled Edit Modal title font size to prevent word splitting; automatically concealed bottom navigation dock during note editing; fixed filter bar left padding; and cleared toast notifications below the app header.',
-  'Settings Panel Mobile Overflow Fix (v2.7.2): Resolved mobile viewport overflow across all settings tabs by converting two-column layouts to fluid single-column cards, wrapping segmented controls & color swatches, stacking time pickers, and enabling touch horizontal tab scrolling.',
-  'Universal Multi-Page Mobile Responsiveness (v2.7.1): Ensured full mobile viewport adaptation across every page (Search, Productivity, Settings, Recipe Importer, and Modals) with responsive bottom dock page sync, horizontal scrollable tab bars, and 100vw touch safe-area layouts.'
+  'Settings Panel Mobile Overflow Fix (v2.7.2): Resolved mobile viewport overflow across all settings tabs by converting two-column layouts to fluid single-column cards, wrapping segmented controls & color swatches, stacking time pickers, and enabling touch horizontal tab scrolling.'
 ];
 
 /**
@@ -2725,17 +2725,33 @@ function setTheme(theme) {
 
 function initViewLayout() {
   const viewMode = localStorage.getItem(STORAGE_KEYS.view) || 'grid';
-  if (viewMode === 'list') {
-    pinnedGrid.classList.add('list-view');
-    othersGrid.classList.add('list-view');
-    document.getElementById('grid-icon').style.display = 'block';
-    document.getElementById('list-icon').style.display = 'none';
-  } else {
-    pinnedGrid.classList.remove('list-view');
-    othersGrid.classList.remove('list-view');
-    document.getElementById('grid-icon').style.display = 'none';
-    document.getElementById('list-icon').style.display = 'block';
-  }
+  const isList = viewMode === 'list';
+  const searchGrid = document.getElementById('dedicated-search-results-grid');
+  if (pinnedGrid) pinnedGrid.classList.toggle('list-view', isList);
+  if (othersGrid) othersGrid.classList.toggle('list-view', isList);
+  if (searchGrid) searchGrid.classList.toggle('list-view', isList);
+
+  const gridIcon = document.getElementById('grid-icon');
+  const listIcon = document.getElementById('list-icon');
+  if (gridIcon) gridIcon.style.display = isList ? 'block' : 'none';
+  if (listIcon) listIcon.style.display = isList ? 'none' : 'block';
+}
+
+function toggleViewLayout() {
+  const isCurrentlyList = pinnedGrid?.classList.contains('list-view') || othersGrid?.classList.contains('list-view');
+  const nextIsList = !isCurrentlyList;
+
+  const searchGrid = document.getElementById('dedicated-search-results-grid');
+  if (pinnedGrid) pinnedGrid.classList.toggle('list-view', nextIsList);
+  if (othersGrid) othersGrid.classList.toggle('list-view', nextIsList);
+  if (searchGrid) searchGrid.classList.toggle('list-view', nextIsList);
+
+  localStorage.setItem(STORAGE_KEYS.view, nextIsList ? 'list' : 'grid');
+
+  const gridIcon = document.getElementById('grid-icon');
+  const listIcon = document.getElementById('list-icon');
+  if (gridIcon) gridIcon.style.display = nextIsList ? 'block' : 'none';
+  if (listIcon) listIcon.style.display = nextIsList ? 'none' : 'block';
 }
 
 function initData() {
@@ -3553,11 +3569,11 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.7.3';
+  const CURRENT_VERSION = '2.8.0';
   const DEFAULT_CHANGELOG = [
+    'Phone Experience Enhancement (v2.8.0): Anchored User Profile avatar in top mobile header, introduced experimental 2-Column Compact Grid View for smaller note cards (inspired by Spotify Browse All cards), and enabled 1-tap view switching.',
     'Mobile Ergonomics & UI Polish (v2.7.3): Added high-density compact mobile spacing across note cards, creator, and workspace; scaled Edit Modal title font size to prevent word splitting; automatically concealed bottom navigation dock during note editing; fixed filter bar left padding; and cleared toast notifications below the app header.',
     'Settings Panel Mobile Overflow Fix (v2.7.2): Resolved mobile viewport overflow across all settings tabs by converting two-column layouts to fluid single-column cards, wrapping segmented controls & color swatches, stacking time pickers, and enabling touch horizontal tab scrolling.',
-    'Universal Multi-Page Mobile Responsiveness (v2.7.1): Ensured full mobile viewport adaptation across every page (Search, Productivity, Settings, Recipe Importer, and Modals) with responsive bottom dock page sync, horizontal scrollable tab bars, and 100vw touch safe-area layouts.',
     'Sectioned Overview & Checklist Refinements (v2.6.19): Aligned Checklist genre card icon and orange gradient, fixed HTML and markdown checklist detection, resolved matchingNotes extraction for sectioned overview layout, ensured non-sticky search header, and verified guaranteed search page re-rendering on page switch',
     'Unified Search & Content Browser (v2.6.18): Enhanced dedicated Search page into a unified media browser with interactive fluid genre filters, compact notes feed, photo gallery with glassmorphic Lightbox viewer, file attachment list, voice memo audio player, link tiles, contextual action popovers with touch long-press support, and canonical attachment deletion',
     'Null Pointer Fix (v2.6.17): Resolved uncaught TypeError on app load caused by null searchInput reference after top-bar search removal, restoring normal workspace note rendering',
