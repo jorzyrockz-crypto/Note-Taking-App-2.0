@@ -12884,33 +12884,214 @@ body.dark-theme .mobile-sheet-opt-label {
     padding: 14px !important;
   }
 
-  /* Settings Page Mobile Adjustments */
-  .settings-container,
-  .settings-layout,
-  .settings-modal-card {
-    grid-template-columns: 1fr !important;
+  /* Settings Page Mobile Phone Responsiveness (< 640px) */
+  .settings-page {
     width: 100% !important;
     max-width: 100vw !important;
-    padding: 12px !important;
+    padding: 12px 12px calc(80px + env(safe-area-inset-bottom, 0px)) 12px !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  .settings-page-header {
+    margin-bottom: 14px !important;
+    padding-bottom: 10px !important;
+  }
+
+  .settings-page-title {
+    font-size: 22px !important;
+  }
+
+  .settings-two-col {
+    flex-direction: column !important;
+    gap: 16px !important;
+    width: 100% !important;
+    max-width: 100% !important;
     box-sizing: border-box !important;
   }
 
-  .settings-tabs-nav {
-    display: flex !important;
+  .settings-tab-nav {
+    position: static !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex-direction: row !important;
     overflow-x: auto !important;
+    overflow-y: hidden !important;
     white-space: nowrap !important;
     -webkit-overflow-scrolling: touch !important;
     gap: 8px !important;
-    padding: 4px 0 8px 0 !important;
+    padding: 4px 2px 8px 2px !important;
+    box-sizing: border-box !important;
+    scrollbar-width: none !important;
   }
 
-  .settings-tab-btn {
+  .settings-tab-nav::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .settings-tab-item {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    white-space: nowrap !important;
     min-height: 44px !important;
-    padding: 8px 16px !important;
+    padding: 8px 14px !important;
     border-radius: 22px !important;
+    background: var(--bg-card, rgba(255,255,255,0.8)) !important;
+    border: 1px solid var(--border-light, rgba(0,0,0,0.1)) !important;
+    font-size: 13px !important;
+  }
+
+  .settings-tab-item.active {
+    background: var(--accent-color, #38bdf8) !important;
+    color: #ffffff !important;
+    border-color: var(--accent-color, #38bdf8) !important;
+  }
+
+  .settings-tab-item.active .settings-tab-icon {
+    fill: #ffffff !important;
+    color: #ffffff !important;
+  }
+
+  .settings-tab-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  .settings-tab-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    gap: 12px !important;
+  }
+
+  .settings-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 14px 12px !important;
+    box-sizing: border-box !important;
+    border-radius: 16px !important;
+    overflow-x: hidden !important;
+  }
+
+  .settings-page .settings-row {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .settings-page .settings-info {
+    padding-right: 0 !important;
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Segmented control wrapping (Card Layout & Density) */
+  .seg-control {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    width: 100% !important;
+    gap: 4px !important;
+    box-sizing: border-box !important;
+  }
+
+  .seg-btn {
+    flex: 1 1 auto !important;
+    min-width: 65px !important;
+    text-align: center !important;
+    padding: 8px 10px !important;
+    min-height: 40px !important;
+  }
+
+  /* Accent swatches grid */
+  .accent-swatch-row {
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .accent-swatch-btn {
+    width: 100% !important;
+    min-height: 44px !important;
+  }
+
+  /* Emoji preview & sliders layout */
+  .emoji-preview-layout {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .settings-live-preview-container {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .settings-preview-card {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Custom Theme Form */
+  .custom-theme-creator-form {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .custom-theme-creator-form input,
+  .custom-theme-creator-form button {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Time Pickers Row */
+  .settings-card .time-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .settings-card .time-field {
+    width: 100% !important;
+    min-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .settings-card .time-field input[type="time"] {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Notification Position Grid */
+  .notif-position-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Background Controls Row */
+  .settings-bg-controls-row {
+    flex-direction: column !important;
+    gap: 12px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   /* Modals & Dialogs Full Viewport Elevation */
+  .settings-modal-card,
   .recipe-modal-card,
   .auth-card,
   .drawing-modal-card {
@@ -12921,6 +13102,7 @@ body.dark-theme .mobile-sheet-opt-label {
     max-height: 100vh !important;
     border-radius: 0 !important;
     margin: 0 !important;
+    box-sizing: border-box !important;
     padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
