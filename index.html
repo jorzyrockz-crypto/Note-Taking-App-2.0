@@ -153,12 +153,14 @@
           <div class="profile-divider"></div>
           <div class="profile-version-section">
             <div class="version-header">
-              <span class="version-label">Version 2.6.20</span>
+              <span class="version-label">Version 2.7.1</span>
               <button class="update-btn" id="app-update-btn" type="button">Update</button>
             </div>
             <div class="changelog-container">
               <div class="changelog-title">What's New</div>
               <ul class="changelog-list">
+          <li><strong>Universal Multi-Page Mobile Responsiveness (v2.7.1):</strong> Ensured full mobile viewport adaptation across every page (Search, Productivity, Settings, Recipe Importer, and Modals) with responsive bottom dock page sync, horizontal scrollable tab bars, and 100vw touch safe-area layouts.</li>
+          <li><strong>Enhanced Phone Experience (v2.7.0):</strong> Introduced glassmorphic Mobile Bottom Dock navigation, Mobile Quick Creator Bottom Sheet, interactive touch card swipe gestures (pin/archive/delete), pull-to-refresh sync, visual viewport keyboard elevation handling, and haptic feedback.</li>
           <li><strong>Rectangular Checklist Cards & High-Contrast Elevation (v2.6.20):</strong> Introduced rectangular checklist cards matching photo grid aspect ratios with top glowing progress bars and completion statistics, and updated card container styling across Files, Voice Memos, Links, and Checklists with crisp solid backgrounds and elevated borders to prevent blending into light themes</li>
           <li><strong>Sectioned Overview & Checklist Refinements (v2.6.19):</strong> Aligned Checklist genre card icon and orange gradient, fixed HTML and markdown checklist detection, resolved matchingNotes extraction for sectioned overview layout, ensured non-sticky search header, and verified guaranteed search page re-rendering on page switch</li>
           <li><strong>Unified Search & Content Browser (v2.6.18):</strong> Enhanced dedicated Search page into a unified media browser with interactive fluid genre filters, compact notes feed, photo gallery with glassmorphic Lightbox viewer, file attachment list, voice memo audio player, link tiles, contextual action popovers with touch long-press support, and canonical attachment deletion</li>
@@ -2156,6 +2158,86 @@
     <div style="display: flex; gap: 8px; margin-top: 4px;">
       <button id="glass-reminder-save" class="text-btn" style="flex: 1; height: 36px; background: var(--accent-color); color: white; border-radius: 8px;">Save</button>
       <button id="glass-reminder-clear" class="text-btn danger-btn" style="flex: 1; height: 36px; border-radius: 8px;">Clear</button>
+    </div>
+  </div>
+
+  <!-- Mobile Pull-To-Refresh Visual Indicator -->
+  <div id="mobile-pull-indicator" class="mobile-pull-indicator" aria-hidden="true">
+    <div class="mobile-pull-spinner">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+      </svg>
+    </div>
+    <span class="mobile-pull-text">Pull to refresh</span>
+  </div>
+
+  <!-- Mobile Glassmorphic Bottom Navigation Dock -->
+  <nav id="mobile-bottom-dock" class="mobile-bottom-dock" aria-label="Mobile Navigation Dock">
+    <button class="mobile-dock-item active" data-target-page="notes" aria-label="Notes">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+      <span class="mobile-dock-label">Notes</span>
+    </button>
+    <button class="mobile-dock-item" data-target-page="search" aria-label="Search">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <span class="mobile-dock-label">Search</span>
+    </button>
+    <button class="mobile-dock-fab" id="mobile-dock-add-btn" aria-label="Create New Note or Item">
+      <div class="mobile-fab-inner">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      </div>
+    </button>
+    <button class="mobile-dock-item" data-target-page="productivity" aria-label="Productivity">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+      <span class="mobile-dock-label">Tasks</span>
+    </button>
+    <button class="mobile-dock-item" id="mobile-dock-settings-btn" aria-label="Settings">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      <span class="mobile-dock-label">Settings</span>
+    </button>
+  </nav>
+
+  <!-- Mobile Quick Action Creator Bottom Sheet -->
+  <div id="mobile-bottom-sheet-overlay" class="mobile-bottom-sheet-overlay" aria-hidden="true">
+    <div class="mobile-bottom-sheet" id="mobile-bottom-sheet" role="dialog" aria-modal="true" aria-label="Quick Create Menu">
+      <div class="mobile-sheet-drag-handle"></div>
+      <div class="mobile-sheet-header">
+        <h3 class="mobile-sheet-title">Create New</h3>
+        <button class="icon-btn mobile-sheet-close" id="mobile-sheet-close" aria-label="Close menu">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="mobile-sheet-grid">
+        <button class="mobile-sheet-opt" data-create-type="text">
+          <div class="mobile-sheet-icon-wrap" style="background: rgba(56, 189, 248, 0.15); color: #0284c7;">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+          </div>
+          <span class="mobile-sheet-opt-label">Text Note</span>
+        </button>
+        <button class="mobile-sheet-opt" data-create-type="checklist">
+          <div class="mobile-sheet-icon-wrap" style="background: rgba(139, 92, 246, 0.15); color: #7c3aed;">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+          </div>
+          <span class="mobile-sheet-opt-label">Checklist</span>
+        </button>
+        <button class="mobile-sheet-opt" data-create-type="voice">
+          <div class="mobile-sheet-icon-wrap" style="background: rgba(236, 72, 153, 0.15); color: #ec4899;">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+          </div>
+          <span class="mobile-sheet-opt-label">Voice Memo</span>
+        </button>
+        <button class="mobile-sheet-opt" data-create-type="photo">
+          <div class="mobile-sheet-icon-wrap" style="background: rgba(34, 197, 94, 0.15); color: #16a34a;">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          </div>
+          <span class="mobile-sheet-opt-label">Photo</span>
+        </button>
+        <button class="mobile-sheet-opt" data-create-type="bookmark">
+          <div class="mobile-sheet-icon-wrap" style="background: rgba(249, 115, 22, 0.15); color: #ea580c;">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+          </div>
+          <span class="mobile-sheet-opt-label">Link</span>
+        </button>
+      </div>
     </div>
   </div>
 

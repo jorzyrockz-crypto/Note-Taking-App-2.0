@@ -109,8 +109,292 @@ if (typeof window !== 'undefined') {
 }
 
 // ==========================================================================
-// 1. Initial State & Data Definition (Upgraded)
+// 1. Initial State & Data Definition (Upgraded v2.7.0)
 // ==========================================================================
+
+export const CURRENT_VERSION = '2.7.1';
+export const DEFAULT_CHANGELOG = [
+  'Universal Multi-Page Mobile Responsiveness (v2.7.1): Ensured full mobile viewport adaptation across every page (Search, Productivity, Settings, Recipe Importer, and Modals) with responsive bottom dock page sync, horizontal scrollable tab bars, and 100vw touch safe-area layouts.',
+  'Enhanced Phone Experience (v2.7.0): Introduced glassmorphic Mobile Bottom Dock navigation, Mobile Quick Creator Bottom Sheet, interactive touch card swipe gestures (pin/archive/delete), pull-to-refresh sync, visual viewport keyboard elevation handling, and haptic feedback.',
+  'Rectangular Checklist Cards & High-Contrast Elevation (v2.6.20): Introduced rectangular checklist cards matching photo grid aspect ratios with top glowing progress bars and completion statistics.'
+];
+
+/**
+ * Triggers light/medium/success tactile vibration feedback if supported.
+ * @param {'tap'|'snap'|'success'} type 
+ */
+export function triggerHaptic(type = 'tap') {
+  if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
+  try {
+    if (type === 'tap') navigator.vibrate(10);
+    else if (type === 'snap') navigator.vibrate(18);
+    else if (type === 'success') navigator.vibrate([15, 40, 15]);
+  } catch (e) {}
+}
+
+/**
+ * Initializes mobile dock navigation, quick action bottom sheet,
+ * touch card swipe gestures, pull-to-refresh, and virtual keyboard safety.
+ */
+export function initMobilePhoneExperience() {
+  if (typeof document === 'undefined') return;
+
+  // 1. Mobile Navigation Dock Page Switching
+  const dockItems = document.querySelectorAll('.mobile-bottom-dock .mobile-dock-item[data-target-page]');
+  dockItems.forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+      const page = item.getAttribute('data-target-page');
+      if (!page) return;
+
+      triggerHaptic('tap');
+
+      // Update active dock item state
+      dockItems.forEach(d => d.classList.remove('active'));
+      item.classList.add('active');
+
+      // Navigate page
+      if (typeof setActivePage === 'function') {
+        setActivePage(page);
+      }
+    });
+  });
+
+  const dockSettingsBtn = document.getElementById('mobile-dock-settings-btn');
+  dockSettingsBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    triggerHaptic('tap');
+    if (typeof setActivePage === 'function') {
+      setActivePage('settings');
+    }
+  });
+
+  // Keep dock active state synchronized with global currentPage
+  const syncDockActiveState = () => {
+    if (typeof currentPage === 'undefined') return;
+    dockItems.forEach(item => {
+      const target = item.getAttribute('data-target-page');
+      item.classList.toggle('active', target === currentPage);
+    });
+  };
+  window.addEventListener('hashchange', syncDockActiveState);
+  document.addEventListener('pagechange', syncDockActiveState);
+
+  // 2. Mobile Quick Action Creator Bottom Sheet
+  const dockAddBtn = document.getElementById('mobile-dock-add-btn');
+  const sheetOverlay = document.getElementById('mobile-bottom-sheet-overlay');
+  const sheetCloseBtn = document.getElementById('mobile-sheet-close');
+
+  const openBottomSheet = () => {
+    triggerHaptic('snap');
+    sheetOverlay?.classList.add('active');
+    sheetOverlay?.setAttribute('aria-hidden', 'false');
+  };
+
+  const closeBottomSheet = () => {
+    triggerHaptic('tap');
+    sheetOverlay?.classList.remove('active');
+    sheetOverlay?.setAttribute('aria-hidden', 'true');
+  };
+
+  dockAddBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    openBottomSheet();
+  });
+
+  sheetCloseBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    closeBottomSheet();
+  });
+
+  sheetOverlay?.addEventListener('click', (e) => {
+    if (e.target === sheetOverlay) {
+      closeBottomSheet();
+    }
+  });
+
+  // Handle Quick Create Options
+  const sheetOpts = document.querySelectorAll('.mobile-sheet-opt[data-create-type]');
+  sheetOpts.forEach(opt => {
+    opt.addEventListener('click', (e) => {
+      e.preventDefault();
+      const type = opt.getAttribute('data-create-type');
+      closeBottomSheet();
+      triggerHaptic('snap');
+
+      if (type === 'checklist') {
+        if (typeof openEditModal === 'function') {
+          openEditModal({ id: null, title: '', text: '- [ ] ', type: 'checklist' });
+        }
+      } else if (type === 'voice') {
+        if (typeof openEditModal === 'function') {
+          openEditModal({ id: null, title: 'Voice Note', text: '', type: 'audio' });
+        }
+      } else if (type === 'photo') {
+        if (typeof openEditModal === 'function') {
+          openEditModal({ id: null, title: '', text: '', type: 'image' });
+        }
+      } else if (type === 'bookmark') {
+        if (typeof openEditModal === 'function') {
+          openEditModal({ id: null, title: '', text: 'https://', type: 'link' });
+        }
+      } else {
+        if (typeof openEditModal === 'function') {
+          openEditModal({ id: null, title: '', text: '', type: 'text' });
+        }
+      }
+    });
+  });
+
+  // 3. Touch Card Swipe Gestures (Pin Right, Delete Left)
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let activeSwipeCard = null;
+  let currentTranslateX = 0;
+
+  document.addEventListener('touchstart', (e) => {
+    const card = e.target.closest('.note-card[data-id]');
+    if (!card || e.touches.length !== 1) return;
+
+    if (e.target.closest('button, a, input, audio, [contenteditable="true"]')) return;
+
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    activeSwipeCard = card;
+    currentTranslateX = 0;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!activeSwipeCard || e.touches.length !== 1) return;
+
+    const deltaX = e.touches[0].clientX - touchStartX;
+    const deltaY = e.touches[0].clientY - touchStartY;
+
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 12) {
+      currentTranslateX = deltaX;
+      activeSwipeCard.style.transform = `translateX(${deltaX}px)`;
+
+      if (deltaX > 60) {
+        activeSwipeCard.classList.add('swiping-pin');
+        activeSwipeCard.classList.remove('swiping-delete');
+      } else if (deltaX < -60) {
+        activeSwipeCard.classList.add('swiping-delete');
+        activeSwipeCard.classList.remove('swiping-pin');
+      } else {
+        activeSwipeCard.classList.remove('swiping-pin', 'swiping-delete');
+      }
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', () => {
+    if (!activeSwipeCard) return;
+
+    const noteId = activeSwipeCard.getAttribute('data-id');
+    const note = (typeof notes !== 'undefined' ? notes : []).find(n => n.id === noteId);
+
+    if (currentTranslateX > 80 && note) {
+      triggerHaptic('snap');
+      note.pinned = !note.pinned;
+      note.updatedAt = Date.now();
+      if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
+      if (typeof renderNotes === 'function') renderNotes();
+      if (typeof showToast === 'function') {
+        showToast({ title: note.pinned ? '📌 Note Pinned' : 'Note Unpinned', text: `"${note.title || 'Note'}" updated.` });
+      }
+    } else if (currentTranslateX < -80 && note) {
+      triggerHaptic('snap');
+      if (typeof saveDeletedNoteTombstone === 'function') {
+        saveDeletedNoteTombstone(note.id);
+      }
+      const index = notes.findIndex(n => n.id === noteId);
+      if (index !== -1) {
+        notes.splice(index, 1);
+        if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
+        if (typeof renderNotes === 'function') renderNotes();
+        if (typeof showToast === 'function') {
+          showToast({ title: '🗑️ Note Removed', text: 'Note moved to trash.' });
+        }
+      }
+    }
+
+    activeSwipeCard.style.transform = '';
+    activeSwipeCard.classList.remove('swiping-pin', 'swiping-delete');
+    activeSwipeCard = null;
+    currentTranslateX = 0;
+  });
+
+  // 4. Mobile Pull-to-Refresh Sync
+  let pullStartY = 0;
+  let pullDistance = 0;
+  const pullIndicator = document.getElementById('mobile-pull-indicator');
+
+  document.addEventListener('touchstart', (e) => {
+    if (window.scrollY === 0 && e.touches.length === 1) {
+      pullStartY = e.touches[0].clientY;
+      pullDistance = 0;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (pullStartY > 0 && window.scrollY === 0 && e.touches.length === 1) {
+      const currentY = e.touches[0].clientY;
+      const dist = currentY - pullStartY;
+      if (dist > 0 && dist < 160) {
+        pullDistance = dist;
+        if (pullIndicator && dist > 30) {
+          pullIndicator.classList.add('visible');
+        }
+      }
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', () => {
+    if (pullDistance > 75) {
+      triggerHaptic('success');
+      if (pullIndicator) {
+        pullIndicator.classList.add('refreshing');
+      }
+
+      if (typeof initCloudNotesSync === 'function') {
+        initCloudNotesSync();
+      }
+
+      setTimeout(() => {
+        if (pullIndicator) {
+          pullIndicator.classList.remove('visible', 'refreshing');
+        }
+        if (typeof showToast === 'function') {
+          showToast({ title: '🔄 Workspace Refreshed', text: 'Latest notes synced.' });
+        }
+      }, 1000);
+    } else if (pullIndicator) {
+      pullIndicator.classList.remove('visible');
+    }
+    pullStartY = 0;
+    pullDistance = 0;
+  });
+
+  // 5. Visual Viewport Keyboard Safety
+  if (typeof window !== 'undefined' && window.visualViewport) {
+    const handleViewportResize = () => {
+      const keyboardHeight = window.innerHeight - window.visualViewport.height;
+      const toolbars = document.querySelectorAll('.glass-floating-toolbar');
+
+      toolbars.forEach(tb => {
+        if (keyboardHeight > 120) {
+          tb.classList.add('keyboard-elevated');
+          tb.style.setProperty('--keyboard-offset', `${keyboardHeight + 12}px`);
+        } else {
+          tb.classList.remove('keyboard-elevated');
+          tb.style.removeProperty('--keyboard-offset');
+        }
+      });
+    };
+
+    window.visualViewport.addEventListener('resize', handleViewportResize);
+    window.visualViewport.addEventListener('scroll', handleViewportResize);
+  }
+}
 
 const COLOR_PRESETS = [
   'default', 'red', 'orange', 'yellow',
@@ -1625,6 +1909,15 @@ export function setActiveSidebarPage(pageId) {
 
 function setActivePage(page) {
   currentPage = page;
+  const dockItems = document.querySelectorAll('.mobile-bottom-dock .mobile-dock-item');
+  dockItems.forEach(item => {
+    const target = item.getAttribute('data-target-page');
+    item.classList.toggle('active', target === page || (page === 'notes' && target === 'notes'));
+  });
+  if (typeof document !== 'undefined') {
+    document.dispatchEvent(new CustomEvent('pagechange', { detail: { page } }));
+  }
+
   if (page === 'settings') {
     selectedTagFilter = null;
     selectedFolderFilter = null;
@@ -3260,8 +3553,10 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.6.20';
+  const CURRENT_VERSION = '2.7.1';
   const DEFAULT_CHANGELOG = [
+    'Universal Multi-Page Mobile Responsiveness (v2.7.1): Ensured full mobile viewport adaptation across every page (Search, Productivity, Settings, Recipe Importer, and Modals) with responsive bottom dock page sync, horizontal scrollable tab bars, and 100vw touch safe-area layouts.',
+    'Enhanced Phone Experience (v2.7.0): Introduced glassmorphic Mobile Bottom Dock navigation, Mobile Quick Creator Bottom Sheet, interactive touch card swipe gestures (pin/archive/delete), pull-to-refresh sync, visual viewport keyboard elevation handling, and haptic feedback.',
     'Rectangular Checklist Cards & High-Contrast Elevation (v2.6.20): Introduced rectangular checklist cards matching photo grid aspect ratios with top glowing progress bars and completion statistics, and updated card container styling across Files, Voice Memos, Links, and Checklists with crisp solid backgrounds and elevated borders to prevent blending into light themes',
     'Sectioned Overview & Checklist Refinements (v2.6.19): Aligned Checklist genre card icon and orange gradient, fixed HTML and markdown checklist detection, resolved matchingNotes extraction for sectioned overview layout, ensured non-sticky search header, and verified guaranteed search page re-rendering on page switch',
     'Unified Search & Content Browser (v2.6.18): Enhanced dedicated Search page into a unified media browser with interactive fluid genre filters, compact notes feed, photo gallery with glassmorphic Lightbox viewer, file attachment list, voice memo audio player, link tiles, contextual action popovers with touch long-press support, and canonical attachment deletion',
@@ -10265,6 +10560,7 @@ if (typeof document !== 'undefined') {
   setTimeout(() => {
     initGlassToolbarExtensions('creator');
     initGlassToolbarExtensions('modal');
+    initMobilePhoneExperience();
   }, 0);
 
   // Bind new Glass Reminder Popover to Add menus
