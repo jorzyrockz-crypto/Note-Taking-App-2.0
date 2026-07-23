@@ -472,8 +472,9 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '3.0.7',
+        version: '3.0.8',
         changelog: [
+          'Desktop Context Menu Rendering Fix (v3.0.8): Resolved desktop context menu visibility bug by appending cardMenu directly to card (rather than the hidden mobile-only header) and hidden three-dots toggle on desktop viewport.',
           'Lucide Icons & Context Menu Polish (v3.0.7): Refactored Notebook Spine quick actions to use flat, theme-responsive Lucide icons with bouncy interactions. Elevated Context Menu Z-level and implemented responsive scrolling for overflow action toggles.',
           'Revert Camon 20 Layout (v3.0.6): Reverted the specific compact phone profile (max-width: 410px) CSS block that was previously introduced alongside the Notebook Spine UI, returning the phone layout specifically to its prior fluid state.',
           'Floating Capsule Edge-to-Edge Full Bleed (v3.0.5): Perfected floating capsule layout by removing inner padding and margin, pulling wrapper to the edge of the text bounds, and assigning drop shadows individually so edge-to-edge images perfectly wrap the floating curves.',

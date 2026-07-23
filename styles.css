@@ -13692,7 +13692,7 @@ body.dark-theme .mobile-sheet-opt-label {
 }
 
 /* Mobile: Place toggle at Top Right */
-@media screen and (max-width: 767px) {
+@media screen and (max-width: 640px) {
   .notes-grid .note-card > .note-card-menu {
     top: 14px !important;
     right: 14px !important;
@@ -13712,7 +13712,7 @@ body.dark-theme .mobile-sheet-opt-label {
 }
 
 /* Desktop: Place menu anchor at Bottom Left (near Spine) */
-@media screen and (min-width: 768px) {
+@media screen and (min-width: 641px) {
   .notes-grid .note-card > .note-card-menu {
     bottom: 16px !important;
     left: 52px !important;
@@ -13720,6 +13720,9 @@ body.dark-theme .mobile-sheet-opt-label {
     right: auto !important;
     width: 0 !important;
     height: 0 !important;
+  }
+  .notes-grid .note-card > .note-card-menu .note-card-menu-toggle {
+    display: none !important;
   }
   .notes-grid .note-card-menu.open .note-card-menu-panel {
     display: flex !important;
