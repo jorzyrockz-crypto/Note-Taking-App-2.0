@@ -11361,12 +11361,12 @@ body.dark-theme.card-style-notebook .note-card::before {
 
 @media screen and (min-width: 700px) and (max-width: 1024px) {
   :root {
-    --tablet-dock-height: 76px;
+    --tablet-dock-height: 62px;
   }
 
   .app-header {
-    height: 72px !important;
-    min-height: 72px !important;
+    height: 64px !important;
+    min-height: 64px !important;
     padding: max(8px, env(safe-area-inset-top)) 20px 8px !important;
     flex-wrap: nowrap !important;
     gap: 14px !important;
@@ -11468,26 +11468,32 @@ body.dark-theme.card-style-notebook .note-card::before {
     gap: 30px;
   }
 
-  .notes-grid,
-  .notes-grid.list-view {
-    --note-card-collapsed-height: 405px;
+  .notes-grid {
     width: 100% !important;
     max-width: none !important;
   }
 
   .notes-grid:not(.list-view) {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: clamp(16px, 2.4vw, 24px) !important;
+    --note-card-collapsed-height: 280px;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+  }
+
+  .notes-grid:not(.list-view) .note-card .card-image-banner {
+    height: 90px !important;
+    margin-bottom: 8px !important;
   }
 
   .notes-grid.list-view {
+    --note-card-collapsed-height: 140px;
     grid-template-columns: minmax(0, 720px) !important;
+    gap: 12px !important;
   }
 
   .note-card {
     min-width: 0;
-    border-radius: 24px !important;
-    padding: 13px !important;
+    border-radius: 20px !important;
+    padding: 10px !important;
     touch-action: manipulation;
   }
 
@@ -11526,38 +11532,36 @@ body.dark-theme.card-style-notebook .note-card::before {
     grid-template-columns: 1fr 1fr 1.14fr 1fr 1fr;
     align-items: center;
     gap: 4px;
-    padding: 7px 10px;
+    padding: 5px 8px;
     border: 1px solid color-mix(in srgb, var(--accent) 18%, rgba(255,255,255,0.5));
-    border-radius: 26px;
+    border-radius: 22px;
     background: color-mix(in srgb, var(--surface-paper) 88%, transparent);
     box-shadow: 0 16px 48px rgba(15, 23, 42, 0.18), 0 2px 10px var(--ambient-glow);
     backdrop-filter: blur(24px) saturate(150%);
     -webkit-backdrop-filter: blur(24px) saturate(150%);
   }
 
-  .tablet-dock-item,
-  .tablet-dock-create {
+  .tablet-dock-item {
     position: relative;
     min-width: 0;
-    height: 58px;
+    height: 48px;
     border: 0;
-    border-radius: 18px;
+    border-radius: 14px;
     background: transparent;
     color: var(--text-secondary);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    font: 650 11px/1 var(--font-sans);
+    gap: 2px;
+    font: 650 9.5px/1 var(--font-sans);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
 
-  .tablet-dock-item svg,
-  .tablet-dock-create svg {
-    width: 24px;
-    height: 24px;
+  .tablet-dock-item svg {
+    width: 20px;
+    height: 20px;
     fill: currentColor;
   }
 
@@ -11567,16 +11571,26 @@ body.dark-theme.card-style-notebook .note-card::before {
   }
 
   .tablet-dock-create {
-    height: 62px;
-    margin-top: -22px;
+    position: relative;
+    min-width: 0;
+    height: 52px;
+    margin-top: -18px;
+    border: 0;
+    border-radius: 16px;
     color: white;
     background: linear-gradient(145deg, var(--accent), var(--accent-hover));
     box-shadow: 0 10px 24px rgba(var(--accent-rgb), 0.34);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .tablet-dock-create svg {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
   }
 
   .profile-dropdown {

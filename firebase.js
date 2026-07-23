@@ -472,8 +472,9 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '3.1.1',
+        version: '3.2.0',
         changelog: [
+          'High-Density Tablet Portrait Layout (v3.2.0): Optimized iPad/tablet portrait layout with a 3-column note grid, decreased card collapsed height, tighter margins, and a compact, scaled-down bottom navigation dock.',
           'Fix Lucide Icon Instantiation (v3.1.1): Resolved bug where quick action icons disappeared on sidebar page navigation and single card DOM updates by anchoring lucide.createIcons inside updateNoteCardUI and renderGrid.',
           'Remove Workspace Density Control (v3.1.0): Removed Workspace Density configurations from the Appearance settings panel and refactored underlying settings syncing scripts.',
           'Hide Context Menu Scrollbar (v3.0.9): Hid default scrollbar styling for context menu panels across all layout viewports for a cleaner, unified flat UI.',
