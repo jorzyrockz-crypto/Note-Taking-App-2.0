@@ -472,8 +472,11 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '3.2.1',
+        version: '3.2.4',
         changelog: [
+          'Purpose-Built Slide Decks & Revised Media Hub Layout (v3.2.4): Refactored note media hubs into type-aware purpose-built slide decks (Text, Checklist, Voice, Link, Recipe, Visual, File) and aligned Media Hub in normal document flow inside .note-surface 6px flush above the footer with zero overlap.',
+          'Canonical Note-Type Registry & Dynamic Feed Filters (v3.2.3): Introduced a single canonical note-type registry (All, Text, Checklist, Voice, Link, Recipe, Visual, File), dynamic filter pills with Lucide icons and live note counts, tightened top workspace spacing, and hid Groups from the sidebar.',
+          'Hidden Quick Launch & New Note Action (v3.2.2): Hid the inline note creator by default on All Notes to preserve a clean grid-only layout. Added a dedicated New Note sidebar action for desktop and updated tablet dock to reveal and expand creator on demand.',
           'Neutralize Background Tints (v3.2.1): Neutralized the soft light-blue background tint from the light-theme app canvas and sidebar, and completely disabled the dynamic color overlay tint (#workspace-tint-overlay).',
           'High-Density Tablet Portrait Layout (v3.2.0): Optimized iPad/tablet portrait layout with a 3-column note grid, decreased card collapsed height, tighter margins, and a compact, scaled-down bottom navigation dock.',
           'Fix Lucide Icon Instantiation (v3.1.1): Resolved bug where quick action icons disappeared on sidebar page navigation and single card DOM updates by anchoring lucide.createIcons inside updateNoteCardUI and renderGrid.',

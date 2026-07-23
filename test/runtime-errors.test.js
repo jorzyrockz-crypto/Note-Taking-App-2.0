@@ -27,9 +27,14 @@ if (typeof globalThis.localStorage === 'undefined') {
 import { syncNoteToCloudWithQueue, saveSingleNoteToLocalStorage } from '../sync.js';
 import { getRecipeImporterUnavailableMessage } from '../recipe.js';
 import { parseMarkdown } from '../note-types/shared.js';
+import { revealInlineCreator } from '../app.js';
 
 test('syncNoteToCloudWithQueue is exported as an async function', () => {
   assert.equal(typeof syncNoteToCloudWithQueue, 'function');
+});
+
+test('revealInlineCreator is exported as a function', () => {
+  assert.equal(typeof revealInlineCreator, 'function');
 });
 
 test('getRecipeImporterUnavailableMessage is exported and returns fallback message', () => {

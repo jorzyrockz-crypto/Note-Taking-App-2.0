@@ -33,15 +33,15 @@ export const DEFAULT_THEME_PRESETS = [
   { id: 'holiday', emoji: '🏖️', title: 'Holiday', emojis: ['🏖️', '✈️', '🧳'] },
   { id: 'celebration', emoji: '🎉', title: 'Celebration', emojis: ['🎉', '🎊', '✨'] },
   
-  // Premium solid-color themes
-  { id: 'sage-green', title: 'Sage Green', isSolid: true, colors: { bg: '#D0E8D3', border: '#D0E8D3', text: '#2D4732' } },
-  { id: 'soft-blue', title: 'Soft Blue', isSolid: true, colors: { bg: '#CAE0F5', border: '#CAE0F5', text: '#23405E' } },
-  { id: 'lavender', title: 'Lavender', isSolid: true, colors: { bg: '#DCD2F5', border: '#DCD2F5', text: '#4B3F67' } },
-  { id: 'warm-peach', title: 'Warm Peach', isSolid: true, colors: { bg: '#F7D4C1', border: '#F7D4C1', text: '#704436' } },
-  { id: 'mint', title: 'Mint', isSolid: true, colors: { bg: '#C5EBE0', border: '#C5EBE0', text: '#1E463C' } },
-  { id: 'sand', title: 'Sand', isSolid: true, colors: { bg: '#E9DEC9', border: '#E9DEC9', text: '#4A3E3D' } },
-  { id: 'blush', title: 'Blush', isSolid: true, colors: { bg: '#F6CEDC', border: '#F6CEDC', text: '#6A364A' } },
-  { id: 'light-yellow', title: 'Light Yellow', isSolid: true, colors: { bg: '#FBECBD', border: '#FBECBD', text: '#5D4F1E' } }
+  // Premium solid-color themes (optimized with dark mode palette variants)
+  { id: 'sage-green', title: 'Sage Green', isSolid: true, colors: { bg: '#D0E8D3', border: '#D0E8D3', text: '#2D4732' }, darkColors: { bg: '#1c2e22', border: '#294231', text: '#e2f2e5' } },
+  { id: 'soft-blue', title: 'Soft Blue', isSolid: true, colors: { bg: '#CAE0F5', border: '#CAE0F5', text: '#23405E' }, darkColors: { bg: '#172738', border: '#243b54', text: '#e1eeea' } },
+  { id: 'lavender', title: 'Lavender', isSolid: true, colors: { bg: '#DCD2F5', border: '#DCD2F5', text: '#4B3F67' }, darkColors: { bg: '#251b38', border: '#392a54', text: '#f0e8ff' } },
+  { id: 'warm-peach', title: 'Warm Peach', isSolid: true, colors: { bg: '#F7D4C1', border: '#F7D4C1', text: '#704436' }, darkColors: { bg: '#331d16', border: '#4a2c22', text: '#fce8de' } },
+  { id: 'mint', title: 'Mint', isSolid: true, colors: { bg: '#C5EBE0', border: '#C5EBE0', text: '#1E463C' }, darkColors: { bg: '#152e27', border: '#21473d', text: '#dcfce7' } },
+  { id: 'sand', title: 'Sand', isSolid: true, colors: { bg: '#E9DEC9', border: '#E9DEC9', text: '#4A3E3D' }, darkColors: { bg: '#2c251e', border: '#42372d', text: '#f2e8d8' } },
+  { id: 'blush', title: 'Blush', isSolid: true, colors: { bg: '#F6CEDC', border: '#F6CEDC', text: '#6A364A' }, darkColors: { bg: '#331823', border: '#4d2536', text: '#fce7f3' } },
+  { id: 'light-yellow', title: 'Light Yellow', isSolid: true, colors: { bg: '#FBECBD', border: '#FBECBD', text: '#5D4F1E' }, darkColors: { bg: '#302812', border: '#473c1c', text: '#fffbeb' } }
 ];
 
 export let THEME_PRESETS = [...DEFAULT_THEME_PRESETS];
@@ -150,13 +150,15 @@ export function applyNoteAppearance(element, noteLike = {}) {
     clearCustomThemeStyles(element);
     const preset = getThemePreset(theme);
     if (preset && preset.isSolid) {
+      const isDark = document.body.classList.contains('theme-dark') || document.body.classList.contains('dark-theme');
+      const activeColors = isDark && preset.darkColors ? preset.darkColors : preset.colors;
       element.setAttribute('data-theme-solid', 'true');
-      element.style.setProperty('--note-frame', preset.colors.bg);
-      element.style.setProperty('--note-color', preset.colors.bg);
-      element.style.setProperty('--note-border-color', preset.colors.border);
-      element.style.setProperty('--note-text-color', preset.colors.text);
-      element.style.setProperty('--note-text-muted-color', preset.colors.text + 'b3'); // b3 is 70% in hex
-      element.style.setProperty('--bg-current-creator', preset.colors.bg);
+      element.style.setProperty('--note-frame', activeColors.bg);
+      element.style.setProperty('--note-color', activeColors.bg);
+      element.style.setProperty('--note-border-color', activeColors.border);
+      element.style.setProperty('--note-text-color', activeColors.text);
+      element.style.setProperty('--note-text-muted-color', activeColors.text + 'b3'); // b3 is 70% in hex
+      element.style.setProperty('--bg-current-creator', activeColors.bg);
       element.style.backgroundColor = '';
       element.style.borderColor = '';
     } else if (preset && preset.customBg) {
