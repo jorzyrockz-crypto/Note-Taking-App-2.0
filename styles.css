@@ -4693,9 +4693,9 @@ body.dark-theme .share-sheet-overlay {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
-  margin: -4px auto 12px auto;
+  margin: 34px auto 12px auto;
   padding: 0 16px;
   box-sizing: border-box;
 }
@@ -4995,8 +4995,8 @@ body:not(.dark-theme) .filter-pill.active .filter-pill-count {
     flex-wrap: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
-    margin: -6px 0 10px 0;
-    padding: 0 12px 6px 12px;
+    margin: 34px 0 10px 0;
+    padding: 0 24px 6px 12px;
     gap: 8px;
     justify-content: flex-start;
     scroll-padding-inline: 12px;
@@ -5004,6 +5004,12 @@ body:not(.dark-theme) .filter-pill.active .filter-pill-count {
     touch-action: pan-x;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+  }
+
+  .feed-filter-row::after {
+    content: '';
+    flex: 0 0 12px;
+    height: 1px;
   }
 
   .feed-filter-row::-webkit-scrollbar {
@@ -5262,7 +5268,7 @@ body:not(.dark-theme) .filter-pill.active .filter-pill-count {
 
   .feed-filter-row {
     padding: 0 8px 8px;
-    justify-content: center;
+    justify-content: flex-start;
   }
 
   .note-title {
@@ -11962,7 +11968,7 @@ body.dark-theme.card-style-notebook .note-card::before {
   }
 
   .feed-filter-row {
-    margin-top: -6px !important;
+    margin-top: 34px !important;
     padding-bottom: 8px !important;
   }
 
@@ -13216,11 +13222,12 @@ body.dark-theme .mobile-sheet-opt-label {
 
   /* Compact Feed Filter Bar with Un-clipped Right End Clearance */
   .feed-filter-row {
-    padding: 2px 20px 6px 12px !important;
+    padding: 2px 28px 6px 12px !important;
     scroll-padding-left: 12px !important;
     scroll-padding-right: 20px !important;
-    margin: -3px 0 8px 0 !important;
+    margin: 30px 0 8px 0 !important;
     gap: 6px !important;
+    justify-content: flex-start !important;
     box-sizing: border-box !important;
     overflow-x: auto !important;
     overflow-y: visible !important;

@@ -5113,8 +5113,8 @@ function getVisualNoteType(note) {
     return 'recipe';
   }
 
-  // 2. Voice / Audio
-  if (note.audio || (Array.isArray(note.audioClips) && note.audioClips.length > 0) || note.type === 'voice' || note.type === 'audio') {
+  // 2. Recorded voice/audio media
+  if (note.audio || (Array.isArray(note.audioClips) && note.audioClips.length > 0)) {
     return 'voice';
   }
 
@@ -5123,18 +5123,29 @@ function getVisualNoteType(note) {
     return 'file';
   }
 
-  // 4. Visual (Photo, Image, Drawing, Sketch)
+  // 4. Explicit rich links resolve before Visual so provider preview images
+  // (Maps, Spotify, Pinterest, etc.) keep the standard link deck height.
+  if (note.linkPreview || note.type === 'link' || note.type === 'bookmark') {
+    return 'link';
+  }
+
+  // 5. Explicit voice/audio type without a provider preview
+  if (note.type === 'voice' || note.type === 'audio') {
+    return 'voice';
+  }
+
+  // 6. Visual (Photo, Image, Drawing, Sketch)
   if (note.image || note.type === 'visual' || note.type === 'image' || note.type === 'photo' || note.type === 'drawing' || note.type === 'sketch' || (typeof note.text === 'string' && (note.text.includes('<img') || note.text.includes('data:image/')))) {
     return 'visual';
   }
 
-  // 5. Link / Bookmark
-  if (note.linkPreview || note.type === 'link' || note.type === 'bookmark' || (typeof note.text === 'string' && getFirstUrlFromSharedText(note.title || '', note.text || ''))) {
+  // 7. Implicit URL-only bookmark
+  if (typeof note.text === 'string' && getFirstUrlFromSharedText(note.title || '', note.text || '')) {
     return 'link';
   }
 
-  // 6. Checklist
-  if (note.type === 'checklist' || (typeof note.text === 'string' && (/^\s*-\s*\[[ xX]\]/m.test(note.text) || note.text.includes('checklist-container') || note.text.includes('checklist-item')))) {
+  // 8. Checklist
+  if (note.type === 'checklist' || (typeof note.text === 'string' && (/^\s*[-*]\s*\[[ xX]\]/m.test(note.text) || note.text.includes('checklist-container') || note.text.includes('checklist-item')))) {
     return 'checklist';
   }
 
@@ -6780,8 +6791,12 @@ function getAllUrlsInText(text = '') {
 
 function detectPlatformFromUrl(url = '') {
   const domain = extractDomain(url).toLowerCase();
+  const normalizedUrl = `${url}`.toLowerCase();
   if (domain.includes('twitter.com') || domain.includes('x.com')) return 'X / Twitter';
   if (domain.includes('youtube.com') || domain.includes('youtu.be')) return 'YouTube';
+  if (domain.includes('open.spotify.com') || domain.includes('spotify.com')) return 'Spotify';
+  if (domain.includes('pinterest.com') || domain.includes('pin.it')) return 'Pinterest';
+  if (domain.includes('maps.google.') || normalizedUrl.includes('google.com/maps') || normalizedUrl.includes('goo.gl/maps')) return 'Maps';
   if (domain.includes('github.com')) return 'GitHub';
   if (domain.includes('instagram.com')) return 'Instagram';
   if (domain.includes('medium.com')) return 'Medium';
@@ -6965,7 +6980,11 @@ function renderReminderSlideContent(slideEl, note) {
 }
 
 function renderLinkSlideContent(slideEl, url, meta, domain, platform) {
-  slideEl.className = 'note-slide-item link-deck-slide';
+  const providerClass = `${platform || detectPlatformFromUrl(url) || 'web'}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  slideEl.className = `note-slide-item link-deck-slide link-provider-${providerClass || 'web'}`;
   if (meta?.image) {
     const cover = document.createElement('img');
     cover.className = 'link-deck-cover';
@@ -7069,12 +7088,17 @@ export function buildTextDeck(note) {
 
 export function buildChecklistDeck(note) {
   const slides = [];
-  const lines = (note.text || '').split('\n').filter(line => /^\s*-\s*\[[ xX]\]/.test(line));
+  const checklistLinePattern = /^\s*[-*]\s*\[([ xX])\]\s*(.*)$/;
+  const lines = (note.text || '').split('\n').filter(line => checklistLinePattern.test(line));
   const totalCount = lines.length || 1;
-  const completedCount = lines.filter(line => /^\s*-\s*\[[xX]\]/.test(line)).length;
+  const completedCount = lines.filter(line => {
+    const match = line.match(checklistLinePattern);
+    return match?.[1]?.toLowerCase() === 'x';
+  }).length;
   const incompleteItems = lines
-    .filter(line => /^\s*-\s*\[ \]/.test(line))
-    .map(line => stripChecklistInlineReminder(line.replace(/^\s*-\s*\[ \]\s*/, '')).trim())
+    .map(line => line.match(checklistLinePattern))
+    .filter(match => match?.[1] === ' ')
+    .map(match => stripChecklistInlineReminder(match[2] || '').trim())
     .filter(Boolean);
 
   slides.push({

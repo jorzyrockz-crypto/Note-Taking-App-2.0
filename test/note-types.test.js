@@ -25,6 +25,7 @@ if (typeof globalThis.localStorage === 'undefined') {
 }
 
 import { buildNoteMediaDeck, getVisualNoteType, NOTE_TYPE_REGISTRY } from '../app.js';
+import { isChecklistFormat } from '../note-types/shared.js';
 
 test('NOTE_TYPE_REGISTRY defines all 8 canonical note types with Lucide icons', () => {
   assert.ok(Array.isArray(NOTE_TYPE_REGISTRY));
@@ -41,8 +42,11 @@ test('getVisualNoteType classifies plain text notes as text', () => {
 test('getVisualNoteType classifies checklist notes and markdown checklists', () => {
   const note1 = { id: '2', type: 'checklist', text: '' };
   const note2 = { id: '3', text: '- [ ] Buy milk' };
+  const note3 = { id: '3b', text: '  * [X] Finished task' };
   assert.equal(getVisualNoteType(note1), 'checklist');
   assert.equal(getVisualNoteType(note2), 'checklist');
+  assert.equal(getVisualNoteType(note3), 'checklist');
+  assert.equal(isChecklistFormat(note3.text), true);
 });
 
 test('getVisualNoteType classifies audio and voice clips correctly', () => {
@@ -56,9 +60,22 @@ test('getVisualNoteType classifies links and bookmarks correctly', () => {
   const note1 = { id: '6', type: 'bookmark', text: '' };
   const note2 = { id: '7', text: 'Check out https://github.com' };
   const note3 = { id: '8', linkPreview: { url: 'https://example.com' } };
+  const richProviderNote = {
+    id: '8b',
+    image: 'https://example.com/provider-cover.jpg',
+    linkPreview: { canonicalUrl: 'https://www.pinterest.com/pin/123', platform: 'pinterest' }
+  };
+  const spotifyProviderNote = {
+    id: '8c',
+    type: 'audio',
+    image: 'https://i.scdn.co/image/cover.jpg',
+    linkPreview: { canonicalUrl: 'https://open.spotify.com/track/123', platform: 'spotify' }
+  };
   assert.equal(getVisualNoteType(note1), 'link');
   assert.equal(getVisualNoteType(note2), 'link');
   assert.equal(getVisualNoteType(note3), 'link');
+  assert.equal(getVisualNoteType(richProviderNote), 'link');
+  assert.equal(getVisualNoteType(spotifyProviderNote), 'link');
 });
 
 test('getVisualNoteType classifies recipe data', () => {
@@ -129,4 +146,3 @@ test('buildNoteMediaDeck builds purpose-built decks for all 7 note kinds', () =>
   assert.ok(fileDeck.length >= 1);
   assert.equal(fileDeck[0].kind, 'file');
 });
-

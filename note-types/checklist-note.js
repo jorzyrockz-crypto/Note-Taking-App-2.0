@@ -81,9 +81,10 @@ export function renderChecklistNoteContent(note, options) {
   const checkedRows = [];
 
   lines.forEach((line, index) => {
-    if (line.startsWith('- [ ] ') || line.startsWith('- [x] ')) {
-      const checked = line.startsWith('- [x] ');
-      const lineContent = line.substring(6);
+    const checklistMatch = line.match(/^\s*[-*]\s*\[([ xX])\]\s*(.*)$/);
+    if (checklistMatch) {
+      const checked = checklistMatch[1].toLowerCase() === 'x';
+      const lineContent = checklistMatch[2] || '';
       const cleanText = stripChecklistInlineReminder(lineContent);
       const inlineReminder = extractChecklistInlineReminder(lineContent);
 

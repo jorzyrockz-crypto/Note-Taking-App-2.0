@@ -1,21 +1,22 @@
 const CHECKLIST_INLINE_REMINDER_REGEX = /\s*\{\{reminder:([^}]+)\}\}\s*$/;
 
 export function isChecklistFormat(text = '') {
-  return text.split('\n').some(line => line.startsWith('- [ ] ') || line.startsWith('- [x] '));
+  return text.split('\n').some(line => /^\s*[-*]\s*\[[ xX]\]\s*/.test(line));
 }
 
 export function plainToChecklist(text = '') {
   if (text.trim() === '') return '- [ ] ';
   return text.split('\n').map(line => {
-    if (line.startsWith('- [ ] ') || line.startsWith('- [x] ')) return line;
+    if (/^\s*[-*]\s*\[[ xX]\]\s*/.test(line)) return line;
     return `- [ ] ${line}`;
   }).join('\n');
 }
 
 export function checklistToPlain(text = '') {
   return text.split('\n').map(line => {
-    if (line.startsWith('- [ ] ') || line.startsWith('- [x] ')) {
-      return line.substring(6);
+    const checklistMatch = line.match(/^\s*[-*]\s*\[[ xX]\]\s*(.*)$/);
+    if (checklistMatch) {
+      return checklistMatch[1] || '';
     }
     return line;
   }).join('\n');
