@@ -472,8 +472,9 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '3.0.5',
+        version: '3.0.6',
         changelog: [
+          'Revert Camon 20 Layout (v3.0.6): Reverted the specific compact phone profile (max-width: 410px) CSS block that was previously introduced alongside the Notebook Spine UI, returning the phone layout specifically to its prior fluid state.',
           'Floating Capsule Edge-to-Edge Full Bleed (v3.0.5): Perfected floating capsule layout by removing inner padding and margin, pulling wrapper to the edge of the text bounds, and assigning drop shadows individually so edge-to-edge images perfectly wrap the floating curves.',
           'Floating Capsule Media Hub Reversion (v3.0.4): Reverted the note media container back to a floating capsule implementation with drop shadow, margins, and padding, restoring the v2.8.7 design.',
           'Image Hub Layout Fix (v3.0.3): Removed legacy data-has-image CSS rules that broke the DOM order and caused the footer to disappear on note cards with photos.',

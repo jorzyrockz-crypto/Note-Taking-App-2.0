@@ -112,8 +112,9 @@ if (typeof window !== 'undefined') {
 // 1. Initial State & Data Definition (Upgraded v2.7.0)
 // ==========================================================================
 
-export const CURRENT_VERSION = '3.0.5';
+export const CURRENT_VERSION = '3.0.6';
 export const DEFAULT_CHANGELOG = [
+  'Revert Camon 20 Layout (v3.0.6): Reverted the specific compact phone profile (max-width: 410px) CSS block that was previously introduced alongside the Notebook Spine UI, returning the phone layout specifically to its prior fluid state.',
   'Floating Capsule Edge-to-Edge Full Bleed (v3.0.5): Perfected floating capsule layout by removing inner padding and margin, pulling wrapper to the edge of the text bounds, and assigning drop shadows individually so edge-to-edge images perfectly wrap the floating curves.',
   'Floating Capsule Media Hub Reversion (v3.0.4): Reverted the note media container back to a floating capsule implementation with drop shadow, margins, and padding, restoring the v2.8.7 design.',
   'Image Hub Layout Fix (v3.0.3): Removed legacy data-has-image CSS rules that broke the DOM order and caused the footer to disappear on note cards with photos.',
@@ -3590,7 +3591,7 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '2.8.3';
+  const CURRENT_VERSION = '3.0.6';
   const DEFAULT_CHANGELOG = [
     'Desktop Notebook Spine UI (v2.8.3): Completely redesigned desktop and tablet note cards to feature a horizontal flex layout with a vibrant colored spine, pinned topbar metadata, and quick access action buttons (Pin, Star, Theme, More) without needing to open a menu. Added functional Star/Favorite flag.',
     'Mobile Layout Refinements & Context Menu Overhaul (v2.8.2): Tightened mobile top nav bar height to 54px, added 12px left clearance to feed filter pills, unlocked context menu overflow for un-clipped ellipsis popovers with 500ms touch long-press support, unified Edit Modal scrolling, and removed legacy bottom toolbar in favor of a single floating pill toolbar.',
