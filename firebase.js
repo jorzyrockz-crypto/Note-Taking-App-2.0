@@ -472,8 +472,9 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '3.1.0',
+        version: '3.1.1',
         changelog: [
+          'Fix Lucide Icon Instantiation (v3.1.1): Resolved bug where quick action icons disappeared on sidebar page navigation and single card DOM updates by anchoring lucide.createIcons inside updateNoteCardUI and renderGrid.',
           'Remove Workspace Density Control (v3.1.0): Removed Workspace Density configurations from the Appearance settings panel and refactored underlying settings syncing scripts.',
           'Hide Context Menu Scrollbar (v3.0.9): Hid default scrollbar styling for context menu panels across all layout viewports for a cleaner, unified flat UI.',
           'Desktop Context Menu Rendering Fix (v3.0.8): Resolved desktop context menu visibility bug by appending cardMenu directly to card (rather than the hidden mobile-only header) and hidden three-dots toggle on desktop viewport.',

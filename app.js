@@ -112,8 +112,9 @@ if (typeof window !== 'undefined') {
 // 1. Initial State & Data Definition (Upgraded v2.7.0)
 // ==========================================================================
 
-export const CURRENT_VERSION = '3.1.0';
+export const CURRENT_VERSION = '3.1.1';
 export const DEFAULT_CHANGELOG = [
+  'Fix Lucide Icon Instantiation (v3.1.1): Resolved bug where quick action icons disappeared on sidebar page navigation and single card DOM updates by anchoring lucide.createIcons inside updateNoteCardUI and renderGrid.',
   'Remove Workspace Density Control (v3.1.0): Removed Workspace Density configurations from the Appearance settings panel and refactored underlying settings syncing scripts.',
   'Hide Context Menu Scrollbar (v3.0.9): Hid default scrollbar styling for context menu panels across all layout viewports for a cleaner, unified flat UI.',
   'Desktop Context Menu Rendering Fix (v3.0.8): Resolved desktop context menu visibility bug by appending cardMenu directly to card (rather than the hidden mobile-only header) and hidden three-dots toggle on desktop viewport.',
@@ -3595,8 +3596,9 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '3.1.0';
+  const CURRENT_VERSION = '3.1.1';
   const DEFAULT_CHANGELOG = [
+    'Fix Lucide Icon Instantiation (v3.1.1): Resolved bug where quick action icons disappeared on sidebar page navigation and single card DOM updates by anchoring lucide.createIcons inside updateNoteCardUI and renderGrid.',
     'Remove Workspace Density Control (v3.1.0): Removed Workspace Density configurations from the Appearance settings panel and refactored underlying settings syncing scripts.',
     'Hide Context Menu Scrollbar (v3.0.9): Hid default scrollbar styling for context menu panels across all layout viewports for a cleaner, unified flat UI.',
     'Desktop Context Menu Rendering Fix (v3.0.8): Resolved desktop context menu visibility bug by appending cardMenu directly to card (rather than the hidden mobile-only header) and hidden three-dots toggle on desktop viewport.',
@@ -7227,6 +7229,7 @@ export function updateNoteCardUI(noteId) {
   if (!note) return;
   const newCard = createNoteCardElement(note);
   existingCard.parentNode.replaceChild(newCard, existingCard);
+  if (window.lucide) { lucide.createIcons(); }
 }
 
 export function renderGrid(gridContainer, notesArray) {
@@ -7237,6 +7240,7 @@ export function renderGrid(gridContainer, notesArray) {
   validNotes.forEach(note => {
     gridContainer.appendChild(createNoteCardElement(note));
   });
+  if (window.lucide) { lucide.createIcons(); }
 }
 
 // Helper to render lists inside note cards (separated & collapsible completed section)
