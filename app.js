@@ -112,9 +112,28 @@ if (typeof window !== 'undefined') {
 // 1. Initial State & Data Definition (Upgraded v2.7.0)
 // ==========================================================================
 
-export const CURRENT_VERSION = '2.8.3';
+export const CURRENT_VERSION = '3.0.5';
 export const DEFAULT_CHANGELOG = [
-  'Mobile Ergonomics & UI Polish (v2.7.3): Added high-density compact mobile spacing across note cards, creator, and workspace; scaled Edit Modal title font size to prevent word splitting; automatically concealed bottom navigation dock during note editing; fixed filter bar left padding; and cleared toast notifications below the app header.',
+  'Floating Capsule Edge-to-Edge Full Bleed (v3.0.5): Perfected floating capsule layout by removing inner padding and margin, pulling wrapper to the edge of the text bounds, and assigning drop shadows individually so edge-to-edge images perfectly wrap the floating curves.',
+  'Floating Capsule Media Hub Reversion (v3.0.4): Reverted the note media container back to a floating capsule implementation with drop shadow, margins, and padding, restoring the v2.8.7 design.',
+  'Image Hub Layout Fix (v3.0.3): Removed legacy data-has-image CSS rules that broke the DOM order and caused the footer to disappear on note cards with photos.',
+  'Remove Dots Indicator (v3.0.2): Removed the floating white dots indicator from the media carousel per user request.',
+  'Dots Indicator Stretching Fix (v3.0.1): Extracted dots overlay outside the scrolling flex container into a parent wrapper to prevent the capsule from vertically stretching or interacting weirdly with flex-align stretch rules.',
+  'Dots Indicator Capsule Lift (v3.0.0): Lifted bottom offset (bottom: 16px) on media dots indicator capsule so dots overlay floats cleanly inside photo slides without getting cut off at card boundary.',
+  'Media Hub Above Footer Positioning (v2.9.9): Positioned Floating Media Hub immediately above the card footer (below preview text) as specified.',
+  'Media Hub Top Positioning & Full-Bleed Photo Fix (v2.9.8): Moved Floating Media Hub to the top of note cards (before text preview) and removed container padding/borders so photos maximize the entire hub area with zero white space.',
+  'Fix Media Card Hover Expansion (v2.9.7): Fixed legacy max-height:0 rule on data-has-image cards that caused text preview to pop open and move down on hover.',
+  'Disable Card Hover Motion (v2.9.6): Disabled legacy expand-on-hover max-height rules and vertical card transforms so note cards stay completely fixed on mouse hover.',
+  'Starter Notes Prepopulation (v2.9.5): Updated STARTER_NOTES in app.js with rich multi-media samples for new/guest users.',
+  'Media Dots Overlay Fix (v2.9.4): Fixed vertical stretching bug on media dots indicator overlay and restored clean Spotify file attachment card layout.',
+  'Syntax Fix & App Load Recovery (v2.9.3): Fixed dangling syntax token in renderAudioClipChip restoring full app startup and Spotify player rendering.',
+  'Spotify-Inspired Slideshow Hub (v2.9.2): Full 100% width slideshow with floating white dot indicators, Spotify-styled voice note player cards, dynamic colored file extension badges, and updated starter notes.',
+  'Inline Text Image Parsing (v2.9.0): Automatically extract inline HTML <img> tags and Markdown images from note text into the Floating Media Hub carousel.',
+  'Voice Clips & File Attachment Card Fix (v2.8.9): Support multiple voice recordings from note.audioClips, fix file attachment slide styling to match mock, and support inline image extraction.',
+  'Custom Slide Cards & Media Hub Polish (v2.8.8): Custom slide cards for links, voice notes, attachments, and reminders in the taller floating media hub; dropped redundant paragraphs; removed duplicate timestamps.',
+  'Floating Elevated Media Hub (v2.8.7): Positioned the unified media hub as an elevated floating surface above the bottom content area with drop shadow and 14px border radius. Hidden completely when no media is attached.',
+  'Unified Media Carousel Hub (v2.8.6): Consolidated all attached photos, audio voice notes, file attachments, and link previews into a horizontally swipeable carousel hub at the top of note cards.',
+  'Minor Polish (v2.8.5): Added Favorites section to the All Notes page filter, fixed long press context menu functionality, and restored native pattern themes across notebook spines with high-contrast active spine buttons.',
   'Settings Panel Mobile Overflow Fix (v2.7.2): Resolved mobile viewport overflow across all settings tabs by converting two-column layouts to fluid single-column cards, wrapping segmented controls & color swatches, stacking time pickers, and enabling touch horizontal tab scrolling.',
   'Universal Multi-Page Mobile Responsiveness (v2.7.1): Ensured full mobile viewport adaptation across every page (Search, Productivity, Settings, Recipe Importer, and Modals) with responsive bottom dock page sync, horizontal scrollable tab bars, and 100vw touch safe-area layouts.'
 ];
@@ -1427,20 +1446,22 @@ const STARTER_NOTES = [
   {
     id: 'starter-welcome',
     title: '🚀 Welcome to Paperuss',
-    text: '<h3>Welcome to Paperuss 🚀</h3><p>Paperuss is a visual bookmarking and note-taking workspace designed for links, voice notes, sketching, and checklists.</p><p><strong>No Sign-In Required to start!</strong> Your notes are saved locally to your device\'s browser database. Open the user profile dropdown (top right) to upload a custom profile picture.</p><p>Try completing these getting-started tasks:</p><div class="checklist-item"><div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><input type="checkbox" checked="checked"><span contenteditable="true">Explore the visual note card grid view</span><button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button></div><div class="checklist-item"><div class="checklist-drag-handle" draggable="true" style="flex:0 0 auto; margin-top:6px; display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(0,0,0,0.3)"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><input type="checkbox"><span contenteditable="true">Create a note using the Modern Glass Editor 2.0</span><button type="button" class="checklist-delete-btn" title="Delete task" onmousedown="event.preventDefault()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button></div>',
+    text: '<h3>Welcome to Paperuss 🚀</h3><p>Paperuss is a visual bookmarking and note-taking workspace designed for links, voice notes, sketching, and checklists.</p><p>Swipe through the <strong>Media Hub</strong> above to see attached photos, voice memos, file attachments, and rich web previews!</p>',
     color: 'default',
     theme: 'plants',
     pinned: true,
     archived: false,
     isRichText: true,
     editorMode: 'glass',
-    image: null,
+    image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80',
+    audioClips: [{ id: 'clip-welcome', data: 'data:audio/webm;base64,GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQRChYECGFOAZwH0gG1bWp0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', duration: '0:42', createdAt: Date.now() }],
+    files: [{ id: 'file-guide', name: 'Paperuss_Getting_Started.pdf', size: 1048576, type: 'application/pdf' }],
     updatedAt: Date.now() - 10000
   },
   {
     id: 'starter-pwa',
-    title: '📲 Install App & Go Offline (PWA)',
-    text: '<h3>Go Offline with PWA 📲</h3><p>Paperuss is a Progressive Web App (PWA). You can install it on your home screen or desktop:</p><ul><li>Click the <strong>Install App</strong> button inside your <strong>Settings</strong> panel (or look for the install icon in your browser address bar).</li><li>Once installed, Paperuss launches in standalone, distraction-free mode.</li><li>Enjoy full <strong>offline support</strong>! All notes, drawings, and files will load instantly even without an internet connection.</li></ul>',
+    title: '📱 Install App & Go Offline (PWA)',
+    text: '<h3>Go Offline with PWA 📱</h3><p>Paperuss is a Progressive Web App (PWA). You can install it on your home screen or desktop:</p><ul><li>Click the <strong>Install App</strong> button inside your <strong>Settings</strong> panel.</li><li>Enjoy full <strong>offline support</strong>! All notes, drawings, and files load instantly even without an internet connection.</li></ul>',
     color: 'default',
     theme: 'winter',
     pinned: true,
@@ -1452,21 +1473,22 @@ const STARTER_NOTES = [
   },
   {
     id: 'starter-indexeddb',
-    title: '🎥 Attach Large Files & Videos',
-    text: '<h3>Upload Videos &amp; Large Files 🎥</h3><p>Need to attach media? You can upload videos, audio files, and documents directly from your device storage:</p><ul><li>Select files up to <strong>100MB</strong> using the attachment menu.</li><li>Large files are stored in <strong>IndexedDB</strong> on your phone\'s storage.</li><li>They bypass the strict LocalStorage size limit, keeping your app fast and lightweight.</li><li>Tap on any video or audio attachment inside a note to play it instantly.</li></ul>',
+    title: '📹 Attach Large Files & Videos',
+    text: '<h3>Upload Videos & Large Files 📹</h3><p>You can upload videos, audio files, and documents up to <strong>100MB</strong> directly from your device. Files are stored in IndexedDB on your device storage.</p>',
     color: 'default',
     theme: 'school',
     pinned: false,
     archived: false,
     isRichText: true,
     editorMode: 'glass',
-    image: null,
+    image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=80',
+    files: [{ id: 'file-project', name: 'Project_Specification.pdf', size: 2457600, type: 'application/pdf' }],
     updatedAt: Date.now() - 30000
   },
   {
     id: 'starter-voice-sketch',
-    title: '🎙️ Voice Memos & Sketching',
-    text: '<h3>Voice Notes &amp; Canvas Sketches 🎙️🎨</h3><p>Paperuss features built-in tools for audio recording and drawing:</p><ul><li><strong>Voice Notes:</strong> Click the microphone icon to record audio on-the-fly. Listen back right inside the note.</li><li><strong>Canvas Sketches:</strong> Tap the paint icon to launch the touch-friendly whiteboard. Draw diagrams, ideas, or write handwritten notes, then save them directly to your card.</li></ul>',
+    title: '🎙️ Voice Memos & Reminders',
+    text: '<h3>Voice Notes & Scheduled Reminders 🎙️⏰</h3><p>Click the microphone icon to record audio on-the-fly and set reminders to stay organized throughout the day.</p>',
     color: 'default',
     theme: 'celebration',
     pinned: false,
@@ -1474,19 +1496,21 @@ const STARTER_NOTES = [
     isRichText: true,
     editorMode: 'glass',
     image: null,
+    reminder: new Date(Date.now() + 86400000).toISOString(),
+    audioClips: [{ id: 'clip-demo-2', data: 'data:audio/webm;base64,GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQRChYECGFOAZwH0gG1bWp0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', duration: '0:18', createdAt: Date.now() }],
     updatedAt: Date.now() - 40000
   },
   {
     id: 'starter-links-recipes',
-    title: '🍽️ Rich Link Previews & Recipes',
-    text: '<h3>Web Previews &amp; Recipe Imports 🔗</h3><p>Paperuss automatically parses links to create rich previews:</p><ul><li>Paste any URL (like https://github.com) into a note, and Paperuss will generate a premium preview card.</li><li><strong>Recipe Builder:</strong> Paste a cooking recipe link (like a WordPress Recipe Maker print page). Paperuss will parse it and build a structured recipe card with checkable ingredients and directions.</li></ul>',
+    title: '🍲 Rich Link Previews & Recipes',
+    text: '<h3>Web Previews & Recipe Imports 🔗</h3><p>Paste any web URL into a note to generate a compact cover photo link card!</p>',
     color: 'default',
     theme: 'food',
     pinned: false,
     archived: false,
     isRichText: true,
     editorMode: 'glass',
-    image: null,
+    image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=600&auto=format&fit=crop&q=80',
     updatedAt: Date.now() - 50000
   }
 ];
@@ -5521,6 +5545,16 @@ function getAttachmentKind(file = {}) {
 }
 
 function getAttachmentLabel(file = {}) {
+  const ext = `${file.name || ''}`.split('.').pop().toLowerCase();
+  if (ext === 'pdf') return 'PDF';
+  if (['doc', 'docx', 'txt', 'rtf'].includes(ext)) return 'DOC';
+  if (['xls', 'xlsx', 'csv'].includes(ext)) return 'XLS';
+  if (['ppt', 'pptx'].includes(ext)) return 'PPT';
+  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return 'ZIP';
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) return 'IMG';
+  if (['mp3', 'wav', 'm4a', 'aac', 'ogg'].includes(ext)) return 'AUD';
+  if (['mp4', 'mov', 'webm', 'avi', 'mkv'].includes(ext)) return 'VID';
+
   const labels = { image: 'IMG', video: 'VID', audio: 'AUD', file: 'FILE' };
   return labels[getAttachmentKind(file)] || 'FILE';
 }
@@ -6662,22 +6696,49 @@ export function createNoteCardElement(note) {
   surface.className = 'note-surface';
   mainContent.appendChild(surface);
 
-  // 1. Image Banner
-  const bannerImage = note.image || null;
-  if (bannerImage) {
+  const mediaContainer = document.createElement('div');
+  mediaContainer.className = 'note-media-container';
+
+  // 1. Image Banner & Inline Text Images (Extract HTML <img> and Markdown images)
+  const extractedImages = [];
+  const seenImageUrls = new Set();
+
+  const pushImage = (url) => {
+    if (url && typeof url === 'string' && url.trim() && !seenImageUrls.has(url)) {
+      seenImageUrls.add(url);
+      extractedImages.push(url);
+    }
+  };
+
+  if (note.image) pushImage(note.image);
+
+  if (note.text && typeof note.text === 'string') {
+    const htmlImgRegex = /<img[^>]+src=["']([^"']+)["']/gi;
+    let imgMatch;
+    while ((imgMatch = htmlImgRegex.exec(note.text)) !== null) {
+      pushImage(imgMatch[1]);
+    }
+
+    const mdImgRegex = /!\[.*?\]\((.*?)\)/gi;
+    while ((imgMatch = mdImgRegex.exec(note.text)) !== null) {
+      pushImage(imgMatch[1]);
+    }
+  }
+
+  extractedImages.forEach(imgUrl => {
     const banner = document.createElement('div');
     banner.className = 'card-image-banner';
     const bannerImg = document.createElement('img');
-    bannerImg.src = bannerImage;
+    bannerImg.src = imgUrl;
     bannerImg.alt = 'Note banner';
     bannerImg.loading = 'lazy';
     banner.appendChild(bannerImg);
     banner.addEventListener('click', (e) => {
       e.stopPropagation();
-      openImageViewer(bannerImage, cleanTitleTags(note.title || 'Note image'));
+      openImageViewer(imgUrl, cleanTitleTags(note.title || 'Note image'));
     });
-    surface.appendChild(banner);
-  }
+    mediaContainer.appendChild(banner);
+  });
 
   const cardMenu = document.createElement('div');
   cardMenu.className = 'note-card-menu';
@@ -6728,79 +6789,31 @@ export function createNoteCardElement(note) {
     previewBody.appendChild(contentEl);
   }
 
-  // 4.5 Audio Voice Note player rendering
-  if (note.audio) {
-    const audioChip = document.createElement('div');
-    audioChip.className = 'audio-player-chip';
-    audioChip.addEventListener('click', (e) => e.stopPropagation()); // prevent modal open
+  // 4.5 Audio Voice Note player rendering (Supports note.audio and note.audioClips)
+  const audioClipsList = Array.isArray(note.audioClips) && note.audioClips.length > 0
+    ? note.audioClips
+    : (note.audio ? [{ id: 'legacy-audio', data: note.audio, duration: note.audioDuration || '0:05' }] : []);
 
-    const playBtn = document.createElement('button');
-    playBtn.className = 'audio-play-btn';
-    playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
+  audioClipsList.forEach((clip, idx) => {
+    const audioChip = renderAudioClipChip(clip, idx, null, (c) => downloadDataUrl(c.data, `${getSafeFileName(note.title || 'voice-note')}-${idx + 1}.${getDataUrlExtension(c.data, 'webm')}`));
+    mediaContainer.appendChild(audioChip);
+  });
 
-    const visualizer = document.createElement('div');
-    visualizer.className = 'audio-wave-visualizer';
-    for (let w = 0; w < 8; w++) {
-      const bar = document.createElement('div');
-      bar.className = 'audio-wave-bar';
-      visualizer.appendChild(bar);
-    }
+  renderNoteFileAttachments(mediaContainer, note, { compact: true });
 
-    const durationLabel = document.createElement('span');
-    durationLabel.className = 'audio-duration-label';
-    durationLabel.textContent = `0:00 / ${note.audioDuration || '0:05'}`;
-
-    let audioObj = null;
-    let playInterval = null;
-
-    playBtn.addEventListener('click', () => {
-      if (audioObj && !audioObj.paused) {
-        audioObj.pause();
-        playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
-        audioChip.classList.remove('playing');
-        clearInterval(playInterval);
-      } else {
-        if (!audioObj) {
-          audioObj = new Audio(note.audio);
-          audioObj.addEventListener('ended', () => {
-            playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
-            audioChip.classList.remove('playing');
-            durationLabel.textContent = `0:00 / ${note.audioDuration || '0:05'}`;
-            clearInterval(playInterval);
-            audioObj = null;
-          });
-        }
-
-        audioObj.play();
-        playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
-        audioChip.classList.add('playing');
-
-        playInterval = setInterval(() => {
-          if (audioObj) {
-            const curMin = Math.floor(audioObj.currentTime / 60);
-            const curSec = Math.floor(audioObj.currentTime % 60).toString().padStart(2, '0');
-            durationLabel.textContent = `${curMin}:${curSec} / ${note.audioDuration || '0:05'}`;
-          }
-        }, 250);
-      }
-    });
-
-    audioChip.appendChild(playBtn);
-    audioChip.appendChild(visualizer);
-    audioChip.appendChild(durationLabel);
-    const downloadAudioBtn = document.createElement('button');
-    downloadAudioBtn.className = 'media-action-btn';
-    downloadAudioBtn.type = 'button';
-    downloadAudioBtn.textContent = 'Download';
-    downloadAudioBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      downloadDataUrl(note.audio, `${getSafeFileName(note.title || 'voice-note')}.${getDataUrlExtension(note.audio, 'webm')}`);
-    });
-    audioChip.appendChild(downloadAudioBtn);
-    previewBody.appendChild(audioChip);
+  // 4.6 Schedule Reminder Slide Card
+  if (note.reminder) {
+    const reminderCard = document.createElement('div');
+    reminderCard.className = 'reminder-slide-card';
+    reminderCard.innerHTML = `
+      <svg class="reminder-slide-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+      <div class="reminder-slide-info">
+        <div class="reminder-slide-title">Scheduled Reminder</div>
+        <div class="reminder-slide-time">${formatReminderDate(note.reminder)}</div>
+      </div>
+    `;
+    mediaContainer.appendChild(reminderCard);
   }
-
-  renderNoteFileAttachments(previewBody, note, { compact: true });
 
   // 5. Dynamic Tag Badges & Reminders rendering inside note cards
   const tags = extractHashtags(`${note.title} ${note.text}`);
@@ -6883,7 +6896,7 @@ export function createNoteCardElement(note) {
         </div>
       `;
       mediaBox.prepend(media);
-      previewBody.appendChild(mediaBox);
+      mediaContainer.appendChild(mediaBox);
     } else {
       const previewBox = document.createElement('a');
       previewBox.href = previewUrl;
@@ -6909,13 +6922,8 @@ export function createNoteCardElement(note) {
       richContent.innerHTML = `
         <div class="link-preview-domain">${escapeHtml(cleanDomain)}</div>
         <div class="link-preview-rich-title">${escapeHtml(mockMeta.title)}</div>
-        <div class="link-preview-rich-desc">${escapeHtml(mockMeta.description)}</div>
-        <div class="link-preview-badge">
-          <svg viewBox="0 0 24 24" style="width: 10px; height: 10px; margin-right: 2px;"><path fill="currentColor" d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
-          ${escapeHtml(mockMeta.badge)}
-        </div>
-        <span class="link-preview-open-action">${escapeHtml(mockMeta.actionLabel || 'Open original post')}</span>
       `;
+      previewBox.className = 'link-preview-box rich compact-card-slide';
       previewBox.appendChild(cover);
       previewBox.appendChild(richContent);
       } else {
@@ -6928,7 +6936,7 @@ export function createNoteCardElement(note) {
         </div>
       `;
       }
-      previewBody.appendChild(previewBox);
+      mediaContainer.appendChild(previewBox);
     }
   }
 
@@ -7112,8 +7120,19 @@ export function createNoteCardElement(note) {
     desktopTray.appendChild(audioBadge);
   }
 
+  if (mediaContainer.childNodes.length > 0) {
+    const mediaWrapper = document.createElement('div');
+    mediaWrapper.className = 'note-media-wrapper';
+    mediaWrapper.appendChild(mediaContainer);
+
+    if (footer && footer.parentNode === surface) {
+      surface.insertBefore(mediaWrapper, footer);
+    } else {
+      surface.appendChild(mediaWrapper);
+    }
+  }
+
   footer.appendChild(stamp);
-  footer.appendChild(desktopStamp);
   footer.appendChild(desktopTray);
   surface.appendChild(footer);
 
@@ -9287,25 +9306,88 @@ function saveVoiceNoteAudio(base64Audio, duration) {
 
 function renderAudioClipChip(clip, index, onDelete, onDownload) {
   const chip = document.createElement('div');
-  chip.className = 'audio-player-chip';
+  chip.className = 'audio-player-chip spotify-audio-card';
   chip.dataset.clipId = clip.id;
-  chip.style.cssText = 'display:inline-flex;align-items:center;gap:8px;padding:4px 10px;border-radius:20px;background:var(--surface-variant,rgba(0,0,0,0.06));border:1px solid var(--border-light,rgba(0,0,0,0.1));margin-top:4px;flex-wrap:wrap;';
-  const dlId = `dl-audio-${clip.id}`;
-  const delId = `del-audio-${clip.id}`;
-  chip.innerHTML = `
-    <span style="font-size:12px;font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:4px;">🎙️ Voice ${index + 1} (${clip.duration || '0:05'})</span>
-    <audio controls src="${clip.data}" style="height:28px;max-width:180px;outline:none;"></audio>
-    <button type="button" class="media-action-btn" data-dl="${dlId}" style="font-size:11px;padding:2px 6px;">Download</button>
-    <span class="reminder-chip-delete" data-del="${delId}" title="Delete clip" style="margin-left:4px;font-size:14px;cursor:pointer;opacity:0.7;">✕</span>
+  chip.addEventListener('click', (e) => e.stopPropagation());
+
+  const playBtn = document.createElement('button');
+  playBtn.type = 'button';
+  playBtn.className = 'spotify-play-btn';
+  playBtn.setAttribute('aria-label', 'Play voice note');
+  playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>`;
+
+  const meta = document.createElement('div');
+  meta.className = 'spotify-audio-meta';
+  meta.innerHTML = `
+    <div class="spotify-audio-title">Voice Note #${index + 1}</div>
+    <div class="spotify-audio-duration">${clip.duration || '0:05'}</div>
   `;
-  chip.querySelector(`[data-dl="${dlId}"]`).addEventListener('click', (e) => {
+
+  const visualizer = document.createElement('div');
+  visualizer.className = 'audio-wave-visualizer';
+  for (let w = 0; w < 6; w++) {
+    const bar = document.createElement('div');
+    bar.className = 'audio-wave-bar';
+    visualizer.appendChild(bar);
+  }
+
+  let audioObj = null;
+  let playInterval = null;
+
+  playBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    onDownload(clip);
+    if (audioObj && !audioObj.paused) {
+      audioObj.pause();
+      playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>`;
+      chip.classList.remove('playing');
+      clearInterval(playInterval);
+    } else {
+      if (!audioObj) {
+        audioObj = new Audio(clip.data);
+        audioObj.addEventListener('ended', () => {
+          playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>`;
+          chip.classList.remove('playing');
+          clearInterval(playInterval);
+          audioObj = null;
+        });
+      }
+
+      audioObj.play();
+      playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
+      chip.classList.add('playing');
+    }
   });
-  chip.querySelector(`[data-del="${delId}"]`).addEventListener('click', (e) => {
-    e.stopPropagation();
-    onDelete(clip.id);
-  });
+
+  chip.appendChild(playBtn);
+  chip.appendChild(meta);
+  chip.appendChild(visualizer);
+
+  if (onDownload) {
+    const dlBtn = document.createElement('button');
+    dlBtn.type = 'button';
+    dlBtn.className = 'spotify-download-pill';
+    dlBtn.textContent = 'Download';
+    dlBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onDownload(clip);
+    });
+    chip.appendChild(dlBtn);
+  }
+
+  if (onDelete) {
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'spotify-delete-btn';
+    delBtn.innerHTML = '×';
+    delBtn.title = 'Delete clip';
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (audioObj) { audioObj.pause(); audioObj = null; }
+      onDelete(clip.id);
+    });
+    chip.appendChild(delBtn);
+  }
+
   return chip;
 }
 

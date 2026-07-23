@@ -153,12 +153,15 @@
           <div class="profile-divider"></div>
           <div class="profile-version-section">
             <div class="version-header">
-              <span class="version-label">Version 2.8.3</span>
+              <span class="version-label">Version 3.0.5</span>
               <button class="update-btn" id="app-update-btn" type="button">Update</button>
             </div>
             <div class="changelog-container">
               <div class="changelog-title">What's New</div>
               <ul class="changelog-list">
+          <li><strong>Floating Capsule Edge-to-Edge Full Bleed (v3.0.5):</strong> Perfected floating capsule layout by removing inner padding and margin, pulling wrapper to the edge of the text bounds, and assigning drop shadows individually so edge-to-edge images perfectly wrap the floating curves.</li>
+          <li><strong>Floating Capsule Media Hub Reversion (v3.0.4):</strong> Reverted the note media container back to a floating capsule implementation with drop shadow, margins, and padding, restoring the v2.8.7 design.</li>
+          <li><strong>Notebook Spine UI Tweaks & Touch Long-Press (v2.8.4):</strong> Notebook spine now inherits note theme background while base card retains clean surface elevation; dynamic pin state indicator; dedicated Star/Favorite section below pin; high-contrast theme-proof spine buttons; context menu popover fix for desktop &amp; mobile; and 500ms touch long-press context menu gesture.</li>
           <li><strong>Desktop Notebook Spine UI (v2.8.3):</strong> Completely redesigned desktop and tablet note cards to feature a horizontal flex layout with a vibrant colored spine, pinned topbar metadata, and quick access action buttons (Pin, Star, Theme, More) without needing to open a menu. Added functional Star/Favorite flag.</li>
           <li><strong>Mobile Layout Refinements & Context Menu Overhaul (v2.8.2):</strong> Tightened mobile top nav bar height to 54px, added 12px left clearance to feed filter pills, unlocked context menu overflow for un-clipped ellipsis popovers with 500ms touch long-press support, unified Edit Modal scrolling, and removed legacy bottom toolbar in favor of a single floating pill toolbar.</li>
           <li><strong>New Phone Layout Card View (v2.8.1):</strong> Refined 2-column mobile grid cards with a fixed 280px height, preserved inner surface elevation with rich content fill, micro header row, 2-line title clamping, pinned timestamp, and bottom gradient fade.</li>
@@ -244,6 +247,10 @@
     <div class="sidebar-item active" id="sidebar-all-notes" title="All Notes" aria-label="All Notes">
       <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M5 4h11a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm2 4v2h7V8H7zm0 4v2h7v-2H7zm10-7.5L20.5 8 17 11.5V9h-2V7h2V4.5z"/></svg>
       <span class="sidebar-label">All Notes</span>
+    </div>
+    <div class="sidebar-item" id="sidebar-favorites" title="Favorites" aria-label="Favorites">
+      <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <span class="sidebar-label">Favorites</span>
     </div>
     <div class="sidebar-item" id="sidebar-search" title="Search" aria-label="Search">
       <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
