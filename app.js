@@ -112,8 +112,9 @@ if (typeof window !== 'undefined') {
 // 1. Initial State & Data Definition (Upgraded v2.7.0)
 // ==========================================================================
 
-export const CURRENT_VERSION = '3.2.0';
+export const CURRENT_VERSION = '3.2.1';
 export const DEFAULT_CHANGELOG = [
+  'Neutralize Background Tints (v3.2.1): Neutralized the soft light-blue background tint from the light-theme app canvas and sidebar, and completely disabled the dynamic color overlay tint (#workspace-tint-overlay).',
   'High-Density Tablet Portrait Layout (v3.2.0): Optimized iPad/tablet portrait layout with a 3-column note grid, decreased card collapsed height, tighter margins, and a compact, scaled-down bottom navigation dock.',
   'Fix Lucide Icon Instantiation (v3.1.1): Resolved bug where quick action icons disappeared on sidebar page navigation and single card DOM updates by anchoring lucide.createIcons inside updateNoteCardUI and renderGrid.',
   'Remove Workspace Density Control (v3.1.0): Removed Workspace Density configurations from the Appearance settings panel and refactored underlying settings syncing scripts.',
@@ -3597,8 +3598,9 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '3.2.0';
+  const CURRENT_VERSION = '3.2.1';
   const DEFAULT_CHANGELOG = [
+    'Neutralize Background Tints (v3.2.1): Neutralized the soft light-blue background tint from the light-theme app canvas and sidebar, and completely disabled the dynamic color overlay tint (#workspace-tint-overlay).',
     'High-Density Tablet Portrait Layout (v3.2.0): Optimized iPad/tablet portrait layout with a 3-column note grid, decreased card collapsed height, tighter margins, and a compact, scaled-down bottom navigation dock.',
     'Fix Lucide Icon Instantiation (v3.1.1): Resolved bug where quick action icons disappeared on sidebar page navigation and single card DOM updates by anchoring lucide.createIcons inside updateNoteCardUI and renderGrid.',
     'Remove Workspace Density Control (v3.1.0): Removed Workspace Density configurations from the Appearance settings panel and refactored underlying settings syncing scripts.',

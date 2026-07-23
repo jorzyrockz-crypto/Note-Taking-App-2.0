@@ -13,10 +13,10 @@
 body.theme-light,
 body.light-theme {
   /* Sky Theme Canvas: soft top-to-bottom gradient */
-  --bg-app: #f0f9ff;
-  --bg-header: rgba(240, 249, 255, 0.96); /* Semi-solid sky blue tinted white */
-  --bg-sidebar-active: #e0f2fe;    /* Muted sky blue pill */
-  --accent-dark: #0284c7;           /* Deep sky blue for contrast */
+  --bg-app: #f8fafc;
+  --bg-header: rgba(248, 250, 252, 0.96); /* Semi-solid neutral slate white */
+  --bg-sidebar-active: #f1f5f9;    /* Muted neutral slate pill */
+  --accent-dark: #0f172a;           /* Deep slate for contrast */
   --text-primary: #202124;
   --text-secondary: #5f6368;
   --border-light: #e0e0e0;
@@ -9735,7 +9735,7 @@ body.dark-theme .auth-guest-btn:hover {
    ========================================================================== */
 
 body:has(#notes-feed.theme-sky-premium) {
-  background: linear-gradient(180deg, #f8fafc 0%, #f0f9ff 100%) !important;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%) !important;
 }
 
 .theme-sky-premium .note-card {
@@ -11173,13 +11173,7 @@ body.dark-theme.card-style-notebook .note-card::before {
    Sits above the wallpaper/background at z-index 1, below all UI chrome.
    Colored by --workspace-tint which auto-updates with the active accent. */
 #workspace-tint-overlay {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  background-color: var(--workspace-tint);
-  transition: background-color 0.4s ease;
-  will-change: background-color;
+  display: none !important;
 }
 
 /* Ensure the custom-app-bg (blob shapes container) renders below the overlay */
