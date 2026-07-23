@@ -153,12 +153,15 @@
           <div class="profile-divider"></div>
           <div class="profile-version-section">
             <div class="version-header">
-              <span class="version-label">Version 3.2.1</span>
+              <span class="version-label">Version 3.2.4</span>
               <button class="update-btn" id="app-update-btn" type="button">Update</button>
             </div>
             <div class="changelog-container">
               <div class="changelog-title">What's New</div>
               <ul class="changelog-list">
+          <li><strong>Purpose-Built Slide Decks & Revised Media Hub Layout (v3.2.4):</strong> Refactored note media hubs into type-aware purpose-built slide decks (Text, Checklist, Voice, Link, Recipe, Visual, File) and aligned Media Hub in normal document flow inside .note-surface 6px flush above the footer with zero overlap.</li>
+          <li><strong>Canonical Note-Type Registry & Dynamic Feed Filters (v3.2.3):</strong> Introduced a single canonical note-type registry (All, Text, Checklist, Voice, Link, Recipe, Visual, File), dynamic filter pills with Lucide icons and live note counts, tightened top workspace spacing, and hid Groups from the sidebar.</li>
+          <li><strong>Hidden Quick Launch & New Note Action (v3.2.2):</strong> Hid the inline note creator by default on All Notes to preserve a clean grid-only layout. Added a dedicated New Note sidebar action for desktop and updated tablet dock to reveal and expand creator on demand.</li>
           <li><strong>Neutralize Background Tints (v3.2.1):</strong> Neutralized the soft light-blue background tint from the light-theme app canvas and sidebar, and completely disabled the dynamic color overlay tint (#workspace-tint-overlay).</li>
           <li><strong>High-Density Tablet Portrait Layout (v3.2.0):</strong> Optimized iPad/tablet portrait layout with a 3-column note grid, decreased card collapsed height, tighter margins, and a compact, scaled-down bottom navigation dock.</li>
           <li><strong>Fix Lucide Icon Instantiation (v3.1.1):</strong> Resolved bug where quick action icons disappeared on sidebar page navigation and single card DOM updates by anchoring lucide.createIcons inside updateNoteCardUI and renderGrid.</li>
@@ -252,6 +255,14 @@
 
   <!-- Sidebar (Dynamic Tag Filter List) -->
   <aside class="app-sidebar">
+    <div class="sidebar-brand" aria-label="Paperuss">
+      <img class="sidebar-brand-logo" src="icons/icon-192.png" alt="">
+      <span class="sidebar-brand-title">Paperuss</span>
+    </div>
+    <div class="sidebar-item" id="sidebar-new-note" title="New Note" aria-label="New Note" role="button" tabindex="0">
+      <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      <span class="sidebar-label">New Note</span>
+    </div>
     <div class="sidebar-item active" id="sidebar-all-notes" title="All Notes" aria-label="All Notes">
       <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M5 4h11a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm2 4v2h7V8H7zm0 4v2h7v-2H7zm10-7.5L20.5 8 17 11.5V9h-2V7h2V4.5z"/></svg>
       <span class="sidebar-label">All Notes</span>
@@ -1077,6 +1088,10 @@
                     <span class="accent-swatch" style="background: hsl(80,30%,48%);" aria-hidden="true"></span>
                     <span class="accent-swatch-label">Paper</span>
                   </button>
+                  <button class="accent-swatch-btn" data-value="slate" title="Slate Grey" type="button">
+                    <span class="accent-swatch" style="background: hsl(215,16%,47%);" aria-hidden="true"></span>
+                    <span class="accent-swatch-label">Slate</span>
+                  </button>
                 </div>
                 <!-- hidden native select kept for JS compatibility -->
                 <select id="settings-ui-color-theme" class="settings-select" style="display:none;" aria-hidden="true">
@@ -1090,6 +1105,7 @@
                   <option value="rose">Rose</option>
                   <option value="honey">Honey</option>
                   <option value="paper">Paper (Notebook Moss)</option>
+                  <option value="slate">Slate Grey</option>
                 </select>
               </div>
             </div>
@@ -1098,11 +1114,8 @@
               <div class="settings-card-title">Workspace Background</div>
               <div class="settings-row flex-column" style="padding-top: 0;">
                 <div class="settings-info full-width">
-                  <strong>Background Color</strong>
-                  <span>Choose a preset or upload a custom image for the workspace</span>
-                </div>
-                <div class="theme-picker-v2-grid" id="settings-bg-picker-grid" style="margin-top: 10px; width: 100%; box-sizing: border-box;">
-                  <!-- Dynamically populated via JS -->
+                  <strong>Custom Workspace Wallpaper</strong>
+                  <span>Upload a custom image to use as the background wallpaper for your workspace. A matching color overlay tint will automatically be applied to match the active accent theme.</span>
                 </div>
                 <div class="settings-app-bg-upload-row">
                   <label class="text-btn save-btn" for="settings-app-bg-upload">Upload background</label>
@@ -1215,6 +1228,32 @@
                   <input type="checkbox" id="settings-tablet-first">
                   <span class="slider round"></span>
                 </label>
+              </div>
+            </div>
+
+            <div class="settings-card">
+              <div class="settings-card-title">Theme Scheduling</div>
+              <div class="settings-row">
+                <div class="settings-info">
+                  <strong>Scheduled Theme Hours</strong>
+                  <span>Automatically switch between Light and Dark themes based on time range</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="settings-theme-schedule">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+              <div class="settings-row flex-column" id="settings-theme-schedule-hours" style="display: none; padding-top: 0; border-top: none;">
+                <div style="display: flex; gap: 16px; width: 100%; margin-top: 8px;">
+                  <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                    <label for="settings-theme-light-from" style="font-size: 12px; font-weight: 500; color: var(--text-secondary);">Light Theme From</label>
+                    <input type="time" id="settings-theme-light-from" class="settings-input" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-light); background: var(--bg-card); color: var(--text-primary); font-family: inherit;">
+                  </div>
+                  <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                    <label for="settings-theme-dark-from" style="font-size: 12px; font-weight: 500; color: var(--text-secondary);">Dark Theme From</label>
+                    <input type="time" id="settings-theme-dark-from" class="settings-input" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-light); background: var(--bg-card); color: var(--text-primary); font-family: inherit;">
+                  </div>
+                </div>
               </div>
             </div>
 

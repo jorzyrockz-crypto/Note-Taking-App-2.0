@@ -42,6 +42,13 @@ import {
   subscribeToSettings
 } from './firebase.js';
 
+import { migrateLegacyThemeSettings, setSettingsProvider } from './theme/theme-state.js';
+import { applyAppBgColor, applyUiColorThemeClass } from './theme/theme-renderer.js';
+
+setSettingsProvider(() => appSettings);
+
+export { applyAppBgColor, applyUiColorThemeClass };
+
 import {
   initSync,
   debouncedSave,
@@ -112,8 +119,11 @@ if (typeof window !== 'undefined') {
 // 1. Initial State & Data Definition (Upgraded v2.7.0)
 // ==========================================================================
 
-export const CURRENT_VERSION = '3.2.1';
+export const CURRENT_VERSION = '3.2.4';
 export const DEFAULT_CHANGELOG = [
+  'Purpose-Built Slide Decks & Revised Media Hub Layout (v3.2.4): Refactored note media hubs into type-aware purpose-built slide decks (Text, Checklist, Voice, Link, Recipe, Visual, File) and aligned Media Hub in normal document flow inside .note-surface 6px flush above the footer with zero overlap.',
+  'Canonical Note-Type Registry & Dynamic Feed Filters (v3.2.3): Introduced a single canonical note-type registry (All, Text, Checklist, Voice, Link, Recipe, Visual, File), dynamic filter pills with Lucide icons and live note counts, tightened top workspace spacing, and hid Groups from the sidebar.',
+  'Hidden Quick Launch & New Note Action (v3.2.2): Hid the inline note creator by default on All Notes to preserve a clean grid-only layout. Added a dedicated New Note sidebar action for desktop and updated tablet dock to reveal and expand creator on demand.',
   'Neutralize Background Tints (v3.2.1): Neutralized the soft light-blue background tint from the light-theme app canvas and sidebar, and completely disabled the dynamic color overlay tint (#workspace-tint-overlay).',
   'High-Density Tablet Portrait Layout (v3.2.0): Optimized iPad/tablet portrait layout with a 3-column note grid, decreased card collapsed height, tighter margins, and a compact, scaled-down bottom navigation dock.',
   'Fix Lucide Icon Instantiation (v3.1.1): Resolved bug where quick action icons disappeared on sidebar page navigation and single card DOM updates by anchoring lucide.createIcons inside updateNoteCardUI and renderGrid.',
@@ -144,6 +154,17 @@ export const DEFAULT_CHANGELOG = [
   'Minor Polish (v2.8.5): Added Favorites section to the All Notes page filter, fixed long press context menu functionality, and restored native pattern themes across notebook spines with high-contrast active spine buttons.',
   'Settings Panel Mobile Overflow Fix (v2.7.2): Resolved mobile viewport overflow across all settings tabs by converting two-column layouts to fluid single-column cards, wrapping segmented controls & color swatches, stacking time pickers, and enabling touch horizontal tab scrolling.',
   'Universal Multi-Page Mobile Responsiveness (v2.7.1): Ensured full mobile viewport adaptation across every page (Search, Productivity, Settings, Recipe Importer, and Modals) with responsive bottom dock page sync, horizontal scrollable tab bars, and 100vw touch safe-area layouts.'
+];
+
+export const NOTE_TYPE_REGISTRY = [
+  { id: 'all', label: 'All', icon: 'layers-3', colorName: 'all' },
+  { id: 'text', label: 'Text', icon: 'file-text', colorName: 'rose', aliases: ['text'] },
+  { id: 'checklist', label: 'Checklist', icon: 'square-check-big', colorName: 'green', aliases: ['checklist', 'todo', 'task'] },
+  { id: 'voice', label: 'Voice', icon: 'mic', colorName: 'pink', aliases: ['voice', 'audio'] },
+  { id: 'link', label: 'Link', icon: 'bookmark', colorName: 'sky', aliases: ['link', 'bookmark', 'url'] },
+  { id: 'recipe', label: 'Recipe', icon: 'chef-hat', colorName: 'orange', aliases: ['recipe', 'cooking'] },
+  { id: 'visual', label: 'Visual', icon: 'image', colorName: 'purple', aliases: ['visual', 'image', 'photo', 'drawing', 'sketch'] },
+  { id: 'file', label: 'File', icon: 'paperclip', colorName: 'teal', aliases: ['file', 'files', 'attachment', 'attachments'] }
 ];
 
 /**
@@ -280,9 +301,13 @@ export function initMobilePhoneExperience() {
   let currentTranslateX = 0;
 
   document.addEventListener('touchstart', (e) => {
+    activeSwipeCard = null;
+    currentTranslateX = 0;
+
     const card = e.target.closest('.note-card[data-id]');
     if (!card || e.touches.length !== 1) return;
 
+    if (e.target.closest('.note-media-hub, .note-carousel-track, .note-slide-item')) return;
     if (e.target.closest('button, a, input, audio, [contenteditable="true"]')) return;
 
     touchStartX = e.touches[0].clientX;
@@ -330,22 +355,23 @@ export function initMobilePhoneExperience() {
       }
     } else if (currentTranslateX < -80 && note) {
       triggerHaptic('snap');
-      if (typeof saveDeletedNoteTombstone === 'function') {
-        saveDeletedNoteTombstone(note.id);
-      }
-      const index = notes.findIndex(n => n.id === noteId);
-      if (index !== -1) {
-        notes.splice(index, 1);
-        if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
-        if (typeof renderNotes === 'function') renderNotes();
-        if (typeof showToast === 'function') {
-          showToast({ title: '🗑️ Note Removed', text: 'Note moved to trash.' });
-        }
+      trashNote(noteId);
+      if (typeof showToast === 'function') {
+        showToast({ title: '🗑️ Note Moved to Trash', text: `"${note.title || 'Note'}" can be restored from Trash.` });
       }
     }
 
     activeSwipeCard.style.transform = '';
     activeSwipeCard.classList.remove('swiping-pin', 'swiping-delete');
+    activeSwipeCard = null;
+    currentTranslateX = 0;
+  });
+
+  document.addEventListener('touchcancel', () => {
+    if (activeSwipeCard) {
+      activeSwipeCard.style.transform = '';
+      activeSwipeCard.classList.remove('swiping-pin', 'swiping-delete');
+    }
     activeSwipeCard = null;
     currentTranslateX = 0;
   });
@@ -480,7 +506,10 @@ export let appSettings = {
     afternoon: '13:00',
     evening: '18:00'
   },
-  uiColorTheme: 'sky',
+  uiColorTheme: 'slate',
+  themeScheduleEnabled: false,
+  themeLightFrom: '07:00',
+  themeDarkFrom: '19:00',
   notificationsEnabled: true,
   notificationsReminders: true,
   notificationsDnd: false,
@@ -795,13 +824,15 @@ function applyThemePreviewCardStyles(card, themeId) {
   if (!preview) return;
   const preset = getThemePreset(themeId);
   if (preset && preset.isSolid) {
+    const isDark = document.body.classList.contains('theme-dark') || document.body.classList.contains('dark-theme');
+    const activeColors = isDark && preset.darkColors ? preset.darkColors : preset.colors;
     preview.style.backgroundImage = 'none';
-    preview.style.backgroundColor = preset.colors.bg;
-    preview.style.borderColor = preset.colors.border;
+    preview.style.backgroundColor = activeColors.bg;
+    preview.style.borderColor = activeColors.border;
     const inner = preview.querySelector('.theme-picker-v2-card-preview-inner');
     if (inner) {
-      inner.style.color = preset.colors.text;
-      inner.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+      inner.style.color = activeColors.text;
+      inner.style.backgroundColor = isDark ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.8)';
     }
   } else {
     preview.style.backgroundImage = buildEmojiThemePattern(themeId);
@@ -1587,7 +1618,9 @@ const othersGrid = getEl('others-grid');
 const othersSectionTitle = getEl('others-section-title');
 const emptyState = getEl('empty-state');
 let sidebarTagsList = null;
+const sidebarNewNote = getEl('sidebar-new-note');
 const sidebarAllNotes = getEl('sidebar-all-notes');
+const sidebarFavorites = getEl('sidebar-favorites');
 const sidebarSearch = getEl('sidebar-search');
 const creatorWrapper = queryEl('.creator-wrapper');
 const notesFeed = queryEl('.notes-feed');
@@ -1833,22 +1866,7 @@ function enhanceShell() {
     sidebar.appendChild(settingsItem);
   }
   sidebarSettings = document.getElementById('sidebar-settings');
-
-  if (sidebar && !document.getElementById('sidebar-folders-list')) {
-    const divider = document.createElement('div');
-    divider.className = 'sidebar-divider';
-    const title = document.createElement('div');
-    title.className = 'sidebar-section-title sidebar-label';
-    title.textContent = 'GROUPS';
-    sidebarFoldersList = document.createElement('div');
-    sidebarFoldersList.className = 'sidebar-tags-container';
-    sidebarFoldersList.id = 'sidebar-folders-list';
-    sidebar.insertBefore(sidebarFoldersList, sidebarTagsList);
-    sidebar.insertBefore(title, sidebarFoldersList);
-    sidebar.insertBefore(divider, title);
-  } else {
-    sidebarFoldersList = document.getElementById('sidebar-folders-list');
-  }
+  sidebarFoldersList = document.getElementById('sidebar-folders-list');
 
   // Tags are now rendered on the dedicated Search page beneath the search bar
 
@@ -1882,19 +1900,11 @@ function enhanceShell() {
     feedFilterRow = document.createElement('div');
     feedFilterRow.className = 'feed-filter-row';
     feedFilterRow.id = 'feed-filter-row';
-    feedFilterRow.innerHTML = `
-      <button class="filter-pill active" data-type-filter="all">All</button>
-      <button class="filter-pill" data-type-filter="text">Text</button>
-      <button class="filter-pill" data-type-filter="checklist">Checklist</button>
-      <button class="filter-pill" data-type-filter="voice">Voice</button>
-      <button class="filter-pill" data-type-filter="bookmark">Bookmark</button>
-      <button class="filter-pill" data-type-filter="recipe">Recipe</button>
-      <button class="filter-pill" data-type-filter="image">Visual</button>
-    `;
     creatorWrapper.insertAdjacentElement('afterend', feedFilterRow);
   } else {
     feedFilterRow = document.getElementById('feed-filter-row');
   }
+  renderFeedFilters();
 
   menuPanel = document.getElementById('menu-panel');
 
@@ -1943,6 +1953,8 @@ export function setActiveSidebarPage(pageId) {
     sidebarArchive?.classList.add('active');
   } else if (pageId === 'deleted') {
     sidebarDeleted?.classList.add('active');
+  } else if (pageId === 'favorites') {
+    sidebarFavorites?.classList.add('active');
   } else if (pageId === 'search') {
     sidebarSearch?.classList.add('active');
   } else {
@@ -1981,9 +1993,10 @@ function setActivePage(page) {
     selectedTagFilter = null;
     selectedFolderFilter = null;
     setActiveSidebarPage('productivity');
-  } else if (page === 'archive' || page === 'deleted') {
+  } else if (page === 'archive' || page === 'deleted' || page === 'favorites') {
     selectedTagFilter = null;
     selectedFolderFilter = null;
+    selectedTypeFilter = 'all';
     setActiveSidebarPage(page);
   } else {
     setActiveSidebarPage('notes');
@@ -2069,6 +2082,9 @@ export function getPageNotes(page) {
   }
   if (page === 'deleted') {
     return notes.filter(note => isDeletedNote(note));
+  }
+  if (page === 'favorites') {
+    return notes.filter(note => isActiveNote(note) && (note.favorite === true || note.starred === true));
   }
   return notes.filter(note => isActiveNote(note));
 }
@@ -2635,109 +2651,54 @@ function showInstallNotification() {
   });
 }
 
-export function applyAppBgColor() {
-  const isDark = document.body.classList.contains('dark-theme');
-  const bgColor = appSettings.appBgColor || 'base';
 
-  // Toggle active preset classes on the body for styling isolation
-  const presets = ['base', 'sky', 'lilac', 'sage', 'peach', 'offwhite', 'white', 'coolgray', 'paper', 'custom'];
-  const hasCustomImage = appSettings.appBgType === 'custom-image' && appSettings.appBgImage?.src;
-  presets.forEach(preset => {
-    document.body.classList.toggle(`bg-preset-${preset}`, hasCustomImage ? preset === 'custom' : bgColor === preset);
-  });
 
-  if (hasCustomImage) {
-    const overlayOpacity = clamp(numericSetting(appSettings.appBgImage.overlay, isDark ? 38 : 18), 0, 70) / 100;
-    const overlayColor = isDark ? `rgba(15, 23, 42, ${overlayOpacity})` : `rgba(255, 255, 255, ${overlayOpacity})`;
-    const imageUrl = escapeCssUrl(appSettings.appBgImage.src);
-    document.body.style.setProperty('--bg-app', `linear-gradient(${overlayColor}, ${overlayColor}), url("${imageUrl}")`, 'important');
-    document.body.style.setProperty('--bg-app-size', appSettings.appBgImage.fit || 'cover');
-    document.body.style.setProperty('--bg-app-position', appSettings.appBgImage.position || 'center center');
-    document.body.style.setProperty('--bg-app-repeat', appSettings.appBgImage.fit === 'tile' ? 'repeat' : 'no-repeat');
-    if (appSettings.appBgImage.fit === 'tile') {
-      document.body.style.setProperty('--bg-app-size', 'auto');
-    }
-    return;
-  }
+export function applyThemeSchedule() {
+  if (!appSettings.themeScheduleEnabled) return;
+  const now = new Date();
+  const currentHours = now.getHours();
+  const currentMinutes = now.getMinutes();
+  const currentTimeSecs = currentHours * 3600 + currentMinutes * 60;
 
-  document.body.style.removeProperty('--bg-app-size');
-  document.body.style.removeProperty('--bg-app-position');
-  document.body.style.removeProperty('--bg-app-repeat');
+  const parseTimeToSeconds = (timeStr) => {
+    const parts = (timeStr || '00:00').split(':');
+    const h = parseInt(parts[0], 10) || 0;
+    const m = parseInt(parts[1], 10) || 0;
+    return h * 3600 + m * 60;
+  };
 
-  let bgValue = '';
-  if (isDark) {
-    switch (bgColor) {
-      case 'sky':
-        bgValue = 'linear-gradient(180deg, #0f1a38 0%, #080d1c 100%)';
-        break;
-      case 'lilac':
-        bgValue = 'linear-gradient(180deg, #19122a 0%, #0d0916 100%)';
-        break;
-      case 'sage':
-        bgValue = 'linear-gradient(180deg, #0e2219 0%, #08120d 100%)';
-        break;
-      case 'peach':
-        bgValue = 'linear-gradient(180deg, #28170a 0%, #170d05 100%)';
-        break;
-      case 'offwhite':
-        bgValue = '#171511';
-        break;
-      case 'white':
-        bgValue = '#111827';
-        break;
-      case 'coolgray':
-        bgValue = '#1F2937';
-        break;
-      case 'paper':
-        bgValue = 'linear-gradient(180deg, #1d1a14 0%, #15130f 100%)';
-        break;
-      case 'base':
-      default:
-        bgValue = 'linear-gradient(180deg, #131e35 0%, #0d1424 100%)';
-        break;
+  const lightStart = parseTimeToSeconds(appSettings.themeLightFrom || '07:00');
+  const darkStart = parseTimeToSeconds(appSettings.themeDarkFrom || '19:00');
+
+  let targetTheme = 'light';
+  if (darkStart > lightStart) {
+    if (currentTimeSecs >= darkStart || currentTimeSecs < lightStart) {
+      targetTheme = 'dark';
+    } else {
+      targetTheme = 'light';
     }
   } else {
-    switch (bgColor) {
-      case 'sky':
-        bgValue = 'linear-gradient(180deg, #e0f2fe 0%, #f0f9ff 45%, #fafafd 100%)';
-        break;
-      case 'lilac':
-        bgValue = 'linear-gradient(180deg, #f3e8ff 0%, #faf5ff 45%, #faf9fc 100%)';
-        break;
-      case 'sage':
-        bgValue = 'linear-gradient(180deg, #dcfce7 0%, #f0fdf4 45%, #f9fbf9 100%)';
-        break;
-      case 'peach':
-        bgValue = 'linear-gradient(180deg, #ffedd5 0%, #fff7ed 45%, #fdfbf8 100%)';
-        break;
-      case 'offwhite':
-        bgValue = 'linear-gradient(180deg, #fdfcf8 0%, #faf9f6 100%)';
-        break;
-      case 'white':
-        bgValue = '#ffffff';
-        break;
-      case 'coolgray':
-        bgValue = '#EEEEEE';
-        break;
-      case 'paper':
-        bgValue = 'linear-gradient(180deg, #efede3 0%, #f6f4ec 100%)';
-        break;
-      case 'base':
-      default:
-        bgValue = 'linear-gradient(180deg, #e0f2fe 0%, #f0f9ff 100%)';
-        break;
+    if (currentTimeSecs >= darkStart && currentTimeSecs < lightStart) {
+      targetTheme = 'dark';
+    } else {
+      targetTheme = 'light';
     }
   }
 
-  document.body.style.setProperty('--bg-app', bgValue, 'important');
+  const isCurrentlyDark = document.body.classList.contains('dark-theme');
+  if ((targetTheme === 'dark' && !isCurrentlyDark) || (targetTheme === 'light' && isCurrentlyDark)) {
+    setTheme(targetTheme);
+  }
 }
 
 function initTheme() {
   const savedTheme = localStorage.getItem(STORAGE_KEYS.theme) === 'dark' ? 'dark' : 'light';
   setTheme(savedTheme);
+  applyThemeSchedule();
+  setInterval(applyThemeSchedule, 30000);
 }
 
-function setTheme(theme) {
+export function setTheme(theme) {
   const normalizedTheme = theme === 'dark' ? 'dark' : 'light';
   document.body.classList.remove('theme-light', 'theme-dark');
   document.body.classList.add(`theme-${normalizedTheme}`);
@@ -2761,6 +2722,12 @@ function setTheme(theme) {
 
   localStorage.setItem(STORAGE_KEYS.theme, normalizedTheme);
   applyAppBgColor();
+  if (typeof syncEmojiThemePresentation === 'function') {
+    syncEmojiThemePresentation();
+  }
+  if (typeof renderNotes === 'function') {
+    renderNotes();
+  }
   if (settingsMod && typeof settingsMod.renderSettingsBgPicker === 'function') {
     settingsMod.renderSettingsBgPicker();
   }
@@ -2868,6 +2835,8 @@ function initData() {
   loadedNotes = loadedNotes.map((note, index) => ({
     ...note,
     folder: note.folder || inferDefaultFolder(note, index),
+    favorite: note.favorite === true || note.starred === true,
+    starred: note.favorite === true || note.starred === true,
     archived: note.archived === true,
     archivedAt: typeof note.archivedAt === 'number' ? note.archivedAt : null,
     deleted: note.deleted === true,
@@ -2979,7 +2948,13 @@ function setupEventHandlers() {
   themeBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
     const isDark = document.body.classList.contains('dark-theme');
-    setTheme(isDark ? 'light' : 'dark');
+    const newTheme = isDark ? 'light' : 'dark';
+    localStorage.setItem('paperuss_manual_theme', newTheme);
+    if (appSettings.themeScheduleEnabled) {
+      appSettings.themeScheduleEnabled = false;
+      saveSettingsAndSync();
+    }
+    setTheme(newTheme);
   });
 
   // View toggle (Grid / List)
@@ -3011,6 +2986,19 @@ function setupEventHandlers() {
   });
 
   // Sidebar navigation resets hashtag filter
+  if (sidebarNewNote) {
+    sidebarNewNote.addEventListener('click', (e) => {
+      e.stopPropagation();
+      revealInlineCreator();
+    });
+    sidebarNewNote.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        revealInlineCreator();
+      }
+    });
+  }
+
   if (sidebarAllNotes) {
     sidebarAllNotes.addEventListener('click', () => {
       currentPage = 'notes';
@@ -3024,6 +3012,12 @@ function setupEventHandlers() {
       if (window.innerWidth <= 768) {
         sidebar?.classList.remove('sidebar-open');
       }
+    });
+  }
+
+  if (sidebarFavorites) {
+    sidebarFavorites.addEventListener('click', () => {
+      setActivePage('favorites');
     });
   }
 
@@ -3069,11 +3063,7 @@ function setupEventHandlers() {
   });
 
   document.querySelector('[data-tablet-action="create"]')?.addEventListener('click', () => {
-    setActivePage('notes');
-    requestAnimationFrame(() => {
-      document.getElementById('note-creator')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      if (creatorCollapsed?.offsetParent !== null) creatorCollapsed.click();
-    });
+    revealInlineCreator();
   });
 
   document.querySelector('[data-tablet-action="menu"]')?.addEventListener('click', (event) => {
@@ -3108,17 +3098,7 @@ function setupEventHandlers() {
     creatorFolderCustomInput.dataset.bound = 'true';
   }
 
-  if (feedFilterRow) {
-    feedFilterRow.querySelectorAll('.filter-pill').forEach(btn => {
-      btn.addEventListener('click', () => {
-        selectedTypeFilter = btn.getAttribute('data-type-filter') || 'all';
-        feedFilterRow.querySelectorAll('.filter-pill').forEach(pill => pill.classList.remove('active'));
-        btn.classList.add('active');
-        btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-        renderAppView();
-      });
-    });
-  }
+  renderFeedFilters();
 
 
   // Note Creator Focus / Expand
@@ -3598,8 +3578,11 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '3.2.1';
+  const CURRENT_VERSION = '3.2.4';
   const DEFAULT_CHANGELOG = [
+    'Purpose-Built Slide Decks & Revised Media Hub Layout (v3.2.4): Refactored note media hubs into type-aware purpose-built slide decks (Text, Checklist, Voice, Link, Recipe, Visual, File) and aligned Media Hub in normal document flow inside .note-surface 6px flush above the footer with zero overlap.',
+    'Canonical Note-Type Registry & Dynamic Feed Filters (v3.2.3): Introduced a single canonical note-type registry (All, Text, Checklist, Voice, Link, Recipe, Visual, File), dynamic filter pills with Lucide icons and live note counts, tightened top workspace spacing, and hid Groups from the sidebar.',
+    'Hidden Quick Launch & New Note Action (v3.2.2): Hid the inline note creator by default on All Notes to preserve a clean grid-only layout. Added a dedicated New Note sidebar action for desktop and updated tablet dock to reveal and expand creator on demand.',
     'Neutralize Background Tints (v3.2.1): Neutralized the soft light-blue background tint from the light-theme app canvas and sidebar, and completely disabled the dynamic color overlay tint (#workspace-tint-overlay).',
     'High-Density Tablet Portrait Layout (v3.2.0): Optimized iPad/tablet portrait layout with a 3-column note grid, decreased card collapsed height, tighter margins, and a compact, scaled-down bottom navigation dock.',
     'Fix Lucide Icon Instantiation (v3.1.1): Resolved bug where quick action icons disappeared on sidebar page navigation and single card DOM updates by anchoring lucide.createIcons inside updateNoteCardUI and renderGrid.',
@@ -3657,6 +3640,47 @@ function setupEventHandlers() {
     'Productivity page todo widget surfacing individual unchecked checklist items across notes'
   ];
 
+  const renderCollapsibleChangelog = (changelogList) => {
+    if (!changelogList) return;
+    const items = Array.from(changelogList.querySelectorAll(':scope > li'));
+    if (items.length === 0) return;
+
+    const groups = [];
+    items.forEach((item) => {
+      const versionMatch = item.textContent.match(/\(v(\d+(?:\.\d+)+)\)/i);
+      const version = versionMatch ? `v${versionMatch[1]}` : 'Earlier updates';
+      let group = groups.find(entry => entry.version === version);
+      if (!group) {
+        group = { version, items: [] };
+        groups.push(group);
+      }
+      group.items.push(item);
+    });
+
+    changelogList.innerHTML = '';
+    changelogList.classList.add('changelog-accordion');
+    groups.forEach((group, index) => {
+      const details = document.createElement('details');
+      details.className = 'changelog-version';
+      details.open = index === 0;
+
+      const summary = document.createElement('summary');
+      summary.className = 'changelog-version-summary';
+      summary.innerHTML = `
+        <span>${escapeHtml(group.version)}</span>
+        <span class="changelog-version-count">${group.items.length} ${group.items.length === 1 ? 'change' : 'changes'}</span>
+      `;
+
+      const updates = document.createElement('ul');
+      updates.className = 'changelog-version-items';
+      group.items.forEach(item => updates.appendChild(item));
+      details.append(summary, updates);
+      changelogList.appendChild(details);
+    });
+  };
+
+  renderCollapsibleChangelog(document.querySelector('.changelog-list'));
+
   subscribeToVersionUpdates((serverConfig) => {
     if (!appUpdateBtn) return;
     const serverVersion = serverConfig?.version || CURRENT_VERSION;
@@ -3665,6 +3689,7 @@ function setupEventHandlers() {
     const changelogList = document.querySelector('.changelog-list');
     if (changelogList && serverChangelog.length > 0) {
       changelogList.innerHTML = serverChangelog.map(item => `<li>${escapeHtml(item)}</li>`).join('');
+      renderCollapsibleChangelog(changelogList);
     }
 
     const versionLabel = document.querySelector('.version-label');
@@ -3884,8 +3909,44 @@ function buildColorGrid(container, activeColor, activeTheme, activeCustomTheme, 
 
 let creatorActiveNoteId = null;
 
+export function revealInlineCreator() {
+  if (typeof currentPage !== 'undefined' && currentPage !== 'notes') {
+    if (typeof showPage === 'function') {
+      showPage('notes');
+    } else if (typeof setActivePage === 'function') {
+      setActivePage('notes');
+    }
+  }
+
+  if (creatorWrapper) {
+    creatorWrapper.classList.add('visible');
+    creatorWrapper.style.display = 'block';
+  }
+
+  expandCreator();
+
+  requestAnimationFrame(() => {
+    creatorWrapper?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    const glassEditor = document.getElementById('creator-glass-editor');
+    if (glassEditor && glassEditor.offsetParent !== null) {
+      glassEditor.focus();
+    } else if (typeof creatorText !== 'undefined' && creatorText && creatorText.offsetParent !== null) {
+      creatorText.focus();
+    }
+  });
+
+  if (typeof collapseSidebarAfterSelection === 'function') {
+    collapseSidebarAfterSelection();
+  }
+}
+
 function expandCreator() {
   _savedWorkspaceScrollY = window.scrollY;
+  if (creatorWrapper) {
+    creatorWrapper.classList.add('visible');
+    creatorWrapper.style.display = 'block';
+  }
+
   if (appSettings.modernGlassEditorEnabled) {
     const newNote = {
       id: 'note-' + Date.now(),
@@ -3931,6 +3992,11 @@ function collapseCreator() {
   creatorCollapsed.style.display = 'flex';
   creatorExpanded.style.display = 'none';
   creatorPin.style.display = 'none';
+
+  if (creatorWrapper) {
+    creatorWrapper.classList.remove('visible');
+    creatorWrapper.style.display = 'none';
+  }
 
   creatorWrapper.classList.remove('modern-glass-editor-active');
   document.body.classList.remove('advanced-editor-open');
@@ -4060,6 +4126,7 @@ function saveCreatorNoteDraftImmediate() {
       audioClips: [...creatorAudioClips],
       pinned: creatorPinned,
       favorite: creatorFavorite,
+      starred: creatorFavorite,
       archived: creatorArchived,
       archivedAt: creatorArchived ? Date.now() : null,
       deleted: false,
@@ -4086,6 +4153,7 @@ function saveCreatorNoteDraftImmediate() {
     note.audioClips = [...creatorAudioClips];
     note.pinned = creatorPinned;
     note.favorite = creatorFavorite;
+    note.starred = creatorFavorite;
     note.archived = creatorArchived;
     note.archivedAt = creatorArchived ? (note.archivedAt || Date.now()) : null;
     note.image = creatorImage;
@@ -4705,6 +4773,7 @@ function initModalAdvancedEditorHandlers() {
     const note = notes.find(n => n.id === currentEditingNoteId);
         if (note) {
       note.favorite = !note.favorite;
+      note.starred = note.favorite;
       note.updatedAt = Date.now();
       const favLabel = document.getElementById('modal-favorite-label');
       const favBtn = document.getElementById('modal-favorite');
@@ -5037,13 +5106,110 @@ function getFolderIconSvg(iconName) {
 }
 
 function getVisualNoteType(note) {
-  const rawType = note.type || getNoteType(note.text || '');
-  if (note.recipeData || rawType === 'recipe') return 'recipe';
-  if (note.audio) return 'voice';
-  if ((note.title || '').toLowerCase().includes('recipe')) return 'recipe';
-  if (note.image) return rawType === 'checklist' ? 'checklist' : 'image';
-  if (getFirstUrlInText(note.text || '')) return 'bookmark';
-  return rawType;
+  if (!note) return 'text';
+
+  // 1. Recipe
+  if (note.recipeData || note.recipeSourceUrl || (typeof note.text === 'string' && note.text.includes('__RECIPE_DATA__')) || (note.title || '').toLowerCase().includes('recipe') || note.type === 'recipe') {
+    return 'recipe';
+  }
+
+  // 2. Voice / Audio
+  if (note.audio || (Array.isArray(note.audioClips) && note.audioClips.length > 0) || note.type === 'voice' || note.type === 'audio') {
+    return 'voice';
+  }
+
+  // 3. File attachments (non-voice)
+  if ((Array.isArray(note.files) && note.files.length > 0) || note.type === 'file' || note.type === 'files' || note.type === 'attachment') {
+    return 'file';
+  }
+
+  // 4. Visual (Photo, Image, Drawing, Sketch)
+  if (note.image || note.type === 'visual' || note.type === 'image' || note.type === 'photo' || note.type === 'drawing' || note.type === 'sketch' || (typeof note.text === 'string' && (note.text.includes('<img') || note.text.includes('data:image/')))) {
+    return 'visual';
+  }
+
+  // 5. Link / Bookmark
+  if (note.linkPreview || note.type === 'link' || note.type === 'bookmark' || (typeof note.text === 'string' && getFirstUrlFromSharedText(note.title || '', note.text || ''))) {
+    return 'link';
+  }
+
+  // 6. Checklist
+  if (note.type === 'checklist' || (typeof note.text === 'string' && (/^\s*-\s*\[[ xX]\]/m.test(note.text) || note.text.includes('checklist-container') || note.text.includes('checklist-item')))) {
+    return 'checklist';
+  }
+
+  // 7. Explicit type normalization fallback
+  const rawType = (note.type || '').toLowerCase();
+  if (rawType) {
+    for (const reg of NOTE_TYPE_REGISTRY) {
+      if (reg.id === rawType || (reg.aliases && reg.aliases.includes(rawType))) {
+        return reg.id;
+      }
+    }
+  }
+
+  return 'text';
+}
+
+export function renderFeedFilters() {
+  if (!feedFilterRow) {
+    feedFilterRow = document.getElementById('feed-filter-row');
+  }
+  if (!feedFilterRow) return;
+
+  const notesList = getPageNotes('notes');
+  const counts = {
+    all: notesList.length,
+    text: 0,
+    checklist: 0,
+    voice: 0,
+    link: 0,
+    recipe: 0,
+    visual: 0,
+    file: 0
+  };
+
+  notesList.forEach(note => {
+    const kind = getVisualNoteType(note);
+    if (counts[kind] !== undefined) {
+      counts[kind]++;
+    }
+  });
+
+  feedFilterRow.innerHTML = NOTE_TYPE_REGISTRY.map(item => {
+    const isSelected = selectedTypeFilter === item.id || (selectedTypeFilter === 'all' && item.id === 'all');
+    const count = counts[item.id] ?? 0;
+    return `
+      <button type="button"
+              class="filter-pill filter-pill-${item.id} ${isSelected ? 'active' : ''}"
+              data-type-filter="${item.id}"
+              aria-pressed="${isSelected ? 'true' : 'false'}"
+              aria-label="${item.label} notes (${count})"
+              title="${item.label} (${count})">
+        <i data-lucide="${item.icon}" class="filter-pill-icon"></i>
+        <span class="filter-pill-label">${item.label}</span>
+        <span class="filter-pill-count">${count}</span>
+      </button>
+    `;
+  }).join('');
+
+  if (typeof lucide !== 'undefined' && lucide.createIcons) {
+    lucide.createIcons({
+      nameAttr: 'data-lucide',
+      attrs: { width: 14, height: 14, 'stroke-width': 2 }
+    });
+  }
+
+  feedFilterRow.querySelectorAll('.filter-pill[data-type-filter]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const newFilter = btn.getAttribute('data-type-filter') || 'all';
+      selectedTypeFilter = newFilter;
+      renderFeedFilters();
+      renderAppView();
+      btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    });
+  });
 }
 
 function getAllFolders() {
@@ -6304,7 +6470,7 @@ function renderNotesPage() {
   if (searchPageEl) searchPageEl.style.display = 'none';
 
   if (creatorWrapper) {
-    creatorWrapper.style.display = (currentPage === 'notes') ? '' : 'none';
+    creatorWrapper.style.display = (currentPage === 'notes' && creatorWrapper.classList.contains('visible')) ? 'block' : 'none';
   }
   if (feedFilterRow) {
     feedFilterRow.style.display = (currentPage === 'notes') ? '' : 'none';
@@ -6369,6 +6535,8 @@ function renderNotesPage() {
       emptyCopy = 'Archived notes appear here';
     } else if (currentPage === 'deleted') {
       emptyCopy = 'Deleted notes appear here until you restore or remove them forever';
+    } else if (currentPage === 'favorites') {
+      emptyCopy = 'Notes you favorite appear here';
     } else if (selectedTagFilter) {
       emptyCopy = `No notes tagged #${selectedTagFilter}`;
     }
@@ -6379,6 +6547,7 @@ function renderNotesPage() {
   }
 
   // Sidebar tag listing update
+  renderFeedFilters();
   renderSidebarFolders();
   renderFolderSuggestions();
   renderSidebarTags();
@@ -6600,7 +6769,944 @@ function getTaskPreviewSchedule(note, dateKey = '') {
   return primaryReminder ? formatReminderDate(primaryReminder) : '';
 }
 
+const activeDeckSlideIndexes = new Map();
 
+function getAllUrlsInText(text = '') {
+  if (!text) return [];
+  const matches = text.match(URL_REGEX);
+  if (!matches) return [];
+  return matches.map(trimTrailingUrlPunctuation).filter(Boolean);
+}
+
+function detectPlatformFromUrl(url = '') {
+  const domain = extractDomain(url).toLowerCase();
+  if (domain.includes('twitter.com') || domain.includes('x.com')) return 'X / Twitter';
+  if (domain.includes('youtube.com') || domain.includes('youtu.be')) return 'YouTube';
+  if (domain.includes('github.com')) return 'GitHub';
+  if (domain.includes('instagram.com')) return 'Instagram';
+  if (domain.includes('medium.com')) return 'Medium';
+  return 'Web';
+}
+
+function getFileExtension(filename = '') {
+  const parts = filename.split('.');
+  return parts.length > 1 ? parts.pop().toLowerCase() : 'file';
+}
+
+function renderVoiceSlideContent(slideEl, clip, idx, note) {
+  slideEl.className = 'note-slide-item voice-slide-card';
+  const duration = clip.duration || '0:05';
+  let isPlaying = false;
+  let audioObj = null;
+  let currentSpeedIdx = 0;
+  const speeds = ['1x', '1.25x', '1.5x', '2x'];
+
+  slideEl.innerHTML = `
+    <div class="voice-slide-header">
+      <span>🎤 ${escapeHtml(clip.title || `Recording ${idx + 1}`)}</span>
+      <span style="font-size:10px; color:rgba(255,255,255,0.7);">${escapeHtml(duration)}</span>
+    </div>
+    <div class="voice-slide-waveform">
+      ${Array.from({ length: 22 }).map(() => `<div class="waveform-bar" style="height:${Math.floor(Math.random() * 18 + 6)}px;"></div>`).join('')}
+    </div>
+    <div class="voice-slide-controls">
+      <button class="voice-play-btn" title="Play recording">
+        <svg class="play-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <button class="voice-speed-btn">1x</button>
+      <button class="voice-download-btn" title="Download recording">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </button>
+    </div>
+  `;
+
+  const playBtn = slideEl.querySelector('.voice-play-btn');
+  const speedBtn = slideEl.querySelector('.voice-speed-btn');
+  const downloadBtn = slideEl.querySelector('.voice-download-btn');
+  const waveformBars = slideEl.querySelectorAll('.waveform-bar');
+
+  playBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!clip.data) return;
+    if (!audioObj) {
+      audioObj = new Audio(clip.data);
+      audioObj.onended = () => {
+        isPlaying = false;
+        playBtn.innerHTML = '<svg class="play-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+        waveformBars.forEach(b => b.classList.remove('active'));
+      };
+    }
+    if (isPlaying) {
+      audioObj.pause();
+      isPlaying = false;
+      playBtn.innerHTML = '<svg class="play-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+      waveformBars.forEach(b => b.classList.remove('active'));
+    } else {
+      audioObj.playbackRate = parseFloat(speeds[currentSpeedIdx]);
+      audioObj.play();
+      isPlaying = true;
+      playBtn.innerHTML = '<svg class="pause-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+      waveformBars.forEach(b => b.classList.add('active'));
+    }
+  });
+
+  speedBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    currentSpeedIdx = (currentSpeedIdx + 1) % speeds.length;
+    speedBtn.textContent = speeds[currentSpeedIdx];
+    if (audioObj) audioObj.playbackRate = parseFloat(speeds[currentSpeedIdx]);
+  });
+
+  downloadBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (clip.data) downloadDataUrl(clip.data, `${getSafeFileName(note?.title || 'voice-note')}-${idx + 1}.${getDataUrlExtension(clip.data, 'webm')}`);
+  });
+}
+
+function renderVisualSlideContent(slideEl, imgUrl, title, note) {
+  slideEl.className = 'note-slide-item visual-slide-card';
+  const img = document.createElement('img');
+  img.src = imgUrl;
+  img.alt = title || 'Visual media';
+  img.loading = 'lazy';
+  slideEl.appendChild(img);
+  if (title) {
+    const caption = document.createElement('div');
+    caption.className = 'visual-caption-overlay';
+    caption.textContent = title;
+    slideEl.appendChild(caption);
+  }
+  slideEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openImageViewer(imgUrl, cleanTitleTags(note?.title || title || 'Media'));
+  });
+}
+
+function renderFileSlideContent(slideEl, file, idx, note) {
+  slideEl.className = 'note-slide-item file-slide-card';
+  const ext = getFileExtension(file.name || 'file');
+  slideEl.innerHTML = `
+    <div class="file-slide-row file-slide-header">
+      <span class="file-slide-kicker">
+        <i data-lucide="paperclip" aria-hidden="true"></i>
+        File attachment
+      </span>
+      <span class="file-extension-pill">${escapeHtml(ext.toUpperCase().slice(0, 4))}</span>
+    </div>
+    <div class="file-slide-row file-slide-main">
+      <div class="file-extension-badge">${escapeHtml(ext.toUpperCase().slice(0, 4))}</div>
+      <div class="file-slide-name">${escapeHtml(file.name || 'Attachment')}</div>
+    </div>
+    <div class="file-slide-row file-slide-footer">
+      <span class="file-slide-size">${formatFileSize(file.size || 0)}</span>
+      <button class="file-slide-download download-file-action" type="button" title="Download attachment" aria-label="Download ${escapeHtml(file.name || 'attachment')}">
+        <i data-lucide="download" aria-hidden="true"></i>
+        <span>Download</span>
+      </button>
+    </div>
+  `;
+  const btn = slideEl.querySelector('.download-file-action');
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (file.data) downloadDataUrl(file.data, file.name || 'attachment');
+  });
+}
+
+function renderReminderSlideContent(slideEl, note) {
+  const reminderDate = new Date(note.reminder);
+  const validReminder = !Number.isNaN(reminderDate.getTime());
+  const todayKey = getLocalDateKey(new Date());
+  const reminderKey = validReminder ? getLocalDateKey(reminderDate) : '';
+  const status = !validReminder
+    ? 'Scheduled'
+    : (reminderKey < todayKey ? 'Overdue' : (reminderKey === todayKey ? 'Today' : 'Upcoming'));
+  const month = validReminder
+    ? reminderDate.toLocaleDateString([], { month: 'short' }).toUpperCase()
+    : 'DATE';
+  const day = validReminder ? reminderDate.toLocaleDateString([], { day: 'numeric' }) : '—';
+  const time = validReminder
+    ? reminderDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : 'Time unavailable';
+
+  slideEl.className = 'note-slide-item reminder-slide-card';
+  slideEl.innerHTML = `
+    <div class="reminder-slide-row reminder-slide-heading">
+      <span class="reminder-slide-kicker">
+        <i data-lucide="calendar-clock" aria-hidden="true"></i>
+        Schedule
+      </span>
+      <span class="reminder-slide-status status-${status.toLowerCase()}">${status}</span>
+    </div>
+    <div class="reminder-slide-row reminder-slide-main">
+      <div class="reminder-slide-date" aria-hidden="true">
+        <span class="reminder-slide-month">${escapeHtml(month)}</span>
+        <strong class="reminder-slide-day">${escapeHtml(day)}</strong>
+      </div>
+      <div class="reminder-slide-note-title">${escapeHtml(cleanTitleTags(note.title || 'Untitled note'))}</div>
+    </div>
+    <div class="reminder-slide-row reminder-slide-footer">
+      <div class="reminder-slide-time">
+        <i data-lucide="clock-3" aria-hidden="true"></i>
+        <span>${escapeHtml(time)}</span>
+        <span aria-hidden="true">·</span>
+        <span>${escapeHtml(formatReminderDate(note.reminder))}</span>
+      </div>
+      <button class="reminder-slide-edit" type="button" aria-label="Edit scheduled reminder">
+        <i data-lucide="pencil" aria-hidden="true"></i>
+        <span>Edit</span>
+      </button>
+    </div>
+  `;
+
+  slideEl.addEventListener('click', (event) => {
+    event.stopPropagation();
+    openEditModal(note);
+  });
+}
+
+function renderLinkSlideContent(slideEl, url, meta, domain, platform) {
+  slideEl.className = 'note-slide-item link-deck-slide';
+  if (meta?.image) {
+    const cover = document.createElement('img');
+    cover.className = 'link-deck-cover';
+    cover.src = meta.image;
+    slideEl.appendChild(cover);
+  }
+  const scrim = document.createElement('div');
+  scrim.className = 'link-deck-scrim';
+  scrim.innerHTML = `
+    <div class="link-deck-domain-bar">
+      <span>🔗</span>
+      <span>${escapeHtml(domain || 'Link')}</span>
+      ${platform ? `<span style="opacity:0.7;">• ${escapeHtml(platform)}</span>` : ''}
+    </div>
+    <div class="link-deck-title">${escapeHtml(meta?.title || url)}</div>
+  `;
+  slideEl.appendChild(scrim);
+  slideEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    window.open(url, '_blank', 'noopener,noreferrer');
+  });
+}
+
+export function buildTextDeck(note) {
+  const slides = [];
+  const extractedImages = [];
+  const seenImageUrls = new Set();
+  const pushImage = (url) => {
+    if (url && typeof url === 'string' && url.trim() && !seenImageUrls.has(url)) {
+      seenImageUrls.add(url);
+      extractedImages.push(url);
+    }
+  };
+  if (note.image) pushImage(note.image);
+  if (note.text && typeof note.text === 'string') {
+    const htmlImgRegex = /<img[^>]+src=["']([^"']+)["']/gi;
+    let match;
+    while ((match = htmlImgRegex.exec(note.text)) !== null) pushImage(match[1]);
+    const mdImgRegex = /!\[.*?\]\((.*?)\)/gi;
+    while ((match = mdImgRegex.exec(note.text)) !== null) pushImage(match[1]);
+  }
+
+  extractedImages.forEach((imgUrl, idx) => {
+    slides.push({
+      id: `text-img-${idx}`,
+      kind: 'image',
+      title: extractedImages.length > 1 ? `Attachment ${idx + 1} of ${extractedImages.length}` : 'Image',
+      accentColor: '#f43f5e',
+      render: (slideEl) => renderVisualSlideContent(slideEl, imgUrl, extractedImages.length > 1 ? `Image ${idx + 1}` : null, note)
+    });
+  });
+
+  const firstUrl = getFirstUrlInText(note.text);
+  if (firstUrl || note.linkPreview) {
+    const previewUrl = note.linkPreview?.canonicalUrl || firstUrl;
+    const domain = extractDomain(previewUrl).replace(/^www\./, '');
+    const meta = getLinkMetadata(previewUrl, note);
+    slides.push({
+      id: 'text-link',
+      kind: 'link',
+      accentColor: '#f43f5e',
+      render: (slideEl) => renderLinkSlideContent(slideEl, previewUrl, meta, domain, note.linkPreview?.platform)
+    });
+  }
+
+  const attachments = Array.isArray(note.fileAttachments) && note.fileAttachments.length > 0
+    ? note.fileAttachments
+    : (Array.isArray(note.files) ? note.files : []);
+  attachments.forEach((file, idx) => {
+    slides.push({
+      id: `text-file-${idx}`,
+      kind: 'file',
+      accentColor: '#f43f5e',
+      render: (slideEl) => renderFileSlideContent(slideEl, file, idx, note)
+    });
+  });
+
+  const audioClips = Array.isArray(note.audioClips) && note.audioClips.length > 0
+    ? note.audioClips
+    : (note.audio ? [{ id: 'legacy', data: note.audio, duration: note.audioDuration || '0:05' }] : []);
+  audioClips.forEach((clip, idx) => {
+    slides.push({
+      id: `text-voice-${idx}`,
+      kind: 'voice',
+      accentColor: '#f43f5e',
+      render: (slideEl) => renderVoiceSlideContent(slideEl, clip, idx, note)
+    });
+  });
+
+  if (note.reminder) {
+    slides.push({
+      id: 'text-reminder',
+      kind: 'reminder',
+      accentColor: '#f43f5e',
+      render: (slideEl) => renderReminderSlideContent(slideEl, note)
+    });
+  }
+
+  return slides;
+}
+
+export function buildChecklistDeck(note) {
+  const slides = [];
+  const lines = (note.text || '').split('\n').filter(line => /^\s*-\s*\[[ xX]\]/.test(line));
+  const totalCount = lines.length || 1;
+  const completedCount = lines.filter(line => /^\s*-\s*\[[xX]\]/.test(line)).length;
+  const incompleteItems = lines
+    .filter(line => /^\s*-\s*\[ \]/.test(line))
+    .map(line => stripChecklistInlineReminder(line.replace(/^\s*-\s*\[ \]\s*/, '')).trim())
+    .filter(Boolean);
+
+  slides.push({
+    id: 'checklist-summary',
+    kind: 'checklist-summary',
+    title: 'Checklist Progress',
+    accentColor: '#10b981',
+    render: (slideEl) => {
+      const percent = Math.round((completedCount / totalCount) * 100);
+      slideEl.className = 'note-slide-item checklist-summary-slide';
+      slideEl.innerHTML = `
+        <div class="checklist-summary-top">
+          <div class="checklist-summary-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            <span>Checklist Progress</span>
+          </div>
+          <span style="font-size:12px; font-weight:800;">${completedCount} of ${totalCount}</span>
+        </div>
+        <div class="checklist-progress-bar">
+          <div class="checklist-progress-fill" style="width: ${percent}%;"></div>
+        </div>
+        <div class="checklist-next-tasks">
+          ${incompleteItems.slice(0, 2).map(item => `<div class="checklist-next-item"><span style="opacity:0.7;">▫</span> <span>${escapeHtml(item)}</span></div>`).join('') || '<div class="checklist-next-item">✨ All tasks completed!</div>'}
+        </div>
+      `;
+      slideEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openEditModal(note);
+      });
+    }
+  });
+
+  if (note.image) {
+    slides.push({
+      id: 'checklist-img',
+      kind: 'image',
+      accentColor: '#10b981',
+      render: (slideEl) => renderVisualSlideContent(slideEl, note.image, 'Reference Image', note)
+    });
+  }
+
+  const attachments = Array.isArray(note.fileAttachments) && note.fileAttachments.length > 0 ? note.fileAttachments : (Array.isArray(note.files) ? note.files : []);
+  attachments.forEach((file, idx) => {
+    slides.push({
+      id: `checklist-file-${idx}`,
+      kind: 'file',
+      accentColor: '#10b981',
+      render: (slideEl) => renderFileSlideContent(slideEl, file, idx, note)
+    });
+  });
+
+  const audioClips = Array.isArray(note.audioClips) && note.audioClips.length > 0 ? note.audioClips : (note.audio ? [{ id: 'legacy', data: note.audio }] : []);
+  audioClips.forEach((clip, idx) => {
+    slides.push({
+      id: `checklist-voice-${idx}`,
+      kind: 'voice',
+      accentColor: '#10b981',
+      render: (slideEl) => renderVoiceSlideContent(slideEl, clip, idx, note)
+    });
+  });
+
+  if (note.reminder) {
+    slides.push({
+      id: 'checklist-reminder',
+      kind: 'reminder',
+      accentColor: '#10b981',
+      render: (slideEl) => renderReminderSlideContent(slideEl, note)
+    });
+  }
+
+  return slides;
+}
+
+export function buildVoiceDeck(note) {
+  const slides = [];
+  const audioClips = Array.isArray(note.audioClips) && note.audioClips.length > 0
+    ? note.audioClips
+    : (note.audio ? [{ id: 'legacy', data: note.audio, duration: note.audioDuration || '0:05', title: 'Voice Recording' }] : []);
+
+  audioClips.forEach((clip, idx) => {
+    slides.push({
+      id: `voice-clip-${idx}`,
+      kind: 'voice',
+      title: `Recording ${idx + 1} of ${audioClips.length}`,
+      accentColor: '#ec4899',
+      render: (slideEl) => renderVoiceSlideContent(slideEl, clip, idx, note)
+    });
+  });
+
+  if (note.transcript || (note.text && note.text.toLowerCase().includes('transcript'))) {
+    slides.push({
+      id: 'voice-transcript',
+      kind: 'transcript',
+      title: 'Transcript Preview',
+      accentColor: '#ec4899',
+      render: (slideEl) => {
+        slideEl.className = 'note-slide-item voice-slide-card';
+        slideEl.innerHTML = `
+          <div class="voice-slide-header">
+            <span>📝 Transcript Preview</span>
+          </div>
+          <div style="font-size:11px; line-height:1.4; color:rgba(255,255,255,0.9); overflow:hidden; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical;">
+            ${escapeHtml(note.transcript || note.text)}
+          </div>
+        `;
+      }
+    });
+  }
+
+  if (note.image) {
+    slides.push({
+      id: 'voice-img',
+      kind: 'image',
+      accentColor: '#ec4899',
+      render: (slideEl) => renderVisualSlideContent(slideEl, note.image, 'Attached Image', note)
+    });
+  }
+
+  if (note.reminder) {
+    slides.push({
+      id: 'voice-reminder',
+      kind: 'reminder',
+      accentColor: '#ec4899',
+      render: (slideEl) => renderReminderSlideContent(slideEl, note)
+    });
+  }
+
+  return slides;
+}
+
+export function buildLinkDeck(note) {
+  const slides = [];
+  const urls = getAllUrlsInText(`${note.title || ''} ${note.text || ''}`);
+  const primaryUrl = note.linkPreview?.canonicalUrl || urls[0] || '';
+
+  if (primaryUrl) {
+    const domain = extractDomain(primaryUrl).replace(/^www\./, '');
+    const meta = getLinkMetadata(primaryUrl, note);
+    const platform = note.linkPreview?.platform || detectPlatformFromUrl(primaryUrl);
+    slides.push({
+      id: 'link-primary',
+      kind: 'link',
+      title: domain || 'Web Preview',
+      accentColor: '#3b82f6',
+      render: (slideEl) => renderLinkSlideContent(slideEl, primaryUrl, meta, domain, platform)
+    });
+  }
+
+  if (urls.length > 1) {
+    urls.slice(1, 4).forEach((url, idx) => {
+      const domain = extractDomain(url).replace(/^www\./, '');
+      slides.push({
+        id: `link-extra-${idx}`,
+        kind: 'link',
+        title: domain || `Link ${idx + 2}`,
+        accentColor: '#3b82f6',
+        render: (slideEl) => renderLinkSlideContent(slideEl, url, null, domain, null)
+      });
+    });
+  }
+
+  if (note.image) {
+    slides.push({
+      id: 'link-screenshot',
+      kind: 'image',
+      accentColor: '#3b82f6',
+      render: (slideEl) => renderVisualSlideContent(slideEl, note.image, 'Captured Screenshot', note)
+    });
+  }
+
+  const attachments = Array.isArray(note.fileAttachments) && note.fileAttachments.length > 0 ? note.fileAttachments : (Array.isArray(note.files) ? note.files : []);
+  attachments.forEach((file, idx) => {
+    slides.push({
+      id: `link-file-${idx}`,
+      kind: 'file',
+      accentColor: '#3b82f6',
+      render: (slideEl) => renderFileSlideContent(slideEl, file, idx, note)
+    });
+  });
+
+  if (note.reminder) {
+    slides.push({
+      id: 'link-reminder',
+      kind: 'reminder',
+      accentColor: '#3b82f6',
+      render: (slideEl) => renderReminderSlideContent(slideEl, note)
+    });
+  }
+
+  return slides;
+}
+
+export function buildRecipeDeck(note) {
+  const slides = [];
+  const recipe = note?.recipeData && typeof note.recipeData === 'object'
+    ? note.recipeData
+    : {};
+  const recipeImage = recipe.image_url || recipe.image || '';
+  const prepTime = recipe.prep_time_minutes
+    ? `${recipe.prep_time_minutes}m`
+    : (recipe.prepTime || '15m');
+  const cookTime = recipe.cook_time_minutes
+    ? `${recipe.cook_time_minutes}m`
+    : (recipe.cookTime || '25m');
+  const ingredients = Array.isArray(recipe.ingredients)
+    ? recipe.ingredients
+    : (typeof recipe.ingredients === 'string'
+      ? recipe.ingredients.split(/\r?\n/).map(item => item.trim()).filter(Boolean)
+      : []);
+  const rawInstructions = recipe.steps || recipe.instructions || [];
+  const steps = Array.isArray(rawInstructions)
+    ? rawInstructions
+    : (typeof rawInstructions === 'string'
+      ? rawInstructions
+          .split(/\r?\n/)
+          .map(step => step.replace(/^#{1,6}\s*/, '').replace(/^\d+[.)]\s*/, '').trim())
+          .filter(Boolean)
+      : []);
+
+  if (note.image || recipeImage) {
+    const heroImg = note.image || recipeImage;
+    slides.push({
+      id: 'recipe-hero',
+      kind: 'recipe-hero',
+      accentColor: '#f97316',
+      render: (slideEl) => {
+        slideEl.className = 'note-slide-item recipe-slide-hero';
+        slideEl.innerHTML = `
+          <img src="${escapeHtml(heroImg)}" alt="Recipe hero" loading="lazy" />
+          <div class="recipe-slide-hero-overlay">
+            <span>👨‍🍳 ${escapeHtml(note.title || recipe?.name || 'Recipe')}</span>
+          </div>
+        `;
+        slideEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openRecipeModal(note);
+        });
+      }
+    });
+  }
+
+  slides.push({
+    id: 'recipe-summary',
+    kind: 'recipe-summary',
+    accentColor: '#f97316',
+    render: (slideEl) => {
+      slideEl.className = 'note-slide-item recipe-slide-card';
+      slideEl.innerHTML = `
+        <div style="font-size:12px; font-weight:700;">⏱️ Cooking Overview</div>
+        <div class="recipe-metrics-grid">
+          <div class="recipe-metric-item">
+            <div class="recipe-metric-val">${escapeHtml(prepTime)}</div>
+            <div class="recipe-metric-lbl">Prep</div>
+          </div>
+          <div class="recipe-metric-item">
+            <div class="recipe-metric-val">${escapeHtml(cookTime)}</div>
+            <div class="recipe-metric-lbl">Cook</div>
+          </div>
+          <div class="recipe-metric-item">
+            <div class="recipe-metric-val">${escapeHtml(String(recipe?.servings || 4))}</div>
+            <div class="recipe-metric-lbl">Servings</div>
+          </div>
+        </div>
+        <div style="font-size:10px; opacity:0.85; text-align:right;">Tap for full recipe ➔</div>
+      `;
+      slideEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openRecipeModal(note);
+      });
+    }
+  });
+
+  if (ingredients.length > 0) {
+    slides.push({
+      id: 'recipe-ingredients',
+      kind: 'recipe-ingredients',
+      accentColor: '#f97316',
+      render: (slideEl) => {
+        slideEl.className = 'note-slide-item recipe-slide-card';
+        const displayList = ingredients.slice(0, 4);
+        const extraCount = ingredients.length - displayList.length;
+        slideEl.innerHTML = `
+          <div style="font-size:12px; font-weight:700;">🥗 Ingredients (${ingredients.length})</div>
+          <div style="font-size:11px; display:flex; flex-direction:column; gap:2px; margin:4px 0;">
+            ${displayList.map(ing => `<div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">• ${escapeHtml(typeof ing === 'string' ? ing : ing.name)}</div>`).join('')}
+            ${extraCount > 0 ? `<div style="font-weight:700; opacity:0.8;">+ ${extraCount} more...</div>` : ''}
+          </div>
+        `;
+        slideEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openRecipeModal(note);
+        });
+      }
+    });
+  }
+
+  if (steps.length > 0) {
+    slides.push({
+      id: 'recipe-steps',
+      kind: 'recipe-steps',
+      accentColor: '#f97316',
+      render: (slideEl) => {
+        slideEl.className = 'note-slide-item recipe-slide-card';
+        const displaySteps = steps.slice(0, 3);
+        slideEl.innerHTML = `
+          <div style="font-size:12px; font-weight:700;">🍳 Instructions</div>
+          <div style="font-size:10px; display:flex; flex-direction:column; gap:3px; margin:4px 0;">
+            ${displaySteps.map((step, idx) => `<div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><strong>${idx + 1}.</strong> ${escapeHtml(typeof step === 'string' ? step : step.text)}</div>`).join('')}
+          </div>
+        `;
+        slideEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openRecipeModal(note);
+        });
+      }
+    });
+  }
+
+  if (note.recipeSourceUrl || getFirstUrlInText(note.text)) {
+    const srcUrl = note.recipeSourceUrl || getFirstUrlInText(note.text);
+    const domain = extractDomain(srcUrl).replace(/^www\./, '');
+    slides.push({
+      id: 'recipe-source',
+      kind: 'recipe-source',
+      accentColor: '#f97316',
+      render: (slideEl) => {
+        slideEl.className = 'note-slide-item recipe-slide-card';
+        slideEl.innerHTML = `
+          <div style="font-size:12px; font-weight:700;">🌐 Original Source</div>
+          <div style="font-size:11px; font-weight:600; color:#f97316; margin:6px 0;">${escapeHtml(domain || srcUrl)}</div>
+          <div style="font-size:10px; opacity:0.8;">Open recipe website ↗</div>
+        `;
+        slideEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          window.open(srcUrl, '_blank', 'noopener,noreferrer');
+        });
+      }
+    });
+  }
+
+  return slides;
+}
+
+export function buildVisualDeck(note) {
+  const slides = [];
+  const extractedImages = [];
+  const seenUrls = new Set();
+  const pushImage = (url) => {
+    if (url && typeof url === 'string' && url.trim() && !seenUrls.has(url)) {
+      seenUrls.add(url);
+      extractedImages.push(url);
+    }
+  };
+  if (note.image) pushImage(note.image);
+  if (note.text && typeof note.text === 'string') {
+    const htmlImgRegex = /<img[^>]+src=["']([^"']+)["']/gi;
+    let match;
+    while ((match = htmlImgRegex.exec(note.text)) !== null) pushImage(match[1]);
+    const mdImgRegex = /!\[.*?\]\((.*?)\)/gi;
+    while ((match = mdImgRegex.exec(note.text)) !== null) pushImage(match[1]);
+  }
+
+  const isDrawing = note.type === 'drawing' || note.type === 'sketch';
+
+  extractedImages.forEach((imgUrl, idx) => {
+    slides.push({
+      id: `visual-img-${idx}`,
+      kind: 'image',
+      title: `${idx + 1} / ${extractedImages.length}`,
+      accentColor: '#8b5cf6',
+      render: (slideEl) => {
+        slideEl.className = `note-slide-item visual-slide-card ${isDrawing ? 'drawing' : ''}`;
+        const img = document.createElement('img');
+        img.src = imgUrl;
+        img.alt = 'Visual content';
+        img.loading = 'lazy';
+        slideEl.appendChild(img);
+
+        if (note.title || (note.text && !note.text.includes('<img'))) {
+          const caption = document.createElement('div');
+          caption.className = 'visual-caption-overlay';
+          caption.textContent = cleanTitleTags(note.title || note.text);
+          slideEl.appendChild(caption);
+        }
+
+        slideEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openImageViewer(imgUrl, cleanTitleTags(note.title || 'Visual note'));
+        });
+      }
+    });
+  });
+
+  if (note.text && extractedImages.length > 0 && note.text.length > 50 && !note.text.startsWith('<img')) {
+    slides.push({
+      id: 'visual-caption',
+      kind: 'caption',
+      accentColor: '#8b5cf6',
+      render: (slideEl) => {
+        slideEl.className = 'note-slide-item recipe-slide-card';
+        slideEl.innerHTML = `
+          <div style="font-size:11px; font-weight:700; color:#8b5cf6;">💬 Note Caption</div>
+          <div style="font-size:11px; line-height:1.4; color:var(--text-primary); overflow:hidden; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical;">
+            ${escapeHtml(cleanTextTags(note.text))}
+          </div>
+        `;
+      }
+    });
+  }
+
+  const attachments = Array.isArray(note.fileAttachments) && note.fileAttachments.length > 0 ? note.fileAttachments : (Array.isArray(note.files) ? note.files : []);
+  attachments.forEach((file, idx) => {
+    slides.push({
+      id: `visual-file-${idx}`,
+      kind: 'file',
+      accentColor: '#8b5cf6',
+      render: (slideEl) => renderFileSlideContent(slideEl, file, idx, note)
+    });
+  });
+
+  if (note.reminder) {
+    slides.push({
+      id: 'visual-reminder',
+      kind: 'reminder',
+      accentColor: '#8b5cf6',
+      render: (slideEl) => renderReminderSlideContent(slideEl, note)
+    });
+  }
+
+  return slides;
+}
+
+export function buildFileDeck(note) {
+  const slides = [];
+  const attachments = Array.isArray(note.fileAttachments) && note.fileAttachments.length > 0
+    ? note.fileAttachments
+    : (Array.isArray(note.files) ? note.files : []);
+
+  attachments.forEach((file, idx) => {
+    slides.push({
+      id: `file-item-${idx}`,
+      kind: 'file',
+      title: attachments.length > 1 ? `File ${idx + 1} of ${attachments.length}` : 'File Attachment',
+      accentColor: '#0d9488',
+      render: (slideEl) => renderFileSlideContent(slideEl, file, idx, note)
+    });
+  });
+
+  if (note.image) {
+    slides.push({
+      id: 'file-media-preview',
+      kind: 'image',
+      accentColor: '#0d9488',
+      render: (slideEl) => renderVisualSlideContent(slideEl, note.image, 'Image Preview', note)
+    });
+  }
+
+  if (attachments.length > 1) {
+    slides.push({
+      id: 'file-summary',
+      kind: 'file-summary',
+      accentColor: '#0d9488',
+      render: (slideEl) => {
+        const totalBytes = attachments.reduce((sum, f) => sum + (f.size || 0), 0);
+        slideEl.className = 'note-slide-item file-slide-card';
+        slideEl.innerHTML = `
+          <div class="file-slide-row file-slide-header">
+            <span class="file-slide-kicker">
+              <i data-lucide="files" aria-hidden="true"></i>
+              Attachment bundle
+            </span>
+            <span class="file-extension-pill">FILES</span>
+          </div>
+          <div class="file-slide-row file-slide-main">
+            <div class="file-extension-badge">${attachments.length}</div>
+            <div class="file-slide-name">${attachments.length} Files Attached</div>
+          </div>
+          <div class="file-slide-row file-slide-footer">
+            <span class="file-slide-size">${formatFileSize(totalBytes)} total size</span>
+            <span class="file-slide-count">${attachments.length} items</span>
+          </div>
+        `;
+      }
+    });
+  }
+
+  if (note.reminder) {
+    slides.push({
+      id: 'file-reminder',
+      kind: 'reminder',
+      accentColor: '#0d9488',
+      render: (slideEl) => renderReminderSlideContent(slideEl, note)
+    });
+  }
+
+  return slides;
+}
+
+export function buildNoteMediaDeck(note, noteKind) {
+  const kind = noteKind || getVisualNoteType(note);
+  switch (kind) {
+    case 'checklist':
+      return buildChecklistDeck(note);
+    case 'voice':
+    case 'audio':
+      return buildVoiceDeck(note);
+    case 'link':
+    case 'bookmark':
+      return buildLinkDeck(note);
+    case 'recipe':
+      return buildRecipeDeck(note);
+    case 'visual':
+    case 'photo':
+    case 'drawing':
+      return buildVisualDeck(note);
+    case 'file':
+    case 'files':
+    case 'attachment':
+      return buildFileDeck(note);
+    case 'text':
+    default:
+      return buildTextDeck(note);
+  }
+}
+
+export function renderNoteMediaDeck(note, slides) {
+  if (!slides || slides.length === 0) return null;
+
+  const hub = document.createElement('div');
+  const noteKind = getVisualNoteType(note);
+  hub.className = `note-media-hub ${noteKind === 'visual' ? 'tall-variant' : ''}`;
+  hub.setAttribute('tabindex', '0');
+  hub.setAttribute('aria-label', `${getVisualTypeLabel(noteKind)} deck (${slides.length} slides)`);
+
+  const track = document.createElement('div');
+  track.className = 'note-carousel-track';
+  hub.appendChild(track);
+
+  slides.forEach((slide) => {
+    const item = document.createElement('div');
+    if (slide.render) {
+      slide.render(item);
+    }
+    track.appendChild(item);
+  });
+
+  const savedIndex = activeDeckSlideIndexes.get(note.id) || 0;
+  if (savedIndex > 0 && savedIndex < slides.length) {
+    requestAnimationFrame(() => {
+      track.scrollLeft = savedIndex * track.clientWidth;
+    });
+  }
+
+  if (slides.length > 1) {
+    const dotsContainer = document.createElement('div');
+    dotsContainer.className = 'note-carousel-dots';
+    const dotEls = [];
+
+    slides.forEach((_, idx) => {
+      const dot = document.createElement('button');
+      dot.className = `note-carousel-dot ${idx === savedIndex ? 'active' : ''}`;
+      dot.setAttribute('aria-label', `Go to slide ${idx + 1}`);
+      dot.addEventListener('click', (e) => {
+        e.stopPropagation();
+        track.scrollTo({ left: idx * track.clientWidth, behavior: 'smooth' });
+      });
+      dotsContainer.appendChild(dot);
+      dotEls.push(dot);
+    });
+    hub.appendChild(dotsContainer);
+
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'note-carousel-prev';
+    prevBtn.setAttribute('aria-label', 'Previous slide');
+    prevBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>';
+    prevBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const currentIdx = activeDeckSlideIndexes.get(note.id) || 0;
+      const targetIdx = Math.max(0, currentIdx - 1);
+      track.scrollTo({ left: targetIdx * track.clientWidth, behavior: 'smooth' });
+    });
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'note-carousel-next';
+    nextBtn.setAttribute('aria-label', 'Next slide');
+    nextBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>';
+    nextBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const currentIdx = activeDeckSlideIndexes.get(note.id) || 0;
+      const targetIdx = Math.min(slides.length - 1, currentIdx + 1);
+      track.scrollTo({ left: targetIdx * track.clientWidth, behavior: 'smooth' });
+    });
+
+    hub.appendChild(prevBtn);
+    hub.appendChild(nextBtn);
+
+    let scrollTimeout = null;
+    track.addEventListener('scroll', () => {
+      if (scrollTimeout) clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        const itemWidth = track.clientWidth || 1;
+        const currentIdx = Math.round(track.scrollLeft / itemWidth);
+        activeDeckSlideIndexes.set(note.id, currentIdx);
+        dotEls.forEach((dot, idx) => {
+          dot.classList.toggle('active', idx === currentIdx);
+        });
+      }, 50);
+    });
+
+    hub.addEventListener('keydown', (e) => {
+      const currentIdx = activeDeckSlideIndexes.get(note.id) || 0;
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        const targetIdx = Math.min(slides.length - 1, currentIdx + 1);
+        track.scrollTo({ left: targetIdx * track.clientWidth, behavior: 'smooth' });
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const targetIdx = Math.max(0, currentIdx - 1);
+        track.scrollTo({ left: targetIdx * track.clientWidth, behavior: 'smooth' });
+      }
+    });
+
+    track.addEventListener('wheel', (e) => {
+      if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
+        e.preventDefault();
+        track.scrollLeft += e.deltaY;
+      }
+    }, { passive: false });
+  }
+
+  return hub;
+}
 
 export function createNoteCardElement(note) {
   const card = document.createElement('div');
@@ -6630,12 +7736,17 @@ export function createNoteCardElement(note) {
 
   // Star Button (Spine)
   const spineStar = document.createElement('button');
-  spineStar.className = `spine-btn ${note.starred ? 'active' : ''}`;
+  const isFavorite = note.favorite === true || note.starred === true;
+  spineStar.className = `spine-btn ${isFavorite ? 'active' : ''}`;
   spineStar.innerHTML = '<i data-lucide="star"></i>';
-  spineStar.title = note.starred ? 'Unstar' : 'Star';
+  spineStar.title = isFavorite ? 'Remove from Favorites' : 'Add to Favorites';
+  spineStar.setAttribute('aria-label', spineStar.title);
   spineStar.addEventListener('click', (e) => {
     e.stopPropagation();
-    note.starred = !note.starred;
+    const nextFavoriteState = !(note.favorite === true || note.starred === true);
+    note.favorite = nextFavoriteState;
+    note.starred = nextFavoriteState;
+    note.updatedAt = Date.now();
     saveToLocalStorage();
     renderNotes();
   });
@@ -6712,50 +7823,6 @@ export function createNoteCardElement(note) {
   surface.className = 'note-surface';
   mainContent.appendChild(surface);
 
-  const mediaContainer = document.createElement('div');
-  mediaContainer.className = 'note-media-container';
-
-  // 1. Image Banner & Inline Text Images (Extract HTML <img> and Markdown images)
-  const extractedImages = [];
-  const seenImageUrls = new Set();
-
-  const pushImage = (url) => {
-    if (url && typeof url === 'string' && url.trim() && !seenImageUrls.has(url)) {
-      seenImageUrls.add(url);
-      extractedImages.push(url);
-    }
-  };
-
-  if (note.image) pushImage(note.image);
-
-  if (note.text && typeof note.text === 'string') {
-    const htmlImgRegex = /<img[^>]+src=["']([^"']+)["']/gi;
-    let imgMatch;
-    while ((imgMatch = htmlImgRegex.exec(note.text)) !== null) {
-      pushImage(imgMatch[1]);
-    }
-
-    const mdImgRegex = /!\[.*?\]\((.*?)\)/gi;
-    while ((imgMatch = mdImgRegex.exec(note.text)) !== null) {
-      pushImage(imgMatch[1]);
-    }
-  }
-
-  extractedImages.forEach(imgUrl => {
-    const banner = document.createElement('div');
-    banner.className = 'card-image-banner';
-    const bannerImg = document.createElement('img');
-    bannerImg.src = imgUrl;
-    bannerImg.alt = 'Note banner';
-    bannerImg.loading = 'lazy';
-    banner.appendChild(bannerImg);
-    banner.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openImageViewer(imgUrl, cleanTitleTags(note.title || 'Note image'));
-    });
-    mediaContainer.appendChild(banner);
-  });
-
   const cardMenu = document.createElement('div');
   cardMenu.className = 'note-card-menu';
 
@@ -6775,7 +7842,7 @@ export function createNoteCardElement(note) {
   boardHeaderMeta.appendChild(boardAccent);
   card.appendChild(cardMenu);
 
-  // 3. Title (if not empty)
+  // 1. Title (if not empty)
   const titleVal = note.title || '';
   if (titleVal.trim() !== '') {
     const titleEl = document.createElement('h4');
@@ -6784,60 +7851,41 @@ export function createNoteCardElement(note) {
     surface.appendChild(titleEl);
   }
 
+  // 2. Text / Checklist Preview Body
   const previewBody = document.createElement('div');
   previewBody.className = 'note-card-preview-body';
   surface.appendChild(previewBody);
 
-  // 4. Content (Checklist vs Plain Text)
-  note.type = note.recipeData || note.type === 'recipe' ? 'recipe' : getNoteType(note.text || '');
-  const contentEl = renderNoteContent(note, {
-    cleanTextTags,
-    currentEditingNoteId: () => currentEditingNoteId,
-    modalText: () => modalText,
-    renderNotes,
-    renderTextWithLinksFromApp: (text) => renderTextWithLinks(text, URL_REGEX),
-    saveToLocalStorage,
-    syncModalInputs,
-    urlRegex: URL_REGEX,
-    appSettings: () => appSettings
-  });
+  const originalNoteType = note.type;
+  note.type = noteKind === 'checklist'
+    ? 'checklist'
+    : (noteKind === 'recipe' ? 'recipe' : 'text');
+  let contentEl;
+  try {
+    contentEl = renderNoteContent(note, {
+      cleanTextTags,
+      currentEditingNoteId: () => currentEditingNoteId,
+      modalText: () => modalText,
+      renderNotes,
+      renderTextWithLinksFromApp: (text) => renderTextWithLinks(text, URL_REGEX),
+      saveToLocalStorage,
+      syncModalInputs,
+      urlRegex: URL_REGEX,
+      appSettings: () => appSettings
+    });
+  } finally {
+    note.type = originalNoteType;
+  }
   if (contentEl) {
     previewBody.appendChild(contentEl);
   }
 
-  // 4.5 Audio Voice Note player rendering (Supports note.audio and note.audioClips)
-  const audioClipsList = Array.isArray(note.audioClips) && note.audioClips.length > 0
-    ? note.audioClips
-    : (note.audio ? [{ id: 'legacy-audio', data: note.audio, duration: note.audioDuration || '0:05' }] : []);
-
-  audioClipsList.forEach((clip, idx) => {
-    const audioChip = renderAudioClipChip(clip, idx, null, (c) => downloadDataUrl(c.data, `${getSafeFileName(note.title || 'voice-note')}-${idx + 1}.${getDataUrlExtension(c.data, 'webm')}`));
-    mediaContainer.appendChild(audioChip);
-  });
-
-  renderNoteFileAttachments(mediaContainer, note, { compact: true });
-
-  // 4.6 Schedule Reminder Slide Card
-  if (note.reminder) {
-    const reminderCard = document.createElement('div');
-    reminderCard.className = 'reminder-slide-card';
-    reminderCard.innerHTML = `
-      <svg class="reminder-slide-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
-      <div class="reminder-slide-info">
-        <div class="reminder-slide-title">Scheduled Reminder</div>
-        <div class="reminder-slide-time">${formatReminderDate(note.reminder)}</div>
-      </div>
-    `;
-    mediaContainer.appendChild(reminderCard);
-  }
-
-  // 5. Dynamic Tag Badges & Reminders rendering inside note cards
+  // 3. Tags
   const tags = extractHashtags(`${note.title} ${note.text}`);
   if (tags.length > 0 || note.reminder) {
     const tagList = document.createElement('div');
     tagList.className = 'note-tags-list';
 
-    // Prepend reminder chip if set
     if (note.reminder) {
       const chip = document.createElement('span');
       chip.className = 'reminder-chip';
@@ -6870,7 +7918,6 @@ export function createNoteCardElement(note) {
         currentPage = 'notes';
         selectedTagFilter = tag;
         selectedFolderFilter = null;
-        // Sync sidebar active styling
         document.querySelectorAll('.sidebar-item').forEach(el => {
           const lbl = el.querySelector('.sidebar-label');
           if (lbl && lbl.textContent === `#${tag}`) {
@@ -6886,77 +7933,16 @@ export function createNoteCardElement(note) {
     previewBody.appendChild(tagList);
   }
 
-  // 5.5 Link Preview Box rendering
-  const firstUrl = getFirstUrlInText(note.text);
-  if (firstUrl) {
-    const previewUrl = normalizeSocialCaptureUrl(note.linkPreview?.canonicalUrl)?.canonicalUrl || firstUrl;
-    const domain = extractDomain(previewUrl);
-    const cleanDomain = domain.replace(/^www\./, '');
-    const mediaKind = getMediaKindFromUrl(previewUrl);
-    const mockMeta = getLinkMetadata(previewUrl, note);
-
-    if (mediaKind) {
-      const mediaBox = document.createElement('div');
-      mediaBox.className = `link-preview-box media-link-preview type-${mediaKind}`;
-      mediaBox.addEventListener('click', (e) => e.stopPropagation());
-      const media = document.createElement(mediaKind);
-      media.className = 'link-media-player';
-      media.src = previewUrl;
-      media.controls = true;
-      media.preload = 'metadata';
-      if (mediaKind === 'video') media.playsInline = true;
-      mediaBox.innerHTML = `
-        <div class="link-preview-info">
-          <div class="link-preview-title">${mediaKind === 'video' ? 'Video link' : 'Audio link'}</div>
-          <a class="link-preview-url" href="${escapeHtml(previewUrl)}" target="_blank" rel="noopener noreferrer">Open source</a>
-        </div>
-      `;
-      mediaBox.prepend(media);
-      mediaContainer.appendChild(mediaBox);
-    } else {
-      const previewBox = document.createElement('a');
-      previewBox.href = previewUrl;
-      previewBox.target = '_blank';
-      previewBox.rel = 'noopener noreferrer';
-      if (note.linkPreview?.platform) previewBox.dataset.platform = note.linkPreview.platform;
-      previewBox.className = 'link-preview-box';
-      previewBox.addEventListener('click', (e) => e.stopPropagation());
-
-      if (mockMeta) {
-      previewBox.className = 'link-preview-box rich';
-      const cover = document.createElement('img');
-      cover.className = 'link-preview-cover';
-      cover.src = mockMeta.image;
-      cover.alt = `${mockMeta.title} preview`;
-      cover.loading = 'lazy';
-      cover.addEventListener('error', () => {
-        cover.src = createPreviewFallbackImage(cleanDomain, mockMeta.title);
-      }, { once: true });
-
-      const richContent = document.createElement('div');
-      richContent.className = 'link-preview-rich-content';
-      richContent.innerHTML = `
-        <div class="link-preview-domain">${escapeHtml(cleanDomain)}</div>
-        <div class="link-preview-rich-title">${escapeHtml(mockMeta.title)}</div>
-      `;
-      previewBox.className = 'link-preview-box rich compact-card-slide';
-      previewBox.appendChild(cover);
-      previewBox.appendChild(richContent);
-      } else {
-      previewBox.className = 'link-preview-box';
-      previewBox.innerHTML = `
-        <svg class="link-preview-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
-        <div class="link-preview-info">
-          <div class="link-preview-title">${escapeHtml(domain || 'Visit Link')}</div>
-          <div class="link-preview-url">${escapeHtml(previewUrl)}</div>
-        </div>
-      `;
-      }
-      mediaContainer.appendChild(previewBox);
-    }
+  // 4. Media Hub - Purpose-built slide deck rendered flush in normal document flow
+  const bottomRegion = document.createElement('div');
+  bottomRegion.className = 'note-card-bottom-region';
+  const slides = buildNoteMediaDeck(note, noteKind);
+  const mediaHub = renderNoteMediaDeck(note, slides);
+  if (mediaHub) {
+    bottomRegion.appendChild(mediaHub);
   }
 
-  // 6. Overflow Actions Menu
+  // 5. Overflow Actions Menu
   const colorBtn = document.createElement('button');
   colorBtn.className = 'note-card-menu-action';
   colorBtn.setAttribute('aria-label', 'Change note theme');
@@ -7097,7 +8083,6 @@ export function createNoteCardElement(note) {
     }
   });
 
-  // Wire up Desktop Spine More Button to open the same menu
   spineMore.addEventListener('click', (e) => {
     e.stopPropagation();
     const isOpen = cardMenu.classList.contains('open');
@@ -7108,6 +8093,7 @@ export function createNoteCardElement(note) {
     }
   });
 
+  // 6. Footer (in normal document flow, 6px below hub, 8px top padding)
   const footer = document.createElement('div');
   footer.className = 'note-card-footer';
 
@@ -7115,20 +8101,14 @@ export function createNoteCardElement(note) {
   stamp.className = 'note-stamp classic-footer';
   stamp.textContent = formatCardTimestamp(note.updatedAt);
   
-  const desktopStamp = document.createElement('div');
-  desktopStamp.className = 'note-stamp desktop-only';
-  desktopStamp.textContent = formatCardTimestamp(note.updatedAt);
-  
   const desktopTray = document.createElement('div');
   desktopTray.className = 'note-badges-tray desktop-only';
-  // Attachments badge
   if (note.fileAttachments && note.fileAttachments.length > 0) {
     const attachBadge = document.createElement('span');
     attachBadge.className = 'tray-badge attach-badge';
     attachBadge.innerHTML = `📎 ${note.fileAttachments.length}`;
     desktopTray.appendChild(attachBadge);
   }
-  // Audio badge
   if (note.audio) {
     const audioBadge = document.createElement('span');
     audioBadge.className = 'tray-badge audio-badge';
@@ -7136,21 +8116,10 @@ export function createNoteCardElement(note) {
     desktopTray.appendChild(audioBadge);
   }
 
-  if (mediaContainer.childNodes.length > 0) {
-    const mediaWrapper = document.createElement('div');
-    mediaWrapper.className = 'note-media-wrapper';
-    mediaWrapper.appendChild(mediaContainer);
-
-    if (footer && footer.parentNode === surface) {
-      surface.insertBefore(mediaWrapper, footer);
-    } else {
-      surface.appendChild(mediaWrapper);
-    }
-  }
-
   footer.appendChild(stamp);
   footer.appendChild(desktopTray);
-  surface.appendChild(footer);
+  bottomRegion.appendChild(footer);
+  surface.appendChild(bottomRegion);
 
   // Touch Long-Press Handler for Mobile/Touch Devices (~500ms Hold)
   let longPressTimer = null;
@@ -7161,6 +8130,7 @@ export function createNoteCardElement(note) {
 
   card.addEventListener('touchstart', (e) => {
     if (!e.touches || e.touches.length !== 1) return;
+    if (e.target.closest('.note-media-hub, .note-carousel-track, .note-slide-item')) return;
     if (e.target.closest('.icon-btn') || e.target.closest('.note-card-menu-action') || e.target.closest('.checklist-checkbox')) return;
 
     longPressStartX = e.touches[0].clientX;
@@ -9724,6 +10694,9 @@ function loadSettings() {
     }
   }
 
+  // Ensure legacy theme settings are migrated safely
+  migrateLegacyThemeSettings(appSettings);
+
   const savedCustomThemes = localStorage.getItem(STORAGE_KEYS.customThemes);
   if (savedCustomThemes) {
     try {
@@ -9749,7 +10722,7 @@ function loadSettings() {
   applyPremiumSkyThemeClass(premiumSkyTheme);
 
   // Apply UI Accent color theme
-  applyUiColorThemeClass(appSettings.uiColorTheme || 'sky');
+  applyUiColorThemeClass(appSettings.uiColorTheme || 'slate');
 }
 
 export function applySkyThemeClass(enabled) {
@@ -9779,14 +10752,7 @@ export function applyPremiumSkyThemeClass(enabled) {
   }
 }
 
-export function applyUiColorThemeClass(themeId) {
-  const normalizedTheme = themeId || 'sky';
-  const uiThemes = ['lavender', 'sky', 'aqua', 'mint', 'blush', 'peach', 'rose', 'honey', 'paper'];
-  uiThemes.forEach(theme => {
-    document.body.classList.remove(`ui-theme-${theme}`);
-  });
-  document.body.classList.add(`ui-theme-${normalizedTheme}`);
-}
+
 
 export function setPremiumSkyTheme(enabled) {
   premiumSkyTheme = enabled;
@@ -9853,7 +10819,10 @@ function updateSliderTrackFill(slider) {
   const percentage = ((val - min) / (max - min)) * 100;
 
   const activeColor = 'var(--primary, #1a73e8)';
-  const inactiveColor = document.body.classList.contains('dark-theme') || document.body.classList.contains('theme-dark') ? '#475569' : '#e2e8f0';
+  const isDark = (typeof document !== 'undefined' && document.body && document.body.classList)
+    ? (document.body.classList.contains('dark-theme') || document.body.classList.contains('theme-dark'))
+    : false;
+  const inactiveColor = isDark ? '#475569' : '#e2e8f0';
 
   slider.style.background = `linear-gradient(to right, ${activeColor} ${percentage}%, ${inactiveColor} ${percentage}%)`;
 }
