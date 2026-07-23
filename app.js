@@ -112,8 +112,9 @@ if (typeof window !== 'undefined') {
 // 1. Initial State & Data Definition (Upgraded v2.7.0)
 // ==========================================================================
 
-export const CURRENT_VERSION = '3.0.9';
+export const CURRENT_VERSION = '3.1.0';
 export const DEFAULT_CHANGELOG = [
+  'Remove Workspace Density Control (v3.1.0): Removed Workspace Density configurations from the Appearance settings panel and refactored underlying settings syncing scripts.',
   'Hide Context Menu Scrollbar (v3.0.9): Hid default scrollbar styling for context menu panels across all layout viewports for a cleaner, unified flat UI.',
   'Desktop Context Menu Rendering Fix (v3.0.8): Resolved desktop context menu visibility bug by appending cardMenu directly to card (rather than the hidden mobile-only header) and hidden three-dots toggle on desktop viewport.',
   'Lucide Icons & Context Menu Polish (v3.0.7): Refactored Notebook Spine quick actions to use flat, theme-responsive Lucide icons with bouncy interactions. Elevated Context Menu Z-level and implemented responsive scrolling for overflow action toggles.',
@@ -3594,8 +3595,9 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '3.0.9';
+  const CURRENT_VERSION = '3.1.0';
   const DEFAULT_CHANGELOG = [
+    'Remove Workspace Density Control (v3.1.0): Removed Workspace Density configurations from the Appearance settings panel and refactored underlying settings syncing scripts.',
     'Hide Context Menu Scrollbar (v3.0.9): Hid default scrollbar styling for context menu panels across all layout viewports for a cleaner, unified flat UI.',
     'Desktop Context Menu Rendering Fix (v3.0.8): Resolved desktop context menu visibility bug by appending cardMenu directly to card (rather than the hidden mobile-only header) and hidden three-dots toggle on desktop viewport.',
     'Lucide Icons & Context Menu Polish (v3.0.7): Refactored Notebook Spine quick actions to use flat, theme-responsive Lucide icons with bouncy interactions. Elevated Context Menu Z-level and implemented responsive scrolling for overflow action toggles.',

@@ -153,12 +153,13 @@
           <div class="profile-divider"></div>
           <div class="profile-version-section">
             <div class="version-header">
-              <span class="version-label">Version 3.0.9</span>
+              <span class="version-label">Version 3.1.0</span>
               <button class="update-btn" id="app-update-btn" type="button">Update</button>
             </div>
             <div class="changelog-container">
               <div class="changelog-title">What's New</div>
               <ul class="changelog-list">
+          <li><strong>Remove Workspace Density Control (v3.1.0):</strong> Removed Workspace Density configurations from the Appearance settings panel and refactored underlying settings syncing scripts.</li>
           <li><strong>Hide Context Menu Scrollbar (v3.0.9):</strong> Hid default scrollbar styling for context menu panels across all layout viewports for a cleaner, unified flat UI.</li>
           <li><strong>Desktop Context Menu Rendering Fix (v3.0.8):</strong> Resolved desktop context menu visibility bug by appending cardMenu directly to card (rather than the hidden mobile-only header) and hidden three-dots toggle on desktop viewport.</li>
           <li><strong>Lucide Icons & Context Menu Polish (v3.0.7):</strong> Refactored Notebook Spine quick actions to use flat, theme-responsive Lucide icons with bouncy interactions. Elevated Context Menu Z-level and implemented responsive scrolling for overflow action toggles.</li>
@@ -1000,29 +1001,7 @@
               <p class="settings-panel-subtitle">Workspace look &amp; card style</p>
             </div>
 
-            <div class="settings-card">
-              <div class="settings-card-title">Workspace Density</div>
-              <div class="settings-row flex-column" style="padding-top: 0;">
-                <div class="settings-info full-width">
-                  <strong>Choose how much information fits on screen</strong>
-                  <span>Auto adapts to your screen. Touch increases tap targets, while Compact and Spacious change card density.</span>
-                </div>
-                <div class="seg-control density-control" id="settings-density-seg" role="group" aria-label="Workspace Density">
-                  <button class="seg-btn active" data-value="auto" type="button">Auto</button>
-                  <button class="seg-btn" data-value="compact" type="button">Compact</button>
-                  <button class="seg-btn" data-value="comfortable" type="button">Comfortable</button>
-                  <button class="seg-btn" data-value="touch" type="button">Touch</button>
-                  <button class="seg-btn" data-value="spacious" type="button">Spacious</button>
-                </div>
-                <select id="settings-workspace-density" class="settings-select" style="display:none;" aria-hidden="true">
-                  <option value="auto">Auto</option>
-                  <option value="compact">Compact</option>
-                  <option value="comfortable">Comfortable</option>
-                  <option value="touch">Touch</option>
-                  <option value="spacious">Spacious</option>
-                </select>
-              </div>
-            </div>
+
 
             <div class="settings-card">
               <div class="settings-card-title">Card Layout</div>

@@ -45,7 +45,7 @@ let settingsNewBottom;
 let settingsAdvancedEditor;
 let settingsModernGlassEditor;
 let settingsCardStyle;
-let settingsWorkspaceDensity;
+
 let settingsTabletFirst;
 let settingsEmojiOpacity;
 let settingsEmojiSize;
@@ -89,7 +89,7 @@ export function initSettings() {
   settingsAdvancedEditor = document.getElementById('settings-advanced-editor');
   settingsModernGlassEditor = document.getElementById('settings-modern-glass-editor');
   settingsCardStyle = document.getElementById('settings-card-style');
-  settingsWorkspaceDensity = document.getElementById('settings-workspace-density');
+
   settingsTabletFirst = document.getElementById('settings-tablet-first');
   settingsExperimentalSkyTheme = document.getElementById('settings-experimental-sky-theme');
   settingsPremiumSkyTheme = document.getElementById('settings-premium-floating-theme');
@@ -167,17 +167,7 @@ export function initSettings() {
     applyCardLayoutStyle(btn.dataset.value);
   });
 
-  const densitySeg = document.getElementById('settings-density-seg');
-  densitySeg?.addEventListener('click', (e) => {
-    const btn = e.target.closest('.seg-btn');
-    if (!btn) return;
-    densitySeg.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    if (settingsWorkspaceDensity) settingsWorkspaceDensity.value = btn.dataset.value;
-    appSettings.workspaceDensity = btn.dataset.value;
-    applyWorkspacePreferences();
-    saveSettingsAndSync();
-  });
+
 
   settingsTabletFirst?.addEventListener('change', () => {
     appSettings.tabletFirstEnabled = settingsTabletFirst.checked;
@@ -366,11 +356,7 @@ export function renderSettingsPage() {
     btn.classList.toggle('active', btn.dataset.value === cardStyle);
   });
 
-  const density = appSettings.workspaceDensity || 'auto';
-  if (settingsWorkspaceDensity) settingsWorkspaceDensity.value = density;
-  document.querySelectorAll('#settings-density-seg .seg-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.value === density);
-  });
+
   if (settingsTabletFirst) settingsTabletFirst.checked = appSettings.tabletFirstEnabled === true;
 
   if (settingsExperimentalSkyTheme) settingsExperimentalSkyTheme.checked = experimentalSkyTheme;
@@ -688,7 +674,7 @@ export function saveSettingsFromForm() {
     advancedEditorEnabled: false,
     modernGlassEditorEnabled: true,
     cardLayoutStyle: settingsCardStyle.value,
-    workspaceDensity: settingsWorkspaceDensity ? settingsWorkspaceDensity.value : 'auto',
+    workspaceDensity: 'auto',
     tabletFirstEnabled: settingsTabletFirst ? settingsTabletFirst.checked : false,
     reminderTimes: {
       morning: settingsReminderMorning.value,
