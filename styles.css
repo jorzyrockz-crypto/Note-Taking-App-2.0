@@ -1793,6 +1793,9 @@ body.dark-theme .tag-badge:hover {
   top: calc(100% + 8px);
   right: 0;
   min-width: 172px;
+  z-index: 10000;
+  max-height: 250px;
+  overflow-y: auto;
   padding: 8px;
   border-radius: 16px;
   border: 1px solid rgba(255,255,255,0.55);
@@ -13545,7 +13548,7 @@ body.dark-theme .mobile-sheet-opt-label {
   }
 
   .notes-grid .note-card-spine .spine-btn:hover {
-    transform: scale(1.12);
+    transform: scale(1.15);
     background: rgba(0, 0, 0, 0.05);
     box-shadow: none;
   }
@@ -13560,21 +13563,30 @@ body.dark-theme .mobile-sheet-opt-label {
   }
 
   /* Dynamic Active Pin State */
-  .notes-grid .note-card-spine .spine-pin-btn.active {
+  .notes-grid .note-card-spine .spine-btn.active[title="Unpin"] {
     background: transparent !important;
     color: #f43f5e !important;
     border: none !important;
     box-shadow: none !important;
-    filter: drop-shadow(0 0 6px rgba(244, 63, 94, 0.8)) !important;
   }
 
   /* Dedicated Star / Favorite Section Active State */
-  .notes-grid .note-card-spine .spine-star-btn.active {
+  .notes-grid .note-card-spine .spine-btn.active[title="Unstar"] {
     background: transparent !important;
     color: #facc15 !important;
     border: none !important;
     box-shadow: none !important;
-    filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.8)) !important;
+  }
+
+  .notes-grid .note-card-spine .spine-btn svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2px;
+    fill: none;
+  }
+  
+  .notes-grid .note-card-spine .spine-btn.active[title="Unstar"] svg {
+    fill: currentColor;
   }
 
   /* Spine Visual Divider */
