@@ -1796,6 +1796,8 @@ body.dark-theme .tag-badge:hover {
   z-index: 10000;
   max-height: 250px;
   overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
   padding: 8px;
   border-radius: 16px;
   border: 1px solid rgba(255,255,255,0.55);
@@ -1804,6 +1806,10 @@ body.dark-theme .tag-badge:hover {
   display: none;
   flex-direction: column;
   gap: 6px;
+}
+
+.note-card-menu-panel::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 body.dark-theme .note-card-menu-panel {
