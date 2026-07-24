@@ -53,7 +53,7 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="search.css">
 </head>
-<body class="theme-light light-theme">
+<body class="theme-light light-theme sidebar-pinned">
   <script>
     (function () {
       try {
@@ -255,26 +255,36 @@
 
   <!-- Sidebar (Dynamic Tag Filter List) -->
   <aside class="app-sidebar">
-    <div class="sidebar-brand" aria-label="Paperuss">
-      <img class="sidebar-brand-logo" src="icons/icon-192.png" alt="">
-      <span class="sidebar-brand-title">Paperuss</span>
+    <div class="sidebar-scroll-region">
+      <div class="sidebar-brand" aria-label="Paperuss">
+        <img class="sidebar-brand-logo" src="icons/icon-192.png" alt="">
+        <span class="sidebar-brand-title">Paperuss</span>
+      </div>
+      <div class="sidebar-item" id="sidebar-new-note" title="New Note" aria-label="New Note" role="button" tabindex="0">
+        <i class="sidebar-icon" data-lucide="square-pen" aria-hidden="true"></i>
+        <span class="sidebar-label">New Note</span>
+      </div>
+      <div class="sidebar-item active" id="sidebar-all-notes" title="All Notes" aria-label="All Notes">
+        <i class="sidebar-icon" data-lucide="notebook-tabs" aria-hidden="true"></i>
+        <span class="sidebar-label">All Notes</span>
+      </div>
+      <div class="sidebar-item" id="sidebar-favorites" title="Favorites" aria-label="Favorites">
+        <i class="sidebar-icon" data-lucide="star" aria-hidden="true"></i>
+        <span class="sidebar-label">Favorites</span>
+      </div>
+      <div class="sidebar-item" id="sidebar-search" title="Search" aria-label="Search">
+        <i class="sidebar-icon" data-lucide="search" aria-hidden="true"></i>
+        <span class="sidebar-label">Search</span>
+      </div>
     </div>
-    <div class="sidebar-item" id="sidebar-new-note" title="New Note" aria-label="New Note" role="button" tabindex="0">
-      <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-      <span class="sidebar-label">New Note</span>
-    </div>
-    <div class="sidebar-item active" id="sidebar-all-notes" title="All Notes" aria-label="All Notes">
-      <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M5 4h11a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm2 4v2h7V8H7zm0 4v2h7v-2H7zm10-7.5L20.5 8 17 11.5V9h-2V7h2V4.5z"/></svg>
-      <span class="sidebar-label">All Notes</span>
-    </div>
-    <div class="sidebar-item" id="sidebar-favorites" title="Favorites" aria-label="Favorites">
-      <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      <span class="sidebar-label">Favorites</span>
-    </div>
-    <div class="sidebar-item" id="sidebar-search" title="Search" aria-label="Search">
-      <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-      <span class="sidebar-label">Search</span>
-    </div>
+    <button class="sidebar-profile" id="sidebar-profile-btn" type="button" aria-label="Open user profile">
+      <span class="sidebar-profile-avatar" id="sidebar-profile-avatar">G</span>
+      <span class="sidebar-profile-copy">
+        <strong id="sidebar-profile-name">Guest</strong>
+        <small id="sidebar-profile-status">View profile</small>
+      </span>
+      <i data-lucide="chevron-right" aria-hidden="true"></i>
+    </button>
   </aside>
 
   <!-- Main View Area -->

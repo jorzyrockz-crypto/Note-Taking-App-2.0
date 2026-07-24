@@ -1,8 +1,10 @@
 import {
   applyChecklistInlineReminder,
   extractChecklistInlineReminder,
+  getChecklistPreviewLines,
   renderTextWithLinks,
-  stripChecklistInlineReminder
+  stripChecklistInlineReminder,
+  toggleHtmlChecklistItem
 } from './shared.js';
 
 let checklistFocusIndex = null;
@@ -76,7 +78,10 @@ export function renderChecklistNoteContent(note, options) {
   const container = document.createElement('div');
   container.className = 'checklist-container';
 
-  const lines = (note.text || '').split('\n');
+  const isHtmlChecklist = /class=["'][^"']*checklist-item/i.test(note.text || '');
+  const lines = isHtmlChecklist
+    ? getChecklistPreviewLines(note.text || '')
+    : (note.text || '').split('\n');
   const uncheckedRows = [];
   const checkedRows = [];
 
@@ -98,7 +103,9 @@ export function renderChecklistNoteContent(note, options) {
         e.stopPropagation();
         const newPrefix = checked ? '- [ ] ' : '- [x] ';
         lines[index] = newPrefix + applyChecklistInlineReminder(cleanText, inlineReminder);
-        note.text = lines.join('\n');
+        note.text = isHtmlChecklist
+          ? toggleHtmlChecklistItem(note.text, index, !checked)
+          : lines.join('\n');
         note.updatedAt = Date.now();
 
         saveToLocalStorage();

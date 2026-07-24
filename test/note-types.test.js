@@ -25,7 +25,7 @@ if (typeof globalThis.localStorage === 'undefined') {
 }
 
 import { buildNoteMediaDeck, getVisualNoteType, NOTE_TYPE_REGISTRY } from '../app.js';
-import { isChecklistFormat } from '../note-types/shared.js';
+import { getChecklistPreviewLines, isChecklistFormat } from '../note-types/shared.js';
 
 test('NOTE_TYPE_REGISTRY defines all 8 canonical note types with Lucide icons', () => {
   assert.ok(Array.isArray(NOTE_TYPE_REGISTRY));
@@ -47,6 +47,15 @@ test('getVisualNoteType classifies checklist notes and markdown checklists', () 
   assert.equal(getVisualNoteType(note2), 'checklist');
   assert.equal(getVisualNoteType(note3), 'checklist');
   assert.equal(isChecklistFormat(note3.text), true);
+});
+
+test('legacy HTML checklists produce clean preview tasks and completion state', () => {
+  const html = '<h3>Offline setup</h3><div class="checklist-item"><input type="checkbox" checked><span contenteditable="true">Install app</span></div><div class="checklist-item"><input type="checkbox"><span contenteditable="true">Open offline</span></div>';
+  assert.equal(isChecklistFormat(html), true);
+  assert.deepEqual(getChecklistPreviewLines(html), [
+    '- [x] Install app',
+    '- [ ] Open offline'
+  ]);
 });
 
 test('getVisualNoteType classifies audio and voice clips correctly', () => {

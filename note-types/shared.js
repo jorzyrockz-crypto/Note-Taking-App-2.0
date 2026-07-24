@@ -1,7 +1,45 @@
 const CHECKLIST_INLINE_REMINDER_REGEX = /\s*\{\{reminder:([^}]+)\}\}\s*$/;
 
 export function isChecklistFormat(text = '') {
-  return text.split('\n').some(line => /^\s*[-*]\s*\[[ xX]\]\s*/.test(line));
+  return text.split('\n').some(line => /^\s*[-*]\s*\[[ xX]\]\s*/.test(line))
+    || /class=["'][^"']*checklist-(?:container|item)/i.test(text);
+}
+
+export function getChecklistPreviewLines(text = '') {
+  const markdownLines = `${text}`.split('\n').filter(line => /^\s*[-*]\s*\[[ xX]\]\s*/.test(line));
+  if (markdownLines.length > 0) return markdownLines;
+  if (!/class=["'][^"']*checklist-item/i.test(text)) return [];
+
+  if (typeof DOMParser !== 'undefined') {
+    const doc = new DOMParser().parseFromString(`<body>${text}</body>`, 'text/html');
+    return Array.from(doc.querySelectorAll('.checklist-item')).map((item) => {
+      const checkbox = item.querySelector('input[type="checkbox"]');
+      const label = item.querySelector('span[contenteditable], .checklist-text, label');
+      const checked = Boolean(checkbox?.checked || checkbox?.hasAttribute('checked') || item.classList.contains('checked'));
+      const labelText = (label?.textContent || item.textContent || '').trim();
+      return `- [${checked ? 'x' : ' '}] ${labelText}`;
+    });
+  }
+
+  return `${text}`.split(/(?=<[^>]+class=["'][^"']*checklist-item)/i).map((fragment) => {
+    if (!/class=["'][^"']*checklist-item/i.test(fragment)) return '';
+    const inputTag = fragment.match(/<input\b[^>]*type=["']?checkbox["']?[^>]*>/i)?.[0] || '';
+    const labelHtml = fragment.match(/<span\b[^>]*contenteditable[^>]*>([\s\S]*?)<\/span>/i)?.[1] || '';
+    const labelText = labelHtml.replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ').trim();
+    return `- [${/\bchecked\b/i.test(inputTag) ? 'x' : ' '}] ${labelText}`;
+  }).filter(Boolean);
+}
+
+export function toggleHtmlChecklistItem(text = '', itemIndex = 0, checked = false) {
+  if (typeof DOMParser === 'undefined' || !/class=["'][^"']*checklist-item/i.test(text)) return text;
+  const doc = new DOMParser().parseFromString(`<body>${text}</body>`, 'text/html');
+  const item = doc.querySelectorAll('.checklist-item')[itemIndex];
+  const checkbox = item?.querySelector('input[type="checkbox"]');
+  if (!checkbox) return text;
+  checkbox.checked = checked;
+  if (checked) checkbox.setAttribute('checked', '');
+  else checkbox.removeAttribute('checked');
+  return doc.body.innerHTML;
 }
 
 export function plainToChecklist(text = '') {

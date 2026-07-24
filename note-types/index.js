@@ -3,9 +3,11 @@ import {
   applyChecklistInlineReminder,
   checklistToPlain,
   extractChecklistInlineReminder,
+  getChecklistPreviewLines,
   isChecklistFormat,
   plainToChecklist,
-  stripChecklistInlineReminder
+  stripChecklistInlineReminder,
+  toggleHtmlChecklistItem
 } from './shared.js';
 import { renderTextNoteContent } from './text-note.js';
 
@@ -68,9 +70,11 @@ export {
   applyChecklistInlineReminder,
   checklistToPlain,
   extractChecklistInlineReminder,
+  getChecklistPreviewLines,
   getNoteTypeFromText as getNoteType,
   isChecklistFormat,
   plainToChecklist,
   stripChecklistInlineReminder,
+  toggleHtmlChecklistItem,
   renderTextWithLinks
 };

@@ -2,6 +2,7 @@ import {
   applyChecklistInlineReminder,
   checklistToPlain,
   extractChecklistInlineReminder,
+  getChecklistPreviewLines,
   getNoteType,
   isChecklistFormat,
   normalizeNoteType,
@@ -1812,6 +1813,7 @@ function enhanceShell() {
   }
 
   const sidebar = document.querySelector('.app-sidebar');
+  const sidebarMenu = sidebar?.querySelector('.sidebar-scroll-region') || sidebar;
   if (sidebar && !document.getElementById('sidebar-productivity')) {
     const productivityItem = document.createElement('div');
     productivityItem.className = 'sidebar-item';
@@ -1819,10 +1821,10 @@ function enhanceShell() {
     productivityItem.setAttribute('title', 'Productivity');
     productivityItem.setAttribute('aria-label', 'Productivity');
     productivityItem.innerHTML = `
-      <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 18.5v-13Zm3 0v2h10v-2H7Zm0 5v7h3v-7H7Zm5 0v2h5v-2h-5Zm0 4v3h5v-3h-5Z"/></svg>
+      <i class="sidebar-icon" data-lucide="calendar-check-2" aria-hidden="true"></i>
       <span class="sidebar-label">Productivity</span>
     `;
-    sidebar.insertBefore(productivityItem, sidebar.querySelector('.sidebar-divider') || null);
+    sidebarMenu.insertBefore(productivityItem, sidebarMenu.querySelector('.sidebar-divider') || null);
   }
   sidebarProductivity = document.getElementById('sidebar-productivity');
 
@@ -1833,10 +1835,10 @@ function enhanceShell() {
     archiveItem.setAttribute('title', 'Archive');
     archiveItem.setAttribute('aria-label', 'Archive');
     archiveItem.innerHTML = `
-      <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M20.54 5.23 19.15 3.55A2 2 0 0 0 17.61 3H6.39a2 2 0 0 0-1.54.55L3.46 5.23A2 2 0 0 0 3 6.5V19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.5a2 2 0 0 0-.46-1.27ZM6.24 5h11.52l.81 1H5.43l.81-1ZM12 17l-4-4h2.5v-3h3v3H16l-4 4Z"/></svg>
+      <i class="sidebar-icon" data-lucide="archive" aria-hidden="true"></i>
       <span class="sidebar-label">Archive</span>
     `;
-    sidebar.insertBefore(archiveItem, sidebar.querySelector('.sidebar-divider') || null);
+    sidebarMenu.insertBefore(archiveItem, sidebarMenu.querySelector('.sidebar-divider') || null);
   }
   sidebarArchive = document.getElementById('sidebar-archive');
 
@@ -1847,10 +1849,10 @@ function enhanceShell() {
     deletedItem.setAttribute('title', 'Trash');
     deletedItem.setAttribute('aria-label', 'Trash');
     deletedItem.innerHTML = `
-      <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7Zm3-4h6l1 2h4v2H4V5h4l1-2Z"/></svg>
+      <i class="sidebar-icon" data-lucide="trash-2" aria-hidden="true"></i>
       <span class="sidebar-label">Trash</span>
     `;
-    sidebar.insertBefore(deletedItem, sidebar.querySelector('.sidebar-divider') || null);
+    sidebarMenu.insertBefore(deletedItem, sidebarMenu.querySelector('.sidebar-divider') || null);
   }
   sidebarDeleted = document.getElementById('sidebar-deleted');
   if (sidebar && !document.getElementById('sidebar-settings')) {
@@ -1860,10 +1862,10 @@ function enhanceShell() {
     settingsItem.setAttribute('title', 'Settings');
     settingsItem.setAttribute('aria-label', 'Settings');
     settingsItem.innerHTML = `
-      <svg class="sidebar-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
+      <i class="sidebar-icon" data-lucide="settings" aria-hidden="true"></i>
       <span class="sidebar-label">Settings</span>
     `;
-    sidebar.appendChild(settingsItem);
+    sidebarMenu.appendChild(settingsItem);
   }
   sidebarSettings = document.getElementById('sidebar-settings');
   sidebarFoldersList = document.getElementById('sidebar-folders-list');
@@ -2576,6 +2578,8 @@ function updateOnlineStatusUI() {
   const offlineBadge = document.getElementById('profile-offline-badge');
   const headerAvatar = document.getElementById('user-avatar-btn');
   const profileAvatar = document.getElementById('profile-user-avatar-inner');
+  const sidebarAvatar = document.getElementById('sidebar-profile-avatar');
+  const sidebarStatus = document.getElementById('sidebar-profile-status');
 
   if (isOnline) {
     if (syncDot) {
@@ -2594,6 +2598,8 @@ function updateOnlineStatusUI() {
     if (profileAvatar) {
       profileAvatar.classList.remove('offline');
     }
+    sidebarAvatar?.classList.remove('offline');
+    if (sidebarStatus && currentUser) sidebarStatus.textContent = 'View profile';
   } else {
     if (syncDot) {
       syncDot.classList.remove('active');
@@ -2611,6 +2617,8 @@ function updateOnlineStatusUI() {
     if (profileAvatar) {
       profileAvatar.classList.add('offline');
     }
+    sidebarAvatar?.classList.add('offline');
+    if (sidebarStatus && currentUser) sidebarStatus.textContent = 'Working offline';
   }
 }
 
@@ -2880,6 +2888,11 @@ function setupEventHandlers() {
   // Toggle sidebar drawer on mobile / pin layout on desktop
   const menuBtn = document.querySelector('.menu-btn');
   const sidebar = document.querySelector('.app-sidebar');
+  if (window.innerWidth <= 900) {
+    document.body.classList.remove('sidebar-pinned');
+  } else {
+    document.body.classList.add('sidebar-pinned');
+  }
   if (menuBtn && sidebar) {
     menuBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -5241,7 +5254,7 @@ function renderSidebarFolders() {
     item.setAttribute('title', folder);
     item.setAttribute('aria-label', folder);
     item.innerHTML = `
-      <span class="sidebar-icon folder-icon" style="--folder-accent: ${folderMeta.accent}; --folder-soft: ${folderMeta.soft};">${getFolderIconSvg(folderMeta.icon)}</span>
+      <i class="sidebar-icon folder-icon" data-lucide="folder" aria-hidden="true" style="--folder-accent: ${folderMeta.accent}; --folder-soft: ${folderMeta.soft};"></i>
       <span class="sidebar-label">${folder}</span>
     `;
     item.addEventListener('click', () => {
@@ -5255,6 +5268,9 @@ function renderSidebarFolders() {
     });
     sidebarFoldersList.appendChild(item);
   });
+  if (typeof lucide !== 'undefined' && lucide.createIcons) {
+    lucide.createIcons();
+  }
 }
 
 function renderFolderDrawer() {
@@ -7089,7 +7105,7 @@ export function buildTextDeck(note) {
 export function buildChecklistDeck(note) {
   const slides = [];
   const checklistLinePattern = /^\s*[-*]\s*\[([ xX])\]\s*(.*)$/;
-  const lines = (note.text || '').split('\n').filter(line => checklistLinePattern.test(line));
+  const lines = getChecklistPreviewLines(note.text || '').filter(line => checklistLinePattern.test(line));
   const totalCount = lines.length || 1;
   const completedCount = lines.filter(line => {
     const match = line.match(checklistLinePattern);
@@ -8151,6 +8167,13 @@ export function createNoteCardElement(note) {
   let longPressStartY = 0;
   let isLongPressTriggered = false;
   let longPressSuppressClickUntil = 0;
+
+  card.addEventListener('contextmenu', (e) => {
+    const isTouchPointer = window.matchMedia?.('(hover: none), (pointer: coarse)')?.matches;
+    if (isTouchPointer) {
+      e.preventDefault();
+    }
+  });
 
   card.addEventListener('touchstart', (e) => {
     if (!e.touches || e.touches.length !== 1) return;
@@ -10969,6 +10992,10 @@ export {
 
 function initAuth() {
   const avatarBtn = document.getElementById('user-avatar-btn');
+  const sidebarProfileBtn = document.getElementById('sidebar-profile-btn');
+  const sidebarProfileAvatar = document.getElementById('sidebar-profile-avatar');
+  const sidebarProfileName = document.getElementById('sidebar-profile-name');
+  const sidebarProfileStatus = document.getElementById('sidebar-profile-status');
   const dropdown = document.getElementById('profile-dropdown');
 
   const guestView = document.getElementById('profile-guest-view');
@@ -10997,6 +11024,18 @@ function initAuth() {
   const forgotBtn = document.getElementById('auth-forgot-btn');
 
   let activeTab = 'login'; // 'login' or 'register'
+
+  const syncSidebarProfile = (user = null) => {
+    if (!sidebarProfileAvatar || !sidebarProfileName || !sidebarProfileStatus) return;
+    const initial = (user?.displayName || user?.email || 'G').charAt(0).toUpperCase();
+    sidebarProfileAvatar.textContent = user?.photoURL ? '' : initial;
+    sidebarProfileAvatar.style.backgroundImage = user?.photoURL ? `url(${user.photoURL})` : '';
+    sidebarProfileName.textContent = user?.displayName || user?.email?.split('@')[0] || 'Guest';
+    sidebarProfileStatus.textContent = user
+      ? (navigator.onLine === false ? 'Working offline' : 'View profile')
+      : 'Sign in or continue locally';
+  };
+  syncSidebarProfile(currentUser);
 
   // ── Guest Banner elements ──
   const guestBanner = document.getElementById('guest-mode-banner');
@@ -11037,6 +11076,7 @@ function initAuth() {
     if (!cachedProfile?.uid) return false;
 
     currentUser = cachedProfile;
+    syncSidebarProfile(cachedProfile);
     const initial = (cachedProfile.displayName || cachedProfile.email || 'U').charAt(0).toUpperCase();
 
     if (cachedProfile.photoURL) {
@@ -11111,12 +11151,20 @@ function initAuth() {
   // Toggle Dropdown
   avatarBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
+    dropdown?.classList.remove('profile-from-sidebar');
+    dropdown?.classList.toggle('is-open');
+  });
+
+  sidebarProfileBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dropdown?.classList.add('profile-from-sidebar');
     dropdown?.classList.toggle('is-open');
   });
 
   // Close dropdown on click outside
   document.addEventListener('click', () => {
     dropdown?.classList.remove('is-open');
+    dropdown?.classList.remove('profile-from-sidebar');
   });
 
   dropdown?.addEventListener('click', (e) => {
@@ -11277,6 +11325,7 @@ function initAuth() {
         showToast({ title: 'Uploading...', text: 'Updating your profile picture...' });
         const updatedUser = await updateUserProfilePic(compressedBase64);
         currentUser = updatedUser;
+        syncSidebarProfile(updatedUser);
 
         if (avatarBtn) {
           avatarBtn.textContent = '';
@@ -11325,6 +11374,7 @@ function initAuth() {
 
     if (user) {
       currentUser = user;
+      syncSidebarProfile(user);
       notes = notes.filter(n => !n.id.startsWith('starter-'));
       offlineBannerShown = false;
 
@@ -11382,6 +11432,7 @@ function initAuth() {
       initCloudNotesSync(user);
     } else {
       currentUser = null;
+      syncSidebarProfile(null);
       clearSyncCache();
       if (avatarBtn) {
         avatarBtn.textContent = 'G';

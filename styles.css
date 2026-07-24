@@ -649,6 +649,25 @@ body.dark-theme .app-sidebar {
   height: 0;
 }
 
+.sidebar-scroll-region {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.sidebar-scroll-region::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.sidebar-profile {
+  display: none;
+}
+
 .sidebar-brand {
   width: 100%;
   min-height: 48px;
@@ -691,6 +710,10 @@ body.sidebar-pinned .app-sidebar .sidebar-brand-title,
 
 @media screen and (min-width: 901px) {
   .app-header .logo-container {
+    display: flex;
+  }
+
+  .app-sidebar .sidebar-brand {
     display: none;
   }
 }
@@ -809,7 +832,9 @@ body.dark-theme .sidebar-item.active {
 .sidebar-icon {
   width: 24px;
   height: 24px;
-  fill: currentColor;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
   margin: 0 23px;
   flex-shrink: 0;
 }
@@ -5638,6 +5663,8 @@ body.dark-theme .note-card[data-note-kind="image"] {
   font-weight: 700;
   background: var(--folder-soft, rgba(148, 163, 184, 0.14));
   color: var(--folder-accent, var(--text-primary));
+  padding: 6px;
+  box-sizing: border-box;
 }
 
 .folder-icon svg,
@@ -15111,6 +15138,153 @@ body.dark-theme .reminder-slide-card {
 
 body.dark-theme .reminder-slide-card:has(.status-overdue) {
   border-left-color: #991b1b;
+}
+
+/* Responsive sidebar ownership: expanded desktop navigation and a fixed
+   mobile account footer outside the independently scrollable menu. */
+.app-sidebar {
+  overflow: hidden;
+}
+
+@media screen and (min-width: 901px) {
+  body.sidebar-pinned .app-sidebar {
+    width: 240px !important;
+  }
+
+  body.sidebar-pinned .main-content-area {
+    margin-left: 240px !important;
+  }
+
+  body.sidebar-pinned .app-sidebar .sidebar-label {
+    display: block !important;
+    opacity: 1 !important;
+  }
+
+  body.sidebar-pinned .app-sidebar .sidebar-item {
+    justify-content: flex-start !important;
+  }
+
+  body.sidebar-pinned .app-sidebar .sidebar-icon {
+    margin: 0 23px !important;
+  }
+}
+
+@media screen and (max-width: 900px) {
+  .app-header #user-avatar-btn {
+    display: none !important;
+  }
+
+  .sidebar-profile {
+    width: calc(100% - 20px);
+    min-height: 64px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 8px 10px max(8px, env(safe-area-inset-bottom));
+    padding: 8px 10px;
+    flex: 0 0 auto;
+    border: 1px solid color-mix(in srgb, var(--accent) 15%, var(--border-light));
+    border-radius: 16px;
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--bg-app) 88%, transparent);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.09);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .sidebar-profile-avatar {
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 40px;
+    overflow: hidden;
+    border-radius: 50%;
+    color: var(--text-on-accent);
+    background-color: var(--accent);
+    background-position: center;
+    background-size: cover;
+    font-size: 14px;
+    font-weight: 750;
+  }
+
+  .sidebar-profile-avatar.offline {
+    box-shadow: 0 0 0 2px #f59e0b;
+  }
+
+  .sidebar-profile-copy {
+    min-width: 0;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .sidebar-profile-copy strong,
+  .sidebar-profile-copy small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sidebar-profile-copy strong {
+    font-size: 13px;
+  }
+
+  .sidebar-profile-copy small {
+    color: var(--text-secondary);
+    font-size: 10px;
+  }
+
+  .sidebar-profile > svg {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    color: var(--text-secondary);
+  }
+
+  .profile-dropdown.profile-from-sidebar {
+    position: fixed !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: max(12px, env(safe-area-inset-bottom)) !important;
+    left: 12px !important;
+    width: min(330px, calc(100vw - 24px)) !important;
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top)) !important;
+    margin: 0 !important;
+    overflow-y: auto !important;
+    z-index: 500 !important;
+  }
+}
+
+/* Prevent accidental word selection/native callouts while scrolling or
+   long-pressing note cards on touch devices. Interactive editors and form
+   controls remain selectable when they are ever rendered inside a card. */
+@media (hover: none), (pointer: coarse) {
+  .notes-grid .note-card {
+    touch-action: pan-y;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+
+  .notes-grid .note-card,
+  .notes-grid .note-card *:not(input):not(textarea):not([contenteditable="true"]) {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+  }
+
+  .notes-grid .note-card img,
+  .notes-grid .note-card svg {
+    -webkit-user-drag: none;
+    user-drag: none;
+  }
+
+  .notes-grid .note-card .note-media-hub,
+  .notes-grid .note-card .note-carousel-track,
+  .notes-grid .note-card .note-slide-item {
+    touch-action: pan-x;
+  }
 }
 
 /* Dynamic theme-based highlight for folder and tags */
