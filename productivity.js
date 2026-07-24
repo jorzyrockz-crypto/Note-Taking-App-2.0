@@ -117,8 +117,7 @@ export function ensureProductivityPage() {
       <div class="productivity-hero" id="productivity-hero">
         <div class="productivity-hero-copy">
           <div class="productivity-hero-date" id="productivity-hero-date"></div>
-          <h2 class="productivity-title">Calendar Flow</h2>
-          <p class="productivity-subtitle">A clean month view with type-colored note dots and a focused day panel for agenda, tasks, and notes created that day.</p>
+          <h2 class="productivity-title">Productivity</h2>
         </div>
         <div class="productivity-summary" id="productivity-summary"></div>
       </div>
@@ -128,12 +127,16 @@ export function ensureProductivityPage() {
           <div class="productivity-panel-header">
             <div>
               <div class="productivity-panel-kicker">Calendar</div>
-              <h3>Reminder map</h3>
+              <h3>Calendar</h3>
             </div>
             <div class="calendar-controls">
-              <button class="text-btn productivity-nav-btn" id="calendar-prev-btn" type="button">Prev</button>
+              <button class="text-btn productivity-nav-btn productivity-nav-icon-btn" id="calendar-prev-btn" type="button" aria-label="Previous month" title="Previous month">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+              </button>
               <button class="text-btn productivity-nav-btn" id="calendar-today-btn" type="button">Today</button>
-              <button class="text-btn productivity-nav-btn" id="calendar-next-btn" type="button">Next</button>
+              <button class="text-btn productivity-nav-btn productivity-nav-icon-btn" id="calendar-next-btn" type="button" aria-label="Next month" title="Next month">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
             </div>
           </div>
           <div class="calendar-month-label" id="calendar-month-label"></div>
@@ -246,7 +249,7 @@ export function renderProductivityPage() {
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         </span>
         <span class="productivity-stat-value">${selectedDay.created.length}</span>
-        <span class="productivity-stat-label">Notes Today</span>
+        <span class="productivity-stat-label">Selected Day</span>
       </div>
     `;
   }
@@ -383,22 +386,27 @@ export function renderProductivityPage() {
       .filter(({ note }) => !todoNotes.find(n => n.id === note.id)) // don't double-show
       .map(({ text, note }) => ({ type: 'item', note, text, sub: cleanTitleTags(note.title || ''), schedule: '', completed: false }));
 
-    // Merge: day tasks first, then unchecked items, cap at 8
-    const widgetItems = [...dayTaskItems, ...uncheckedItems].slice(0, 8);
-    const widgetLabel = todoNotes.length > 0 ? 'Selected day tasks + unchecked items' : 'All unchecked items';
+    const selectedDayItems = dayTaskItems.slice(0, 8);
+    const otherOpenItems = uncheckedItems.slice(0, 8);
 
     todoWidget.innerHTML = `
       <div class="productivity-todo-widget-head">
         <div>
           <div class="productivity-panel-kicker">To Do</div>
-          <h4>Task widget</h4>
+          <h4>Tasks</h4>
         </div>
-        <span class="agenda-count">${widgetItems.length}</span>
+        <div class="productivity-todo-actions">
+          <span class="agenda-count">${selectedDayItems.length}</span>
+          <button class="productivity-new-task-btn" id="productivity-new-task-btn" type="button">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            <span>New task</span>
+          </button>
+        </div>
       </div>
-      <div class="productivity-todo-widget-meta">${widgetLabel}.</div>
+      <div class="productivity-todo-widget-meta">Tasks scheduled for the selected day.</div>
       <div class="productivity-todo-list">
-        ${widgetItems.length > 0
-          ? widgetItems.map(item => `
+        ${selectedDayItems.length > 0
+          ? selectedDayItems.map(item => `
             <button class="productivity-todo-item ${item.completed ? 'is-complete' : ''}" type="button" data-note-id="${item.note.id}">
               <span class="productivity-todo-bullet"></span>
               <span class="productivity-todo-copy">
@@ -410,9 +418,32 @@ export function renderProductivityPage() {
               </span>
             </button>
           `).join('')
-          : '<div class="productivity-empty productivity-todo-empty">No open tasks or unchecked items.</div>'}
+          : '<div class="productivity-empty productivity-todo-empty">No tasks scheduled for this day.</div>'}
       </div>
+      ${otherOpenItems.length > 0 ? `
+        <details class="productivity-other-tasks">
+          <summary>
+            <span>Other open tasks</span>
+            <span class="productivity-other-task-count">${otherOpenItems.length}</span>
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+          </summary>
+          <div class="productivity-todo-list">
+            ${otherOpenItems.map(item => `
+              <button class="productivity-todo-item" type="button" data-note-id="${item.note.id}">
+                <span class="productivity-todo-bullet"></span>
+                <span class="productivity-todo-copy">
+                  <span class="productivity-todo-copy-top"><strong>${escapeHtml(item.text)}</strong></span>
+                  ${item.sub ? `<span class="productivity-todo-note-source">${escapeHtml(item.sub)}</span>` : ''}
+                </span>
+              </button>
+            `).join('')}
+          </div>
+        </details>
+      ` : ''}
     `;
+    document.getElementById('productivity-new-task-btn')?.addEventListener('click', () => {
+      openEditModal({ id: null, title: '', text: '- [ ] ', type: 'checklist' }, true);
+    });
     todoWidget.querySelectorAll('.productivity-todo-item').forEach(button => {
       button.addEventListener('click', () => {
         const note = notes.find(entry => entry.id === button.getAttribute('data-note-id'));

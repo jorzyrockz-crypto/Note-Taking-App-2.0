@@ -6013,6 +6013,16 @@ body.dark-theme .note-card[data-note-kind="image"] {
   color: var(--text-secondary);
 }
 
+.productivity-nav-icon-btn {
+  min-width: 38px;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .productivity-nav-btn:hover,
 .productivity-nav-btn:focus-visible {
   background: rgba(255, 255, 255, 0.92);
@@ -6429,6 +6439,35 @@ body.dark-theme .note-card[data-note-kind="image"] {
   gap: 12px;
 }
 
+.productivity-todo-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.productivity-new-task-btn {
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--accent-border);
+  border-radius: 999px;
+  background: var(--accent-light, rgba(79, 134, 255, 0.1));
+  color: var(--accent-text, #315fca);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.productivity-new-task-btn:hover,
+.productivity-new-task-btn:focus-visible {
+  border-color: var(--accent-color, #4f86ff);
+  outline: none;
+}
+
 .productivity-todo-widget-head h4 {
   margin-top: 4px;
   font-size: 18px;
@@ -6534,6 +6573,49 @@ body.dark-theme .note-card[data-note-kind="image"] {
 
 .productivity-todo-empty {
   padding: 14px;
+}
+
+.productivity-other-tasks {
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  padding-top: 12px;
+}
+
+.productivity-other-tasks summary {
+  min-height: 44px;
+  padding: 8px 4px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.productivity-other-tasks summary::-webkit-details-marker {
+  display: none;
+}
+
+.productivity-other-tasks summary svg {
+  margin-left: auto;
+  transition: transform 0.18s ease;
+}
+
+.productivity-other-tasks[open] summary svg {
+  transform: rotate(180deg);
+}
+
+.productivity-other-task-count {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.14);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
 }
 
 .productivity-notes-label {
@@ -6778,21 +6860,39 @@ body.dark-theme .productivity-note-card[data-note-kind="image"] {
   }
 
   .calendar-controls {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: auto;
+    display: flex;
     gap: 6px;
   }
 
   .productivity-nav-btn {
     min-width: 0;
-    width: 100%;
-    padding: 10px 0;
+    width: auto;
+    padding: 10px 14px;
+  }
+
+  .productivity-nav-icon-btn {
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
   }
 
   .productivity-panel {
     padding: 16px;
     border-radius: 24px;
+  }
+
+  .productivity-panel-header,
+  .productivity-todo-widget-head {
+    align-items: center;
+  }
+
+  .productivity-new-task-btn {
+    min-height: 44px;
+  }
+
+  .productivity-todo-actions .agenda-count {
+    display: none;
   }
 
   .productivity-note-card h4 {
@@ -15254,7 +15354,7 @@ body.dark-theme .reminder-slide-card:has(.status-overdue) {
     max-height: calc(100dvh - 24px - env(safe-area-inset-top)) !important;
     margin: 0 !important;
     overflow-y: auto !important;
-    z-index: 500 !important;
+    z-index: 100000 !important;
   }
 }
 

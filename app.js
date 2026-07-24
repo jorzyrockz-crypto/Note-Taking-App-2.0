@@ -120,8 +120,9 @@ if (typeof window !== 'undefined') {
 // 1. Initial State & Data Definition (Upgraded v2.7.0)
 // ==========================================================================
 
-export const CURRENT_VERSION = '3.2.4';
+export const CURRENT_VERSION = '3.2.5';
 export const DEFAULT_CHANGELOG = [
+  'Responsive Productivity & Sidebar Profile Fix (v3.2.5): Simplified the Productivity calendar, focused tasks on the selected day with a responsive open-task expander and New Task action, and repaired the mobile/tablet sidebar profile menu by rendering it above the drawer.',
   'Purpose-Built Slide Decks & Revised Media Hub Layout (v3.2.4): Refactored note media hubs into type-aware purpose-built slide decks (Text, Checklist, Voice, Link, Recipe, Visual, File) and aligned Media Hub in normal document flow inside .note-surface 6px flush above the footer with zero overlap.',
   'Canonical Note-Type Registry & Dynamic Feed Filters (v3.2.3): Introduced a single canonical note-type registry (All, Text, Checklist, Voice, Link, Recipe, Visual, File), dynamic filter pills with Lucide icons and live note counts, tightened top workspace spacing, and hid Groups from the sidebar.',
   'Hidden Quick Launch & New Note Action (v3.2.2): Hid the inline note creator by default on All Notes to preserve a clean grid-only layout. Added a dedicated New Note sidebar action for desktop and updated tablet dock to reveal and expand creator on demand.',
@@ -3591,8 +3592,9 @@ function setupEventHandlers() {
   // App Update Cache Buster
   const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '3.2.4';
+  const CURRENT_VERSION = '3.2.5';
   const DEFAULT_CHANGELOG = [
+    'Responsive Productivity & Sidebar Profile Fix (v3.2.5): Simplified the Productivity calendar, focused tasks on the selected day with a responsive open-task expander and New Task action, and repaired the mobile/tablet sidebar profile menu by rendering it above the drawer.',
     'Purpose-Built Slide Decks & Revised Media Hub Layout (v3.2.4): Refactored note media hubs into type-aware purpose-built slide decks (Text, Checklist, Voice, Link, Recipe, Visual, File) and aligned Media Hub in normal document flow inside .note-surface 6px flush above the footer with zero overlap.',
     'Canonical Note-Type Registry & Dynamic Feed Filters (v3.2.3): Introduced a single canonical note-type registry (All, Text, Checklist, Voice, Link, Recipe, Visual, File), dynamic filter pills with Lucide icons and live note counts, tightened top workspace spacing, and hid Groups from the sidebar.',
     'Hidden Quick Launch & New Note Action (v3.2.2): Hid the inline note creator by default on All Notes to preserve a clean grid-only layout. Added a dedicated New Note sidebar action for desktop and updated tablet dock to reveal and expand creator on demand.',
@@ -11151,20 +11153,37 @@ function initAuth() {
   // Toggle Dropdown
   avatarBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
+    const avatarContainer = avatarBtn.closest('.user-avatar-container');
+    if (dropdown && avatarContainer && dropdown.parentElement !== avatarContainer) {
+      avatarContainer.appendChild(dropdown);
+    }
     dropdown?.classList.remove('profile-from-sidebar');
     dropdown?.classList.toggle('is-open');
+    avatarBtn.setAttribute('aria-expanded', dropdown?.classList.contains('is-open') ? 'true' : 'false');
+  });
+  avatarBtn?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      avatarBtn.click();
+    }
   });
 
   sidebarProfileBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
+    if (dropdown && dropdown.parentElement !== document.body) {
+      document.body.appendChild(dropdown);
+    }
     dropdown?.classList.add('profile-from-sidebar');
     dropdown?.classList.toggle('is-open');
+    sidebarProfileBtn.setAttribute('aria-expanded', dropdown?.classList.contains('is-open') ? 'true' : 'false');
   });
 
   // Close dropdown on click outside
   document.addEventListener('click', () => {
     dropdown?.classList.remove('is-open');
     dropdown?.classList.remove('profile-from-sidebar');
+    avatarBtn?.setAttribute('aria-expanded', 'false');
+    sidebarProfileBtn?.setAttribute('aria-expanded', 'false');
   });
 
   dropdown?.addEventListener('click', (e) => {
