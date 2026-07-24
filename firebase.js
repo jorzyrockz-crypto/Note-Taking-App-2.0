@@ -472,8 +472,9 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '3.2.5',
+        version: '3.2.6',
         changelog: [
+          'User-Controlled PWA Updates (v3.2.6): Refactored service worker install handler to wait for user activation before taking control, enabling non-disruptive background updates and clean one-tap reload coordination.',
           'Responsive Productivity & Sidebar Profile Fix (v3.2.5): Simplified the Productivity calendar, focused tasks on the selected day with a responsive open-task expander and New Task action, and repaired the mobile/tablet sidebar profile menu by rendering it above the drawer.',
           'Purpose-Built Slide Decks & Revised Media Hub Layout (v3.2.4): Refactored note media hubs into type-aware purpose-built slide decks (Text, Checklist, Voice, Link, Recipe, Visual, File) and aligned Media Hub in normal document flow inside .note-surface 6px flush above the footer with zero overlap.',
           'Canonical Note-Type Registry & Dynamic Feed Filters (v3.2.3): Introduced a single canonical note-type registry (All, Text, Checklist, Voice, Link, Recipe, Visual, File), dynamic filter pills with Lucide icons and live note counts, tightened top workspace spacing, and hid Groups from the sidebar.',

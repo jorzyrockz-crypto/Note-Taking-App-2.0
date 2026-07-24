@@ -15404,3 +15404,13 @@ body.dark-theme .notes-grid .note-card .topbar-type-badge,
 body.dark-theme .notes-grid .note-card .tag-badge {
   background: color-mix(in srgb, var(--note-color, var(--accent)) 50%, transparent) !important;
 }
+
+/* UI Overlay & Dialog Scroll Lock Infrastructure */
+body.scroll-locked {
+  overflow: hidden;
+}
+
+.mobile-bottom-sheet {
+  max-height: 90vh;
+  overflow-y: auto;
+}

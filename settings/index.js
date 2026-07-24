@@ -13,7 +13,6 @@ import { bindAccountEvents } from './account-settings.js';
 
 import {
   appSettings,
-  setActivePage,
   setExperimentalSkyTheme,
   setPremiumSkyTheme,
   applyCardLayoutStyle,
@@ -21,6 +20,8 @@ import {
   applyThemeSchedule,
   syncEmojiThemePresentation
 } from '../app.js';
+
+import { setActivePage } from '../navigation/index.js';
 
 import {
   applyUiColorThemeClass,

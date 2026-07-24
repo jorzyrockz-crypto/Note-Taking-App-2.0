@@ -14,6 +14,24 @@ import {
 import { initModernGlassEditorListeners, saveGlassSelection, restoreGlassSelection } from './glass-editor.js';
 import { renderSearchPage, initSearch } from './search.js';
 import {
+  showToast,
+  configureToastProvider,
+  lockBodyScroll,
+  unlockBodyScroll,
+  showDialog,
+  hideDialog
+} from './ui/index.js';
+import {
+  getActivePage,
+  currentPage,
+  setActivePage as navSetActivePage,
+  setActiveSidebarPage as navSetActiveSidebarPage,
+  collapseSidebarAfterSelection as navCollapseSidebarAfterSelection,
+  initNavigation,
+  configureNavigation,
+  registerPageLifecycle
+} from './navigation/index.js';
+import {
   createFallbackSocialPreview,
   isSupportedSocialPlatform,
   normalizeSocialCaptureUrl,
@@ -120,43 +138,13 @@ if (typeof window !== 'undefined') {
 // 1. Initial State & Data Definition (Upgraded v2.7.0)
 // ==========================================================================
 
-export const CURRENT_VERSION = '3.2.5';
-export const DEFAULT_CHANGELOG = [
-  'Responsive Productivity & Sidebar Profile Fix (v3.2.5): Simplified the Productivity calendar, focused tasks on the selected day with a responsive open-task expander and New Task action, and repaired the mobile/tablet sidebar profile menu by rendering it above the drawer.',
-  'Purpose-Built Slide Decks & Revised Media Hub Layout (v3.2.4): Refactored note media hubs into type-aware purpose-built slide decks (Text, Checklist, Voice, Link, Recipe, Visual, File) and aligned Media Hub in normal document flow inside .note-surface 6px flush above the footer with zero overlap.',
-  'Canonical Note-Type Registry & Dynamic Feed Filters (v3.2.3): Introduced a single canonical note-type registry (All, Text, Checklist, Voice, Link, Recipe, Visual, File), dynamic filter pills with Lucide icons and live note counts, tightened top workspace spacing, and hid Groups from the sidebar.',
-  'Hidden Quick Launch & New Note Action (v3.2.2): Hid the inline note creator by default on All Notes to preserve a clean grid-only layout. Added a dedicated New Note sidebar action for desktop and updated tablet dock to reveal and expand creator on demand.',
-  'Neutralize Background Tints (v3.2.1): Neutralized the soft light-blue background tint from the light-theme app canvas and sidebar, and completely disabled the dynamic color overlay tint (#workspace-tint-overlay).',
-  'High-Density Tablet Portrait Layout (v3.2.0): Optimized iPad/tablet portrait layout with a 3-column note grid, decreased card collapsed height, tighter margins, and a compact, scaled-down bottom navigation dock.',
-  'Fix Lucide Icon Instantiation (v3.1.1): Resolved bug where quick action icons disappeared on sidebar page navigation and single card DOM updates by anchoring lucide.createIcons inside updateNoteCardUI and renderGrid.',
-  'Remove Workspace Density Control (v3.1.0): Removed Workspace Density configurations from the Appearance settings panel and refactored underlying settings syncing scripts.',
-  'Hide Context Menu Scrollbar (v3.0.9): Hid default scrollbar styling for context menu panels across all layout viewports for a cleaner, unified flat UI.',
-  'Desktop Context Menu Rendering Fix (v3.0.8): Resolved desktop context menu visibility bug by appending cardMenu directly to card (rather than the hidden mobile-only header) and hidden three-dots toggle on desktop viewport.',
-  'Lucide Icons & Context Menu Polish (v3.0.7): Refactored Notebook Spine quick actions to use flat, theme-responsive Lucide icons with bouncy interactions. Elevated Context Menu Z-level and implemented responsive scrolling for overflow action toggles.',
-  'Revert Camon 20 Layout (v3.0.6): Reverted the specific compact phone profile (max-width: 410px) CSS block that was previously introduced alongside the Notebook Spine UI, returning the phone layout specifically to its prior fluid state.',
-  'Floating Capsule Edge-to-Edge Full Bleed (v3.0.5): Perfected floating capsule layout by removing inner padding and margin, pulling wrapper to the edge of the text bounds, and assigning drop shadows individually so edge-to-edge images perfectly wrap the floating curves.',
-  'Floating Capsule Media Hub Reversion (v3.0.4): Reverted the note media container back to a floating capsule implementation with drop shadow, margins, and padding, restoring the v2.8.7 design.',
-  'Image Hub Layout Fix (v3.0.3): Removed legacy data-has-image CSS rules that broke the DOM order and caused the footer to disappear on note cards with photos.',
-  'Remove Dots Indicator (v3.0.2): Removed the floating white dots indicator from the media carousel per user request.',
-  'Dots Indicator Stretching Fix (v3.0.1): Extracted dots overlay outside the scrolling flex container into a parent wrapper to prevent the capsule from vertically stretching or interacting weirdly with flex-align stretch rules.',
-  'Dots Indicator Capsule Lift (v3.0.0): Lifted bottom offset (bottom: 16px) on media dots indicator capsule so dots overlay floats cleanly inside photo slides without getting cut off at card boundary.',
-  'Media Hub Above Footer Positioning (v2.9.9): Positioned Floating Media Hub immediately above the card footer (below preview text) as specified.',
-  'Media Hub Top Positioning & Full-Bleed Photo Fix (v2.9.8): Moved Floating Media Hub to the top of note cards (before text preview) and removed container padding/borders so photos maximize the entire hub area with zero white space.',
-  'Fix Media Card Hover Expansion (v2.9.7): Fixed legacy max-height:0 rule on data-has-image cards that caused text preview to pop open and move down on hover.',
-  'Disable Card Hover Motion (v2.9.6): Disabled legacy expand-on-hover max-height rules and vertical card transforms so note cards stay completely fixed on mouse hover.',
-  'Starter Notes Prepopulation (v2.9.5): Updated STARTER_NOTES in app.js with rich multi-media samples for new/guest users.',
-  'Media Dots Overlay Fix (v2.9.4): Fixed vertical stretching bug on media dots indicator overlay and restored clean Spotify file attachment card layout.',
-  'Syntax Fix & App Load Recovery (v2.9.3): Fixed dangling syntax token in renderAudioClipChip restoring full app startup and Spotify player rendering.',
-  'Spotify-Inspired Slideshow Hub (v2.9.2): Full 100% width slideshow with floating white dot indicators, Spotify-styled voice note player cards, dynamic colored file extension badges, and updated starter notes.',
-  'Inline Text Image Parsing (v2.9.0): Automatically extract inline HTML <img> tags and Markdown images from note text into the Floating Media Hub carousel.',
-  'Voice Clips & File Attachment Card Fix (v2.8.9): Support multiple voice recordings from note.audioClips, fix file attachment slide styling to match mock, and support inline image extraction.',
-  'Custom Slide Cards & Media Hub Polish (v2.8.8): Custom slide cards for links, voice notes, attachments, and reminders in the taller floating media hub; dropped redundant paragraphs; removed duplicate timestamps.',
-  'Floating Elevated Media Hub (v2.8.7): Positioned the unified media hub as an elevated floating surface above the bottom content area with drop shadow and 14px border radius. Hidden completely when no media is attached.',
-  'Unified Media Carousel Hub (v2.8.6): Consolidated all attached photos, audio voice notes, file attachments, and link previews into a horizontally swipeable carousel hub at the top of note cards.',
-  'Minor Polish (v2.8.5): Added Favorites section to the All Notes page filter, fixed long press context menu functionality, and restored native pattern themes across notebook spines with high-contrast active spine buttons.',
-  'Settings Panel Mobile Overflow Fix (v2.7.2): Resolved mobile viewport overflow across all settings tabs by converting two-column layouts to fluid single-column cards, wrapping segmented controls & color swatches, stacking time pickers, and enabling touch horizontal tab scrolling.',
-  'Universal Multi-Page Mobile Responsiveness (v2.7.1): Ensured full mobile viewport adaptation across every page (Search, Productivity, Settings, Recipe Importer, and Modals) with responsive bottom dock page sync, horizontal scrollable tab bars, and 100vw touch safe-area layouts.'
-];
+import {
+  CURRENT_VERSION,
+  DEFAULT_CHANGELOG,
+  initializePwa
+} from './pwa/index.js';
+
+export { CURRENT_VERSION, DEFAULT_CHANGELOG };
 
 export const NOTE_TYPE_REGISTRY = [
   { id: 'all', label: 'All', icon: 'layers-3', colorName: 'all' },
@@ -189,62 +177,28 @@ export function triggerHaptic(type = 'tap') {
 export function initMobilePhoneExperience() {
   if (typeof document === 'undefined') return;
 
-  // 1. Mobile Navigation Dock Page Switching
-  const dockItems = document.querySelectorAll('.mobile-bottom-dock .mobile-dock-item[data-target-page]');
-  dockItems.forEach(item => {
-    item.addEventListener('click', (e) => {
-      e.preventDefault();
-      const page = item.getAttribute('data-target-page');
-      if (!page) return;
-
-      triggerHaptic('tap');
-
-      // Update active dock item state
-      dockItems.forEach(d => d.classList.remove('active'));
-      item.classList.add('active');
-
-      // Navigate page
-      if (typeof setActivePage === 'function') {
-        setActivePage(page);
-      }
-    });
-  });
-
-  const dockSettingsBtn = document.getElementById('mobile-dock-settings-btn');
-  dockSettingsBtn?.addEventListener('click', (e) => {
-    e.preventDefault();
-    triggerHaptic('tap');
-    if (typeof setActivePage === 'function') {
-      setActivePage('settings');
-    }
-  });
-
-  // Keep dock active state synchronized with global currentPage
-  const syncDockActiveState = () => {
-    if (typeof currentPage === 'undefined') return;
-    dockItems.forEach(item => {
-      const target = item.getAttribute('data-target-page');
-      item.classList.toggle('active', target === currentPage);
-    });
-  };
-  window.addEventListener('hashchange', syncDockActiveState);
-  document.addEventListener('pagechange', syncDockActiveState);
-
-  // 2. Mobile Quick Action Creator Bottom Sheet
+  // 1. Mobile Quick Action Creator Bottom Sheet
   const dockAddBtn = document.getElementById('mobile-dock-add-btn');
   const sheetOverlay = document.getElementById('mobile-bottom-sheet-overlay');
   const sheetCloseBtn = document.getElementById('mobile-sheet-close');
 
   const openBottomSheet = () => {
     triggerHaptic('snap');
-    sheetOverlay?.classList.add('active');
-    sheetOverlay?.setAttribute('aria-hidden', 'false');
+    if (sheetOverlay) {
+      showDialog(sheetOverlay, {
+        visibleClass: 'active',
+        dismissOnOutsideClick: true,
+        dismissOnEscape: true,
+        onDismiss: () => triggerHaptic('tap')
+      });
+    }
   };
 
   const closeBottomSheet = () => {
+    if (sheetOverlay) {
+      hideDialog(sheetOverlay, { visibleClass: 'active' });
+    }
     triggerHaptic('tap');
-    sheetOverlay?.classList.remove('active');
-    sheetOverlay?.setAttribute('aria-hidden', 'true');
   };
 
   dockAddBtn?.addEventListener('click', (e) => {
@@ -255,12 +209,6 @@ export function initMobilePhoneExperience() {
   sheetCloseBtn?.addEventListener('click', (e) => {
     e.preventDefault();
     closeBottomSheet();
-  });
-
-  sheetOverlay?.addEventListener('click', (e) => {
-    if (e.target === sheetOverlay) {
-      closeBottomSheet();
-    }
   });
 
   // Handle Quick Create Options
@@ -557,7 +505,7 @@ let creatorLinkPreviewAbort = null;
 let selectedTagFilter = null; // Sidebar selected filter tag
 let selectedFolderFilter = null;
 let selectedTypeFilter = 'all';
-export let currentPage = 'notes';
+export { currentPage };
 export let currentUser = null;
 let isBulkOperationsActive = false;
 const recentlyDeletedNoteIds = new Set();
@@ -774,7 +722,7 @@ export function initSettingsCloudSync(uid) {
             buildColorPickers();
             renderNotes();
 
-            if (currentPage === 'settings') {
+            if (getActivePage() === 'settings') {
               const settingsModule = await import('./settings.js').catch(() => null);
               if (settingsModule) {
                 if (typeof settingsModule.renderSettingsPage === 'function') {
@@ -1937,86 +1885,87 @@ function enhanceShell() {
 }
 
 
-function clearSidebarActiveStates() {
-  document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
-}
-
 export function setActiveSidebarPage(pageId) {
-  clearSidebarActiveStates();
-  document.querySelectorAll('.tablet-dock-item[data-tablet-page]').forEach((item) => {
-    item.classList.toggle('active', item.dataset.tabletPage === pageId || (pageId !== 'search' && pageId !== 'productivity' && item.dataset.tabletPage === 'notes'));
-  });
-    if (pageId === 'settings') {
-      sidebarSettings?.classList.add('active');
-      return;
-    }
-  if (pageId === 'productivity') {
-    sidebarProductivity?.classList.add('active');
-  } else if (pageId === 'archive') {
-    sidebarArchive?.classList.add('active');
-  } else if (pageId === 'deleted') {
-    sidebarDeleted?.classList.add('active');
-  } else if (pageId === 'favorites') {
-    sidebarFavorites?.classList.add('active');
-  } else if (pageId === 'search') {
-    sidebarSearch?.classList.add('active');
-  } else {
-    sidebarAllNotes?.classList.add('active');
-  }
+  return navSetActiveSidebarPage(pageId);
 }
 
-function setActivePage(page) {
-  currentPage = page;
-  const dockItems = document.querySelectorAll('.mobile-bottom-dock .mobile-dock-item');
-  dockItems.forEach(item => {
-    const target = item.getAttribute('data-target-page');
-    item.classList.toggle('active', target === page || (page === 'notes' && target === 'notes'));
-  });
-  if (typeof document !== 'undefined') {
-    document.dispatchEvent(new CustomEvent('pagechange', { detail: { page } }));
-  }
+export function setActivePage(page) {
+  return navSetActivePage(page);
+}
 
-  if (page === 'settings') {
+export function collapseSidebarAfterSelection() {
+  return navCollapseSidebarAfterSelection();
+}
+
+// Register page lifecycle hooks with the navigation module
+registerPageLifecycle('settings', {
+  onEnter: () => {
     selectedTagFilter = null;
     selectedFolderFilter = null;
-    setActiveSidebarPage('settings');
-    collapseSidebarAfterSelection();
     renderAppView();
-    return;
   }
-  if (page === 'search') {
+});
+
+registerPageLifecycle('search', {
+  onEnter: () => {
     selectedTagFilter = null;
     selectedFolderFilter = null;
-    setActiveSidebarPage('search');
-    collapseSidebarAfterSelection();
     renderSearchPage();
-    return;
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => {
+        document.getElementById('dedicated-search-input')?.focus({ preventScroll: true });
+      });
+    }
   }
-  if (page === 'productivity') {
+});
+
+registerPageLifecycle('productivity', {
+  onEnter: () => {
     selectedTagFilter = null;
     selectedFolderFilter = null;
-    setActiveSidebarPage('productivity');
-  } else if (page === 'archive' || page === 'deleted' || page === 'favorites') {
+    ensureCalendarSelection();
+    renderAppView();
+  }
+});
+
+registerPageLifecycle('archive', {
+  onEnter: () => {
     selectedTagFilter = null;
     selectedFolderFilter = null;
     selectedTypeFilter = 'all';
-    setActiveSidebarPage(page);
-  } else {
-    setActiveSidebarPage('notes');
+    renderAppView();
   }
-  collapseSidebarAfterSelection();
-  renderAppView();
-}
+});
 
-function collapseSidebarAfterSelection() {
-  const sidebar = document.querySelector('.app-sidebar');
-  if (sidebar?.classList.contains('sidebar-open')) {
-    sidebar.classList.remove('sidebar-open');
+registerPageLifecycle('deleted', {
+  onEnter: () => {
+    selectedTagFilter = null;
+    selectedFolderFilter = null;
+    selectedTypeFilter = 'all';
+    renderAppView();
   }
-  if (window.innerWidth < 1024) {
-    document.body.classList.remove('sidebar-pinned');
+});
+
+registerPageLifecycle('favorites', {
+  onEnter: () => {
+    selectedTagFilter = null;
+    selectedFolderFilter = null;
+    selectedTypeFilter = 'all';
+    renderAppView();
   }
-}
+});
+
+registerPageLifecycle('notes', {
+  onEnter: () => {
+    selectedTagFilter = null;
+    selectedFolderFilter = null;
+    const searchIn = document.getElementById('search-input') || document.getElementById('dedicated-search-input');
+    if (searchIn) searchIn.value = '';
+    const searchClr = document.getElementById('search-clear') || document.getElementById('dedicated-search-clear');
+    if (searchClr) searchClr.style.display = 'none';
+    renderAppView();
+  }
+});
 
 
 
@@ -2056,11 +2005,12 @@ function applyInlineReminderToChecklistText(rawText, rowIndex, reminderValue) {
 }
 
 function renderAppView() {
-  if (currentPage === 'productivity') {
+  const activePage = getActivePage();
+  if (activePage === 'productivity') {
     renderProductivityPage();
-  } else if (currentPage === 'settings') {
+  } else if (activePage === 'settings') {
     renderSettingsPage();
-  } else if (currentPage === 'search') {
+  } else if (activePage === 'search') {
     renderSearchPage();
   } else {
     renderNotesPage();
@@ -2267,11 +2217,12 @@ function updatePageActionBar() {
 
   if (!bar) return;
 
-  if (currentPage === 'deleted' || currentPage === 'archive') {
-    const pageNotes = getPageNotes(currentPage);
+  const activePage = getActivePage();
+  if (activePage === 'deleted' || activePage === 'archive') {
+    const pageNotes = getPageNotes(activePage);
     if (pageNotes.length > 0) {
       bar.style.display = 'flex';
-      if (currentPage === 'deleted') {
+      if (activePage === 'deleted') {
         if (titleEl) titleEl.textContent = 'Trash';
         if (subtitleEl) subtitleEl.textContent = 'Notes in trash are deleted permanently. This action cannot be undone.';
         if (btnEl) {
@@ -2402,7 +2353,6 @@ if (typeof document !== 'undefined') {
       triggerAutosave
     });
 
-    registerServiceWorker();
     updateOnlineStatusUI();
 
     creatorText?.addEventListener('keydown', handleTextareaTabKey);
@@ -2442,108 +2392,7 @@ if (typeof window !== 'undefined') {
   });
 }
 
-function registerServiceWorker() {
-  if (!('serviceWorker' in navigator)) return;
-  navigator.serviceWorker.register('./sw.js')
-    .then(reg => {
-      console.log('Service Worker registered successfully:', reg.scope);
-
-      // Handle updates on controller change (page reload when the new sw takes control)
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        window.location.reload();
-      });
-
-      // Bind the Update button click handler on the splash screen
-      const splashUpdateBtn = document.getElementById('splash-update-btn');
-      if (splashUpdateBtn) {
-        splashUpdateBtn.addEventListener('click', () => {
-          if (window.__swWaitingWorker) {
-            window.__swWaitingWorker.postMessage({ type: 'SKIP_WAITING' });
-          }
-        });
-      }
-
-      function handleServiceWorkerUpdate(waitingWorker) {
-        window.__swUpdateWaiting = true;
-        window.__swWaitingWorker = waitingWorker;
-
-        // If the splash screen is still visible, show the update prompt on it.
-        const splash = document.getElementById('pwa-splash');
-        if (splash && document.body.contains(splash)) {
-          if (typeof window.__showSplashUpdateUI === 'function') {
-            window.__showSplashUpdateUI();
-          }
-        } else {
-          // If the user is already inside the app, show a sticky toast notification with an Update button!
-          showToast({
-            title: 'Update Available',
-            text: 'A new version of Paperuss is ready. Click update to load the new features.',
-            duration: 0, // Stay forever
-            action: {
-              text: 'Update',
-              callback: () => {
-                waitingWorker.postMessage({ type: 'SKIP_WAITING' });
-              }
-            }
-          });
-        }
-      }
-
-      // Check if a service worker is already waiting to be activated
-      if (reg.waiting) {
-        handleServiceWorkerUpdate(reg.waiting);
-        return;
-      }
-
-      // Listen for the update found event (a new service worker is installing)
-      reg.addEventListener('updatefound', () => {
-        const installingWorker = reg.installing;
-        installingWorker.addEventListener('statechange', () => {
-          if (installingWorker.state === 'installed') {
-            if (navigator.serviceWorker.controller) {
-              // New update is available and waiting
-              handleServiceWorkerUpdate(installingWorker);
-            }
-          }
-        });
-      });
-    })
-    .catch(err => {
-      console.error('Service Worker registration failed:', err);
-    });
-}
-
-let deferredPrompt = null;
 if (typeof window !== 'undefined') {
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    const installRow = document.getElementById('settings-install-row');
-    if (installRow) {
-      installRow.style.display = 'flex';
-    }
-
-    // Install button click handler
-    const installBtn = document.getElementById('settings-install-btn');
-    if (installBtn && !installBtn.dataset.bound) {
-      installBtn.addEventListener('click', () => {
-        if (deferredPrompt) {
-          deferredPrompt.prompt();
-          deferredPrompt.userChoice.then((choiceResult) => {
-            if (choiceResult.outcome === 'accepted') {
-              console.log('User accepted the install prompt');
-            }
-            deferredPrompt = null;
-            if (installRow) installRow.style.display = 'none';
-          });
-        }
-      });
-      installBtn.dataset.bound = 'true';
-    }
-
-    showInstallNotification();
-  });
-
   window.addEventListener('online', () => {
     updateOnlineStatusUI();
     if (currentUser) {
@@ -2560,15 +2409,6 @@ if (typeof window !== 'undefined') {
       processPendingSyncQueue(currentUser.uid);
       initCloudNotesSyncRef?.(currentUser);
     }
-  });
-
-  window.addEventListener('appinstalled', () => {
-    deferredPrompt = null;
-    const installRow = document.getElementById('settings-install-row');
-    if (installRow) {
-      installRow.style.display = 'none';
-    }
-    showToast({ title: 'App Installed', text: 'Paperuss has been installed successfully!' });
   });
 }
 
@@ -2634,31 +2474,7 @@ if (typeof document !== 'undefined') {
   });
 }
 
-function showInstallNotification() {
-  if (sessionStorage.getItem('install-prompted')) return;
-  sessionStorage.setItem('install-prompted', 'true');
 
-  showToast({
-    title: 'Install App',
-    text: 'Install Paperuss on your device for offline support and standalone launch.',
-    action: {
-      text: 'Install',
-      callback: () => {
-        if (deferredPrompt) {
-          deferredPrompt.prompt();
-          deferredPrompt.userChoice.then((choiceResult) => {
-            if (choiceResult.outcome === 'accepted') {
-              console.log('User accepted the install prompt');
-            }
-            deferredPrompt = null;
-            const installRow = document.getElementById('settings-install-row');
-            if (installRow) installRow.style.display = 'none';
-          });
-        }
-      }
-    }
-  });
-}
 
 
 
@@ -2880,12 +2696,15 @@ function initData() {
 }
 
 function setupEventHandlers() {
-
-
-
-  settingsBtn = document.getElementById('settings-btn');
-  settingsBtn?.addEventListener('click', () => setActivePage('settings'));
-  sidebarSettings?.addEventListener('click', () => setActivePage('settings'));
+  configureToastProvider({
+    getSettings: () => appSettings,
+    isQuietHours,
+    playChime: playNotificationChime,
+    triggerVibrate: triggerNotificationVibrate
+  });
+  configureNavigation({ triggerHaptic });
+  initNavigation();
+  initializePwa({ showToast, subscribeToVersionUpdates });
   // Toggle sidebar drawer on mobile / pin layout on desktop
   const menuBtn = document.querySelector('.menu-btn');
   const sidebar = document.querySelector('.app-sidebar');
@@ -2976,11 +2795,12 @@ function setupEventHandlers() {
 
   const pageActionBarBtn = document.getElementById('page-action-btn');
   pageActionBarBtn?.addEventListener('click', () => {
-    if (currentPage === 'deleted') {
+    const activePage = getActivePage();
+    if (activePage === 'deleted') {
       if (confirm("Are you sure you want to permanently delete all notes in Trash? This action cannot be undone.")) {
         deleteAllDeletedNotes();
       }
-    } else if (currentPage === 'archive') {
+    } else if (activePage === 'archive') {
       if (confirm("Are you sure you want to move all archived notes to Trash?")) {
         trashAllArchivedNotes();
       }
@@ -3012,69 +2832,6 @@ function setupEventHandlers() {
       }
     });
   }
-
-  if (sidebarAllNotes) {
-    sidebarAllNotes.addEventListener('click', () => {
-      currentPage = 'notes';
-      selectedFolderFilter = null;
-      selectedTagFilter = null;
-      const searchIn = document.getElementById('search-input') || document.getElementById('dedicated-search-input');
-      if (searchIn) searchIn.value = '';
-      const searchClr = document.getElementById('search-clear') || document.getElementById('dedicated-search-clear');
-      if (searchClr) searchClr.style.display = 'none';
-      renderNotesPage();
-      if (window.innerWidth <= 768) {
-        sidebar?.classList.remove('sidebar-open');
-      }
-    });
-  }
-
-  if (sidebarFavorites) {
-    sidebarFavorites.addEventListener('click', () => {
-      setActivePage('favorites');
-    });
-  }
-
-  if (sidebarSearch) {
-    sidebarSearch.addEventListener('click', () => {
-      currentPage = 'search';
-      selectedFolderFilter = null;
-      selectedTagFilter = null;
-      renderSearchPage();
-      if (window.innerWidth <= 768) {
-        sidebar?.classList.remove('sidebar-open');
-      }
-    });
-  }
-
-  sidebarProductivity?.addEventListener('click', () => {
-    ensureCalendarSelection();
-    setActivePage('productivity');
-  });
-
-  sidebarArchive?.addEventListener('click', () => {
-    setActivePage('archive');
-  });
-
-  sidebarDeleted?.addEventListener('click', () => {
-    setActivePage('deleted');
-  });
-
-  // Tablet dock: thumb-reachable primary navigation in portrait orientation.
-  document.querySelectorAll('[data-tablet-page]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const page = button.dataset.tabletPage;
-      if (page === 'search') {
-        setActivePage('search');
-        requestAnimationFrame(() => document.getElementById('dedicated-search-input')?.focus({ preventScroll: true }));
-      } else if (page === 'productivity') {
-        ensureCalendarSelection();
-        setActivePage('productivity');
-      } else {
-        setActivePage('notes');
-      }
-    });
-  });
 
   document.querySelector('[data-tablet-action="create"]')?.addEventListener('click', () => {
     revealInlineCreator();
@@ -3589,170 +3346,7 @@ function setupEventHandlers() {
     handlePasteImage(e, 'modal');
   });
 
-  // App Update Cache Buster
-  const appUpdateBtn = document.getElementById('app-update-btn');
 
-  const CURRENT_VERSION = '3.2.5';
-  const DEFAULT_CHANGELOG = [
-    'Responsive Productivity & Sidebar Profile Fix (v3.2.5): Simplified the Productivity calendar, focused tasks on the selected day with a responsive open-task expander and New Task action, and repaired the mobile/tablet sidebar profile menu by rendering it above the drawer.',
-    'Purpose-Built Slide Decks & Revised Media Hub Layout (v3.2.4): Refactored note media hubs into type-aware purpose-built slide decks (Text, Checklist, Voice, Link, Recipe, Visual, File) and aligned Media Hub in normal document flow inside .note-surface 6px flush above the footer with zero overlap.',
-    'Canonical Note-Type Registry & Dynamic Feed Filters (v3.2.3): Introduced a single canonical note-type registry (All, Text, Checklist, Voice, Link, Recipe, Visual, File), dynamic filter pills with Lucide icons and live note counts, tightened top workspace spacing, and hid Groups from the sidebar.',
-    'Hidden Quick Launch & New Note Action (v3.2.2): Hid the inline note creator by default on All Notes to preserve a clean grid-only layout. Added a dedicated New Note sidebar action for desktop and updated tablet dock to reveal and expand creator on demand.',
-    'Neutralize Background Tints (v3.2.1): Neutralized the soft light-blue background tint from the light-theme app canvas and sidebar, and completely disabled the dynamic color overlay tint (#workspace-tint-overlay).',
-    'High-Density Tablet Portrait Layout (v3.2.0): Optimized iPad/tablet portrait layout with a 3-column note grid, decreased card collapsed height, tighter margins, and a compact, scaled-down bottom navigation dock.',
-    'Fix Lucide Icon Instantiation (v3.1.1): Resolved bug where quick action icons disappeared on sidebar page navigation and single card DOM updates by anchoring lucide.createIcons inside updateNoteCardUI and renderGrid.',
-    'Remove Workspace Density Control (v3.1.0): Removed Workspace Density configurations from the Appearance settings panel and refactored underlying settings syncing scripts.',
-    'Hide Context Menu Scrollbar (v3.0.9): Hid default scrollbar styling for context menu panels across all layout viewports for a cleaner, unified flat UI.',
-    'Desktop Context Menu Rendering Fix (v3.0.8): Resolved desktop context menu visibility bug by appending cardMenu directly to card (rather than the hidden mobile-only header) and hidden three-dots toggle on desktop viewport.',
-    'Lucide Icons & Context Menu Polish (v3.0.7): Refactored Notebook Spine quick actions to use flat, theme-responsive Lucide icons with bouncy interactions. Elevated Context Menu Z-level and implemented responsive scrolling for overflow action toggles.',
-    'Desktop Notebook Spine UI (v2.8.3): Completely redesigned desktop and tablet note cards to feature a horizontal flex layout with a vibrant colored spine, pinned topbar metadata, and quick access action buttons (Pin, Star, Theme, More) without needing to open a menu. Added functional Star/Favorite flag.',
-    'Mobile Layout Refinements & Context Menu Overhaul (v2.8.2): Tightened mobile top nav bar height to 54px, added 12px left clearance to feed filter pills, unlocked context menu overflow for un-clipped ellipsis popovers with 500ms touch long-press support, unified Edit Modal scrolling, and removed legacy bottom toolbar in favor of a single floating pill toolbar.',
-    'New Phone Layout Card View (v2.8.1): Refined 2-column mobile grid cards with a fixed 280px height, preserved inner surface elevation with rich content fill, micro header row, 2-line title clamping, pinned timestamp, and bottom gradient fade.',
-    'Phone Experience Enhancement (v2.8.0): Integrated user profile avatar into top header navigation bar on mobile, introduced experimental 2-column compact mobile grid card view with 2-line title clamping and 3-line text previews, and enabled 1-tap view layout toggling.',
-    'Mobile Ergonomics & UI Polish (v2.7.3): Added high-density compact mobile spacing across note cards, creator, and workspace; scaled Edit Modal title font size to prevent word splitting; automatically concealed bottom navigation dock during note editing; fixed filter bar left padding; and cleared toast notifications below the app header.',
-    'Settings Panel Mobile Overflow Fix (v2.7.2): Resolved mobile viewport overflow across all settings tabs by converting two-column layouts to fluid single-column cards, wrapping segmented controls & color swatches, stacking time pickers, and enabling touch horizontal tab scrolling.',
-    'Universal Multi-Page Mobile Responsiveness (v2.7.1): Ensured full mobile viewport adaptation across every page (Search, Productivity, Settings, Recipe Importer, and Modals) with responsive bottom dock page sync, horizontal scrollable tab bars, and 100vw touch safe-area layouts.',
-    'Sectioned Overview & Checklist Refinements (v2.6.19): Aligned Checklist genre card icon and orange gradient, fixed HTML and markdown checklist detection, resolved matchingNotes extraction for sectioned overview layout, ensured non-sticky search header, and verified guaranteed search page re-rendering on page switch',
-    'Unified Search & Content Browser (v2.6.18): Enhanced dedicated Search page into a unified media browser with interactive fluid genre filters, compact notes feed, photo gallery with glassmorphic Lightbox viewer, file attachment list, voice memo audio player, link tiles, contextual action popovers with touch long-press support, and canonical attachment deletion',
-    'Null Pointer Fix (v2.6.17): Resolved uncaught TypeError on app load caused by null searchInput reference after top-bar search removal, restoring normal workspace note rendering',
-    'Spotlight Search Page & Tag Relocation (v2.6.16): Moved Tags section from sidebar to the dedicated Search page directly under search bar, removed global top-bar search across app views, updated Ctrl/Cmd+K to navigate to Search page and focus input, and verified 100% test pass',
-    'Runtime Error Repair (v2.6.15): Repaired workspace scroll state (_savedWorkspaceScrollY), parseMarkdown export, saveSingleNoteToLocalStorage import, restoreArchivedNote reference, getVideoBlob attachment getter, formatSelectedText helper, and replaced popup error alerts with non-blocking toasts',
-    'Glass Editor Performance & Polish (Phase 7): Completed interaction and accessibility polish, added ARIA expanded/controls attributes, focus restoration on Escape, touch target sizing (44px), viewport containment, and validated 100% test pass',
-    'Glass Editor Performance (Phases 4–6): Paused background animations and disabled workspace pointer events when an editor is active, applied CSS containment to note cards, preserved scroll position, added async image decoding, and eliminated full workspace re-renders from voice recording and file attachment callbacks',
-    'Glass Editor Performance (Phases 1–3): Eliminated typing lag by updating notes in-memory on input without workspace re-renders, debounced single-note disk persistence, added immediate save flushes on modal close/switch/pagehide, throttled selectionchange with requestAnimationFrame, and coalesced cloud sync writes',
-    'Glass Editor Reliability: Kept voice and attachment chips above the floating toolbar, rendered local attachments immediately, restored the Scheduler overlay, and fixed contextual highlight tools for title and body selections',
-    'Bug Fix: Glass reminder popover now successfully triggers from the Add menu; fixed inline mousedown handler preventing click events',
-    'Scheduler Overhaul: Fixed glass reminder popover hidden behind modal (z-index), added multi-clip audio recording, browser push notifications, snooze (5m/15m/1h), per-line inline reminder chips, and whole-note+inline reminder co-existence',
-    'Voice Recording Fix: Disabled automatic SpeechRecognition live typing so voice recording solely records audio clips without modifying note text',
-    'Cleaned up UI: Removed redundant floating voice recording overlay pill in favor of the clean top banner indicator',
-    'Bug Fix: Fixed floating Voice Recording overlay indicator staying visible permanently due to conflicting inline CSS styles',
-    'Glass UI Enhancements: Restored chip visibility for voice recordings and reminders in the Glass Editor, and upgraded voice note chips with playable HTML5 audio controls',
-    'Bug Fix: Added null checks when referencing deleted legacy editor-textarea-wrap elements in openEditModal and expandCreator',
-    'Bug Fix: Added compatibility shims for syncModalInputs, syncCreatorInputs, and legacy text functions to prevent startup ReferenceError crashes',
-    'Glass UI Enhancements: Voice Recording now uses a sleek global floating indicator, and the Reminder Scheduler is now a floating context menu integrated directly into the new UI',
-    'Legacy Editor Cleanup: Removed legacy textarea editor code to finalize transition to the rich text Glass Editor',
-    'Toolbar Refactor (Phases 1–7): Simplified glass editor toolbar to core tools (Bold, Italic, Underline, Heading, Lists, Link, Checklist) with a new Add (+) content insertion menu and a context-aware floating toolbar appearing on text selection, image click, link hover, and checklist focus',
-    'Added Workspace Density settings with Auto, Compact, Comfortable, Touch, and Spacious modes plus an optional Tablet-first Navigation testing feature',
-    'Tablet-first workspace with an adaptive portrait dock, landscape navigation rail, roomier note grid, and touch-friendly controls',
-    'Upgraded tablet editor to a focused near-full-screen canvas with safer spacing, sticky actions, and better portrait/landscape behavior',
-    'Added resilient Facebook, X, and Pinterest capture cards with editable captions, screenshot fallback, canonical links, and richer public metadata handling',
-    'Upgraded social link parsing with clean canonical URLs, official previews where available, safe fallbacks, and stronger redirect protection',
-    'Fixed modern glass editor modal opening empty note when receiving shared PWA launch data (loads data directly into modal note draft and enriches website metadata in modal)',
-    'Robust Web Share Target: supports receiving multiple shared files and resolves query parameters correctly offline',
-    'Robust Note Sharing: wraps individual file formatting in try-catch to avoid crashes and falls back to clipboard copy if navigator.share fails',
-    'Organized two-column tabbed settings layout (General, Appearance, Themes, Reminders, Notifications)',
-    'Frosted glass translucent settings cards supporting both light and dark themes',
-    'Notifications configuration panel: Quiet Hours time picker, Do Not Disturb, sound chimes, haptics, and a 2x3 toast position grid selector',
-    'Dedicated Functional Search Page accessible from the side menu',
-    'Spotify-inspired fluid genre cards (Checklists, Photos, Voice Memos, Bookmarks, Notebooks, Tags)',
-    'Consolidated media hubs: full-bleed Photos gallery, Audio wave visualizer cards, and domain-rich Link tiles',
-    'Redesigned Quick Launch note creator-styled Search Bar with floating glass, Ctrl+K shortcut, and crisp inner background',
-    'Service worker update checking & prompt during splash screen loading and active background usage',
-    'Instant dark/light theme detection on splash screen loading (preventing white flashing)',
-    'Workspace background image fitting settings (Fill, Fit, Stretch, Tile, Center) in Appearance settings',
-    'Note background image upload button styled as a native card in the theme slider picker',
-    'Productivity page hero banner horizontal gradient adapting to the active workspace theme background',
-    'Productivity page todo widget surfacing individual unchecked checklist items across notes'
-  ];
-
-  const renderCollapsibleChangelog = (changelogList) => {
-    if (!changelogList) return;
-    const items = Array.from(changelogList.querySelectorAll(':scope > li'));
-    if (items.length === 0) return;
-
-    const groups = [];
-    items.forEach((item) => {
-      const versionMatch = item.textContent.match(/\(v(\d+(?:\.\d+)+)\)/i);
-      const version = versionMatch ? `v${versionMatch[1]}` : 'Earlier updates';
-      let group = groups.find(entry => entry.version === version);
-      if (!group) {
-        group = { version, items: [] };
-        groups.push(group);
-      }
-      group.items.push(item);
-    });
-
-    changelogList.innerHTML = '';
-    changelogList.classList.add('changelog-accordion');
-    groups.forEach((group, index) => {
-      const details = document.createElement('details');
-      details.className = 'changelog-version';
-      details.open = index === 0;
-
-      const summary = document.createElement('summary');
-      summary.className = 'changelog-version-summary';
-      summary.innerHTML = `
-        <span>${escapeHtml(group.version)}</span>
-        <span class="changelog-version-count">${group.items.length} ${group.items.length === 1 ? 'change' : 'changes'}</span>
-      `;
-
-      const updates = document.createElement('ul');
-      updates.className = 'changelog-version-items';
-      group.items.forEach(item => updates.appendChild(item));
-      details.append(summary, updates);
-      changelogList.appendChild(details);
-    });
-  };
-
-  renderCollapsibleChangelog(document.querySelector('.changelog-list'));
-
-  subscribeToVersionUpdates((serverConfig) => {
-    if (!appUpdateBtn) return;
-    const serverVersion = serverConfig?.version || CURRENT_VERSION;
-    const serverChangelog = serverConfig?.changelog || DEFAULT_CHANGELOG;
-
-    const changelogList = document.querySelector('.changelog-list');
-    if (changelogList && serverChangelog.length > 0) {
-      changelogList.innerHTML = serverChangelog.map(item => `<li>${escapeHtml(item)}</li>`).join('');
-      renderCollapsibleChangelog(changelogList);
-    }
-
-    const versionLabel = document.querySelector('.version-label');
-    if (versionLabel) {
-      versionLabel.textContent = `Version ${CURRENT_VERSION}`;
-    }
-
-    if (serverVersion && serverVersion !== CURRENT_VERSION) {
-      appUpdateBtn.disabled = false;
-      appUpdateBtn.textContent = 'Update';
-      appUpdateBtn.classList.add('update-available');
-    } else {
-      appUpdateBtn.disabled = true;
-      appUpdateBtn.textContent = 'Latest';
-      appUpdateBtn.classList.remove('update-available');
-    }
-  });
-
-  appUpdateBtn?.addEventListener('click', async () => {
-    appUpdateBtn.disabled = true;
-    appUpdateBtn.textContent = 'Updating...';
-
-    showToast({ title: 'Updating App', text: 'Clearing application cache and restarting...' });
-
-    try {
-      // 1. Clear PWA / Cache Storage
-      if ('caches' in window) {
-        const cacheKeys = await caches.keys();
-        await Promise.all(cacheKeys.map(key => caches.delete(key)));
-      }
-
-      // 2. Unregister Service Workers
-      if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(registrations.map(reg => reg.unregister()));
-      }
-
-      // 3. Restart / Reload the app
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-    } catch (err) {
-      console.warn('Failed to clear app cache during update:', err);
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-    }
-  });
 
   initAdvancedEditorHandlers();
   initModalAdvancedEditorHandlers();
@@ -3925,7 +3519,7 @@ function buildColorGrid(container, activeColor, activeTheme, activeCustomTheme, 
 let creatorActiveNoteId = null;
 
 export function revealInlineCreator() {
-  if (typeof currentPage !== 'undefined' && currentPage !== 'notes') {
+  if (typeof getActivePage !== 'undefined' && getActivePage() !== 'notes') {
     if (typeof showPage === 'function') {
       showPage('notes');
     } else if (typeof setActivePage === 'function') {
@@ -5260,7 +4854,7 @@ function renderSidebarFolders() {
       <span class="sidebar-label">${folder}</span>
     `;
     item.addEventListener('click', () => {
-      currentPage = 'notes';
+      setActivePage('notes');
       selectedFolderFilter = folder;
       selectedTagFilter = null;
       clearSidebarActiveStates();
@@ -5293,7 +4887,7 @@ function renderFolderDrawer() {
       <span class="folder-drawer-item-trailing">${relatedNotes.slice(0, 2).map(note => getVisualTypeLabel(getVisualNoteType(note))).join(' · ') || 'Empty'}</span>
     `;
     item.addEventListener('click', () => {
-      currentPage = 'notes';
+      setActivePage('notes');
       selectedFolderFilter = folder;
       selectedTagFilter = null;
       clearSidebarActiveStates();
@@ -6498,26 +6092,28 @@ function renderNotesPage() {
   if (prodPageEl) prodPageEl.style.display = 'none';
   if (searchPageEl) searchPageEl.style.display = 'none';
 
+  const activePage = getActivePage();
+
   if (creatorWrapper) {
-    creatorWrapper.style.display = (currentPage === 'notes' && creatorWrapper.classList.contains('visible')) ? 'block' : 'none';
+    creatorWrapper.style.display = (activePage === 'notes' && creatorWrapper.classList.contains('visible')) ? 'block' : 'none';
   }
   if (feedFilterRow) {
-    feedFilterRow.style.display = (currentPage === 'notes') ? '' : 'none';
+    feedFilterRow.style.display = (activePage === 'notes') ? '' : 'none';
   }
   if (notesFeed) {
     notesFeed.style.display = '';
     applySkyThemeClass(experimentalSkyTheme);
     applyPremiumSkyThemeClass(premiumSkyTheme);
   }
-  if (currentPage !== 'notes') {
-    setActiveSidebarPage(currentPage);
+  if (activePage !== 'notes') {
+    setActiveSidebarPage(activePage);
   } else if (!selectedFolderFilter && !selectedTagFilter) {
     setActiveSidebarPage('notes');
   }
 
   const searchInEl = searchInput || (typeof document !== 'undefined' ? document.getElementById('dedicated-search-input') : null);
   const query = (searchInEl?.value || '').toLowerCase().trim();
-  const pageNotes = getPageNotes(currentPage);
+  const pageNotes = getPageNotes(activePage);
 
   // Apply Search + Tag filters
   const filteredNotes = pageNotes.filter(note => {
@@ -6560,11 +6156,11 @@ function renderNotesPage() {
   if (filteredNotes.length === 0) {
     emptyState.style.display = 'flex';
     let emptyCopy = 'Notes you add appear here';
-    if (currentPage === 'archive') {
+    if (activePage === 'archive') {
       emptyCopy = 'Archived notes appear here';
-    } else if (currentPage === 'deleted') {
+    } else if (activePage === 'deleted') {
       emptyCopy = 'Deleted notes appear here until you restore or remove them forever';
-    } else if (currentPage === 'favorites') {
+    } else if (activePage === 'favorites') {
       emptyCopy = 'Notes you favorite appear here';
     } else if (selectedTagFilter) {
       emptyCopy = `No notes tagged #${selectedTagFilter}`;
@@ -7957,7 +7553,7 @@ export function createNoteCardElement(note) {
       badge.textContent = `#${tag}`;
       badge.addEventListener('click', (e) => {
         e.stopPropagation();
-        currentPage = 'notes';
+        setActivePage('notes');
         selectedTagFilter = tag;
         selectedFolderFilter = null;
         document.querySelectorAll('.sidebar-item').forEach(el => {
@@ -9838,89 +9434,7 @@ function triggerNotificationVibrate() {
   }
 }
 
-function showToast(note) {
-  // 1. General notifications enable switch
-  if (appSettings.notificationsEnabled === false) {
-    return;
-  }
 
-  // 2. DND toggle
-  if (appSettings.notificationsDnd) {
-    return;
-  }
-
-  // 3. Quiet Hours check
-  if (isQuietHours()) {
-    return;
-  }
-
-  // 4. Note reminder filter
-  const isNoteReminder = !!(note && note.id && note.reminder);
-  if (isNoteReminder && appSettings.notificationsReminders === false) {
-    return;
-  }
-
-  const container = document.getElementById('toast-container');
-  if (container) {
-    // Remove existing position classes
-    container.classList.forEach(className => {
-      if (className.startsWith('pos-')) {
-        container.classList.remove(className);
-      }
-    });
-    // Add current position class
-    const pos = appSettings.toastPosition || 'top-right';
-    container.classList.add(`pos-${pos}`);
-  }
-
-  // Play chime and vibrate if desired
-  playNotificationChime();
-  triggerNotificationVibrate();
-
-  let actionBtnHtml = '';
-  if (note.action) {
-    actionBtnHtml = `<button class="toast-action-btn" style="background: var(--primary, #1a73e8); color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; margin-top: 6px; width: fit-content; border: 1px solid rgba(255,255,255,0.1);">${note.action.text}</button>`;
-  }
-
-  const toast = document.createElement('div');
-  toast.className = 'toast-notification';
-  toast.innerHTML = `
-    <svg class="toast-bell-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
-    <div class="toast-content" style="display: flex; flex-direction: column;">
-      <div class="toast-title">${note.title || 'Reminder Alert!'}</div>
-      <div class="toast-text">${note.text || 'You have a scheduled reminder.'}</div>
-      ${actionBtnHtml}
-    </div>
-    <span class="toast-close">✕</span>
-  `;
-
-  if (note.action) {
-    toast.querySelector('.toast-action-btn')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      note.action.callback();
-      toast.classList.add('hide');
-      setTimeout(() => toast.remove(), 350);
-    });
-  }
-
-  toast.querySelector('.toast-close').addEventListener('click', () => {
-    toast.classList.add('hide');
-    setTimeout(() => toast.remove(), 350);
-  });
-
-  if (container) {
-    container.appendChild(toast);
-  }
-
-  if (note.duration !== 0) {
-    setTimeout(() => {
-      if (toast.parentNode) {
-        toast.classList.add('hide');
-        setTimeout(() => toast.remove(), 350);
-      }
-    }, 8000);
-  }
-}
 
 function fireReminderNotification(note, bodyText) {
   // In-app toast with snooze buttons
@@ -10944,7 +10458,6 @@ export function setSelectedProductivityDayView(val) {
 
 // Exports
 export {
-  setActivePage,
   saveToLocalStorage,
   debouncedSave,
   renderNotes,
