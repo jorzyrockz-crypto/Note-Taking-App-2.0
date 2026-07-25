@@ -3441,9 +3441,9 @@ test('Phase 6B - card density, spine geometry, and type indicators', () => {
   const cssContent = fs.readFileSync(cssPath, 'utf8').replace(/\r\n/g, '\n');
 
   assert.ok(cssContent.includes('body[data-layout="desktop"] .notes-grid:not(.list-view) .note-card {\n  height: 288px !important;'), 'Desktop card height target 288px');
-  assert.ok(cssContent.includes('body[data-layout="desktop"] .notes-grid:not(.list-view) {\n  gap: 14px !important;'), 'Desktop gap 14px');
+  assert.ok(cssContent.includes('body[data-layout="desktop"] .notes-grid:not(.list-view) {\n  gap: 20px !important;'), 'Desktop gap 20px');
   assert.ok(cssContent.includes('body[data-layout="tablet-portrait"] .notes-grid:not(.list-view) .note-card,\nbody[data-layout="tablet-landscape"] .notes-grid:not(.list-view) .note-card {\n  height: 272px !important;'), 'Tablet card height target 272px');
-  assert.ok(cssContent.includes('body[data-layout="tablet-portrait"] .notes-grid:not(.list-view),\nbody[data-layout="tablet-landscape"] .notes-grid:not(.list-view) {\n  gap: 12px !important;'), 'Tablet gap 12px');
+  assert.ok(cssContent.includes('body[data-layout="tablet-portrait"] .notes-grid:not(.list-view),\nbody[data-layout="tablet-landscape"] .notes-grid:not(.list-view) {\n  gap: 18px !important;'), 'Tablet gap 18px');
   assert.ok(cssContent.includes('width: 42px;'), 'Spine width 42px');
   assert.ok(cssContent.includes('width: 32px;\n    height: 32px;'), 'Spine button 32px');
 

@@ -15541,7 +15541,7 @@ body[data-layout="desktop"]:not(.sidebar-pinned) .main-content-area {
 
 /* --- 1. DESKTOP DENSITY (body[data-layout="desktop"]) --- */
 body[data-layout="desktop"] .notes-grid:not(.list-view) {
-  gap: 14px !important;
+  gap: 20px !important;
 }
 
 body[data-layout="desktop"] .notes-grid:not(.list-view) .note-card {
@@ -15566,7 +15566,7 @@ body[data-layout="desktop"] .note-card .note-board-header {
 /* --- 2. TABLET DENSITY (body[data-layout="tablet-portrait"], body[data-layout="tablet-landscape"]) --- */
 body[data-layout="tablet-portrait"] .notes-grid:not(.list-view),
 body[data-layout="tablet-landscape"] .notes-grid:not(.list-view) {
-  gap: 12px !important;
+  gap: 18px !important;
 }
 
 body[data-layout="tablet-portrait"] .notes-grid:not(.list-view) .note-card,

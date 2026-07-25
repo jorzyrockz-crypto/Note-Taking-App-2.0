@@ -3,9 +3,10 @@
  * Serves as the single JavaScript source of truth for current version and changelog metadata.
  */
 
-export const CURRENT_VERSION = '3.3.2';
+export const CURRENT_VERSION = '3.3.3';
 
 export const DEFAULT_CHANGELOG = [
+  'Expanded Desktop & Tablet Grid Spacing (v3.3.3): Increased desktop card grid gaps from 14px to 20px (+6px) and tablet grid gaps from 12px to 18px (+6px) for improved visual breathing room between card columns and rows.',
   'Refined Note-Card Density & Type Indicators (v3.3.2): Standardized desktop card height to 288px and tablet height to 272px with flush left notebook spine docking, added fixed 14px/12px grid gaps, isolated card padding to content wrapper, removed top-bar type text badge, and introduced compact footer multi-type indicator icons.',
   'Real-Browser Responsive Note Card Stabilization (v3.3.1): Validated two-column phone cards, compact More toggle, and 4-button desktop/tablet action spine across 14 viewports in Edge browser; eliminated module initialization ReferenceErrors and added non-blocking fallback rendering for malformed local notes.',
   'Adaptive Responsive Cards & Navigation (v3.3.0): Centralized device classification and responsive lifecycles, added two-column phone cards with compact actions, preserved tablet and desktop action spines, unified card actions and gestures, prioritized note titles, deduplicated media previews, and hardened rich-text and menu accessibility.',
