@@ -1,3 +1,4 @@
+import { isRichTextNote } from './note-types/text-note.js';
 import {
   notes,
   appSettings,
@@ -72,7 +73,7 @@ function getAllUncheckedItems(noteList = notes) {
   for (const note of noteList) {
     if (!note || note.deleted) continue;
     
-    const isHtml = note.isRichText || /<[a-z][\s\S]*>/i.test(note.text || '');
+    const isHtml = isRichTextNote(note);
     if (isHtml) {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = note.text || '';
@@ -465,7 +466,7 @@ export function getAgendaPreviewLines(note, dateKey = '') {
   if (inlineEntries.length) return inlineEntries;
 
   let textVal = note?.text || '';
-  const isHtml = note?.isRichText || /<[a-z][\s\S]*>/i.test(textVal);
+  const isHtml = isRichTextNote(note);
   if (isHtml) {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = textVal;
@@ -546,7 +547,7 @@ export function createProductivityNoteCard(note, options = {}) {
   card.setAttribute('data-note-kind', noteKind);
 
   let cleanText = note.text || '';
-  const isHtml = note.isRichText || /<[a-z][\s\S]*>/i.test(cleanText);
+  const isHtml = isRichTextNote(note);
   if (isHtml) {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = cleanText;

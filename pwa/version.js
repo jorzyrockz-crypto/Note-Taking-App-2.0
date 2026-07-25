@@ -3,9 +3,10 @@
  * Serves as the single JavaScript source of truth for current version and changelog metadata.
  */
 
-export const CURRENT_VERSION = '3.2.6';
+export const CURRENT_VERSION = '3.3.0';
 
 export const DEFAULT_CHANGELOG = [
+  'Adaptive Responsive Cards & Navigation (v3.3.0): Centralized device classification and responsive lifecycles, added two-column phone cards with compact actions, preserved tablet and desktop action spines, unified card actions and gestures, prioritized note titles, deduplicated media previews, and hardened rich-text and menu accessibility.',
   'User-Controlled PWA Updates (v3.2.6): Refactored service worker install handler to wait for user activation before taking control, enabling non-disruptive background updates and clean one-tap reload coordination.',
   'Responsive Productivity & Sidebar Profile Fix (v3.2.5): Simplified the Productivity calendar, focused tasks on the selected day with a responsive open-task expander and New Task action, and repaired the mobile/tablet sidebar profile menu by rendering it above the drawer.',
   'Purpose-Built Slide Decks & Revised Media Hub Layout (v3.2.4): Refactored note media hubs into type-aware purpose-built slide decks (Text, Checklist, Voice, Link, Recipe, Visual, File) and aligned Media Hub in normal document flow inside .note-surface 6px flush above the footer with zero overlap.',

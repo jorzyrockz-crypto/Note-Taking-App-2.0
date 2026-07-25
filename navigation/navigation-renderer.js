@@ -4,6 +4,7 @@
  */
 
 import { PAGE_CONTAINER_SELECTORS, SIDEBAR_PAGE_ELEMENT_IDS } from './navigation-config.js';
+import { getResponsiveState } from '../responsive/index.js';
 
 /**
  * Updates DOM visibility of top-level page containers according to the active page ID.
@@ -120,7 +121,10 @@ export function collapseSidebarAfterSelection() {
   if (sidebar?.classList.contains('sidebar-open')) {
     sidebar.classList.remove('sidebar-open');
   }
-  if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+  const current = typeof getResponsiveState === 'function' ? getResponsiveState() : null;
+  const layoutMode = current ? current.layoutMode : null;
+
+  if (!layoutMode || layoutMode === 'phone' || layoutMode === 'tablet-portrait' || layoutMode === 'tablet-landscape') {
     document.body.classList.remove('sidebar-pinned');
   }
 }

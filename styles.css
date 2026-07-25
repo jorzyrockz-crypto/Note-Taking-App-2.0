@@ -15414,3 +15414,208 @@ body.scroll-locked {
   max-height: 90vh;
   overflow-y: auto;
 }
+
+/* ==========================================================================
+   Paperuss 3.0 — Authoritative Navigation Layout Ownership (Phase 3A)
+   Centralized responsive state (body[data-layout="..."]) authoritatively owns
+   navigation surface visibility, sidebar pinning, and main workspace content margins.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. PHONE LAYOUT (body[data-layout="phone"])
+   -------------------------------------------------------------------------- */
+body[data-layout="phone"] .mobile-bottom-dock {
+  display: flex !important;
+}
+
+body[data-layout="phone"] .tablet-dock {
+  display: none !important;
+}
+
+body[data-layout="phone"] .app-sidebar:not(.sidebar-open) {
+  display: none !important;
+}
+
+body[data-layout="phone"] .app-sidebar.sidebar-open {
+  display: flex !important;
+  position: fixed !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  z-index: 3500 !important;
+}
+
+body[data-layout="phone"] .main-content-area,
+body[data-layout="phone"].sidebar-pinned .main-content-area {
+  margin-left: 0 !important;
+  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+/* --------------------------------------------------------------------------
+   2. TABLET PORTRAIT LAYOUT (body[data-layout="tablet-portrait"])
+   -------------------------------------------------------------------------- */
+body[data-layout="tablet-portrait"] .mobile-bottom-dock {
+  display: none !important;
+}
+
+body[data-layout="tablet-portrait"]:not(.tablet-first-enabled) .tablet-dock {
+  display: none !important;
+}
+
+body[data-layout="tablet-portrait"].tablet-first-enabled .tablet-dock {
+  display: grid !important;
+}
+
+body[data-layout="tablet-portrait"]:not(.tablet-first-enabled) .app-sidebar:not(.sidebar-open) {
+  display: none !important;
+}
+
+body[data-layout="tablet-portrait"]:not(.tablet-first-enabled) .main-content-area,
+body[data-layout="tablet-portrait"]:not(.tablet-first-enabled).sidebar-pinned .main-content-area {
+  margin-left: 0 !important;
+  padding-bottom: 34px !important;
+}
+
+body[data-layout="tablet-portrait"].tablet-first-enabled .main-content-area {
+  margin-left: 0 !important;
+  padding-bottom: calc(var(--tablet-dock-height, 62px) + 34px) !important;
+}
+
+/* --------------------------------------------------------------------------
+   3. TABLET LANDSCAPE LAYOUT (body[data-layout="tablet-landscape"])
+   -------------------------------------------------------------------------- */
+body[data-layout="tablet-landscape"] .mobile-bottom-dock,
+body[data-layout="tablet-landscape"] .tablet-dock {
+  display: none !important;
+}
+
+body[data-layout="tablet-landscape"].tablet-first-enabled .app-sidebar {
+  display: flex !important;
+  width: 84px !important;
+}
+
+body[data-layout="tablet-landscape"].tablet-first-enabled .main-content-area,
+body[data-layout="tablet-landscape"].tablet-first-enabled.sidebar-pinned .main-content-area {
+  margin-left: 84px !important;
+}
+
+body[data-layout="tablet-landscape"]:not(.tablet-first-enabled) .app-sidebar {
+  display: flex !important;
+  width: 70px !important;
+}
+
+body[data-layout="tablet-landscape"]:not(.tablet-first-enabled) .main-content-area,
+body[data-layout="tablet-landscape"]:not(.tablet-first-enabled).sidebar-pinned .main-content-area {
+  margin-left: 70px !important;
+}
+
+/* --------------------------------------------------------------------------
+   4. DESKTOP LAYOUT (body[data-layout="desktop"])
+   -------------------------------------------------------------------------- */
+body[data-layout="desktop"] .mobile-bottom-dock,
+body[data-layout="desktop"] .tablet-dock {
+  display: none !important;
+}
+
+body[data-layout="desktop"].sidebar-pinned .app-sidebar {
+  display: flex !important;
+  width: 240px !important;
+}
+
+body[data-layout="desktop"].sidebar-pinned .main-content-area {
+  margin-left: 240px !important;
+}
+
+body[data-layout="desktop"]:not(.sidebar-pinned) .app-sidebar:not(.sidebar-open) {
+  width: 70px !important;
+}
+
+body[data-layout="desktop"]:not(.sidebar-pinned) .main-content-area {
+  margin-left: 70px !important;
+}
+
+/* ==========================================================================
+   PHASE 6A: RESPONSIVE NOTE-CARD DENSITY & ACTION CONTROLS
+   ========================================================================== */
+
+/* --- 1. DESKTOP DENSITY (body[data-layout="desktop"]) --- */
+body[data-layout="desktop"] .notes-grid:not(.list-view) {
+  gap: 12px !important;
+}
+
+body[data-layout="desktop"] .notes-grid:not(.list-view) .note-card {
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+}
+
+body[data-layout="desktop"] .note-card-spine {
+  display: flex !important;
+}
+
+body[data-layout="desktop"] .note-card .note-card-menu-toggle,
+body[data-layout="desktop"] .note-card .note-board-header {
+  display: none !important;
+}
+
+/* --- 2. TABLET DENSITY (body[data-layout="tablet-portrait"], body[data-layout="tablet-landscape"]) --- */
+body[data-layout="tablet-portrait"] .notes-grid:not(.list-view),
+body[data-layout="tablet-landscape"] .notes-grid:not(.list-view) {
+  gap: 10px !important;
+}
+
+body[data-layout="tablet-portrait"] .notes-grid:not(.list-view) .note-card,
+body[data-layout="tablet-landscape"] .notes-grid:not(.list-view) .note-card {
+  padding: 8px 10px !important;
+  border-radius: 12px !important;
+}
+
+body[data-layout="tablet-portrait"] .note-card-spine,
+body[data-layout="tablet-landscape"] .note-card-spine {
+  display: flex !important;
+}
+
+body[data-layout="tablet-portrait"] .note-card .note-card-menu-toggle,
+body[data-layout="tablet-landscape"] .note-card .note-card-menu-toggle,
+body[data-layout="tablet-portrait"] .note-card .note-board-header,
+body[data-layout="tablet-landscape"] .note-card .note-board-header {
+  display: none !important;
+}
+
+/* --- 3. PHONE 2-COLUMN GRID & COMPACT ACTION TREE (body[data-layout="phone"]) --- */
+body[data-layout="phone"] .notes-grid:not(.list-view) {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+body[data-layout="phone"] .notes-grid:not(.list-view) .note-card {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  padding: 8px !important;
+  border-radius: 14px !important;
+  box-sizing: border-box !important;
+}
+
+body[data-layout="phone"] .note-card-spine {
+  display: none !important;
+}
+
+body[data-layout="phone"] .note-card .note-card-menu-toggle,
+body[data-layout="phone"] .note-card .note-board-header {
+  display: flex !important;
+}
+
+/* Title First Clamping Rules across layout modes */
+.note-card .note-title {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  line-height: 1.3 !important;
+  margin: 0 0 4px 0 !important;
+}

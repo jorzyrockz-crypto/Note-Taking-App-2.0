@@ -32,6 +32,14 @@ import {
   registerPageLifecycle
 } from './navigation/index.js';
 import {
+  initResponsiveState,
+  getResponsiveState,
+  subscribeToResponsiveState,
+  initResponsiveSidebarState,
+  extractHubMediaKeys,
+  deduplicateBodyMedia
+} from './responsive/index.js';
+import {
   createFallbackSocialPreview,
   isSupportedSocialPlatform,
   normalizeSocialCaptureUrl,
@@ -244,13 +252,49 @@ export function initMobilePhoneExperience() {
     });
   });
 
-  // 3. Touch Card Swipe Gestures (Pin Right, Delete Left)
+  // Delegate touch gesture lifecycle management to responsive gestures coordinator
+  initResponsiveGestures();
+
+  // Visual Viewport Keyboard Safety
+  if (typeof window !== 'undefined' && window.visualViewport) {
+    const handleViewportResize = () => {
+      const keyboardHeight = window.innerHeight - window.visualViewport.height;
+      const toolbars = document.querySelectorAll('.glass-floating-toolbar');
+
+      toolbars.forEach(tb => {
+        if (keyboardHeight > 120) {
+          tb.classList.add('keyboard-elevated');
+          tb.style.setProperty('--keyboard-offset', `${keyboardHeight + 12}px`);
+        } else {
+          tb.classList.remove('keyboard-elevated');
+          tb.style.removeProperty('--keyboard-offset');
+        }
+      });
+    };
+
+    window.visualViewport.addEventListener('resize', handleViewportResize);
+    window.visualViewport.addEventListener('scroll', handleViewportResize);
+  }
+}
+
+/* ==========================================================================
+   Paperuss 3.0 — Lifecycle-Gated Responsive Touch Gestures (Phase 4A)
+   ========================================================================== */
+
+let activeCardSwipeCleanup = null;
+let activePullToRefreshCleanup = null;
+let activeSidebarSwipeCleanup = null;
+let responsiveGesturesUnsubscribe = null;
+
+export function installPhoneCardSwipeGestures() {
+  if (activeCardSwipeCleanup) return activeCardSwipeCleanup;
+
   let touchStartX = 0;
   let touchStartY = 0;
   let activeSwipeCard = null;
   let currentTranslateX = 0;
 
-  document.addEventListener('touchstart', (e) => {
+  const onTouchStart = (e) => {
     activeSwipeCard = null;
     currentTranslateX = 0;
 
@@ -264,9 +308,9 @@ export function initMobilePhoneExperience() {
     touchStartY = e.touches[0].clientY;
     activeSwipeCard = card;
     currentTranslateX = 0;
-  }, { passive: true });
+  };
 
-  document.addEventListener('touchmove', (e) => {
+  const onTouchMove = (e) => {
     if (!activeSwipeCard || e.touches.length !== 1) return;
 
     const deltaX = e.touches[0].clientX - touchStartX;
@@ -286,9 +330,9 @@ export function initMobilePhoneExperience() {
         activeSwipeCard.classList.remove('swiping-pin', 'swiping-delete');
       }
     }
-  }, { passive: true });
+  };
 
-  document.addEventListener('touchend', () => {
+  const onTouchEnd = () => {
     if (!activeSwipeCard) return;
 
     const noteId = activeSwipeCard.getAttribute('data-id');
@@ -296,42 +340,60 @@ export function initMobilePhoneExperience() {
 
     if (currentTranslateX > 80 && note) {
       triggerHaptic('snap');
-      note.pinned = !note.pinned;
-      note.updatedAt = Date.now();
-      if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
-      if (typeof renderNotes === 'function') renderNotes();
-      if (typeof showToast === 'function') {
-        showToast({ title: note.pinned ? '📌 Note Pinned' : 'Note Unpinned', text: `"${note.title || 'Note'}" updated.` });
-      }
+      toggleNoteCardPin(note, null, { updateTimestamp: true, showFeedback: true });
     } else if (currentTranslateX < -80 && note) {
       triggerHaptic('snap');
-      trashNote(noteId);
-      if (typeof showToast === 'function') {
-        showToast({ title: '🗑️ Note Moved to Trash', text: `"${note.title || 'Note'}" can be restored from Trash.` });
-      }
+      deleteNoteCard(note, null, { showFeedback: true });
     }
 
-    activeSwipeCard.style.transform = '';
-    activeSwipeCard.classList.remove('swiping-pin', 'swiping-delete');
-    activeSwipeCard = null;
-    currentTranslateX = 0;
-  });
-
-  document.addEventListener('touchcancel', () => {
     if (activeSwipeCard) {
       activeSwipeCard.style.transform = '';
       activeSwipeCard.classList.remove('swiping-pin', 'swiping-delete');
     }
     activeSwipeCard = null;
     currentTranslateX = 0;
-  });
+  };
 
-  // 4. Mobile Pull-to-Refresh Sync
+  const onTouchCancel = () => {
+    if (activeSwipeCard) {
+      activeSwipeCard.style.transform = '';
+      activeSwipeCard.classList.remove('swiping-pin', 'swiping-delete');
+    }
+    activeSwipeCard = null;
+    currentTranslateX = 0;
+  };
+
+  document.addEventListener('touchstart', onTouchStart, { passive: true });
+  document.addEventListener('touchmove', onTouchMove, { passive: true });
+  document.addEventListener('touchend', onTouchEnd);
+  document.addEventListener('touchcancel', onTouchCancel);
+
+  activeCardSwipeCleanup = () => {
+    document.removeEventListener('touchstart', onTouchStart);
+    document.removeEventListener('touchmove', onTouchMove);
+    document.removeEventListener('touchend', onTouchEnd);
+    document.removeEventListener('touchcancel', onTouchCancel);
+
+    if (activeSwipeCard) {
+      activeSwipeCard.style.transform = '';
+      activeSwipeCard.classList.remove('swiping-pin', 'swiping-delete');
+    }
+    activeSwipeCard = null;
+    currentTranslateX = 0;
+    activeCardSwipeCleanup = null;
+  };
+
+  return activeCardSwipeCleanup;
+}
+
+export function installPhonePullToRefresh() {
+  if (activePullToRefreshCleanup) return activePullToRefreshCleanup;
+
   let pullStartY = 0;
   let pullDistance = 0;
-  const pullIndicator = document.getElementById('mobile-pull-indicator');
+  const getPullIndicator = () => typeof document !== 'undefined' ? document.getElementById('mobile-pull-indicator') : null;
 
-  document.addEventListener('touchstart', (e) => {
+  const onTouchStart = (e) => {
     if (document.querySelector('.edit-modal-overlay.visible') || e.target.closest('.edit-modal-overlay, .modal-content, .glass-editor-workspace, .creator-wrapper')) {
       pullStartY = 0;
       pullDistance = 0;
@@ -341,9 +403,10 @@ export function initMobilePhoneExperience() {
       pullStartY = e.touches[0].clientY;
       pullDistance = 0;
     }
-  }, { passive: true });
+  };
 
-  document.addEventListener('touchmove', (e) => {
+  const onTouchMove = (e) => {
+    const pullIndicator = getPullIndicator();
     if (document.querySelector('.edit-modal-overlay.visible') || e.target.closest('.edit-modal-overlay, .modal-content, .glass-editor-workspace, .creator-wrapper')) {
       pullStartY = 0;
       pullDistance = 0;
@@ -360,9 +423,10 @@ export function initMobilePhoneExperience() {
         }
       }
     }
-  }, { passive: true });
+  };
 
-  document.addEventListener('touchend', () => {
+  const onTouchEnd = () => {
+    const pullIndicator = getPullIndicator();
     if (pullDistance > 75) {
       triggerHaptic('success');
       if (pullIndicator) {
@@ -386,27 +450,125 @@ export function initMobilePhoneExperience() {
     }
     pullStartY = 0;
     pullDistance = 0;
-  });
+  };
 
-  // 5. Visual Viewport Keyboard Safety
-  if (typeof window !== 'undefined' && window.visualViewport) {
-    const handleViewportResize = () => {
-      const keyboardHeight = window.innerHeight - window.visualViewport.height;
-      const toolbars = document.querySelectorAll('.glass-floating-toolbar');
+  document.addEventListener('touchstart', onTouchStart, { passive: true });
+  document.addEventListener('touchmove', onTouchMove, { passive: true });
+  document.addEventListener('touchend', onTouchEnd);
 
-      toolbars.forEach(tb => {
-        if (keyboardHeight > 120) {
-          tb.classList.add('keyboard-elevated');
-          tb.style.setProperty('--keyboard-offset', `${keyboardHeight + 12}px`);
-        } else {
-          tb.classList.remove('keyboard-elevated');
-          tb.style.removeProperty('--keyboard-offset');
+  activePullToRefreshCleanup = () => {
+    document.removeEventListener('touchstart', onTouchStart);
+    document.removeEventListener('touchmove', onTouchMove);
+    document.removeEventListener('touchend', onTouchEnd);
+
+    const pullIndicator = getPullIndicator();
+    if (pullIndicator) {
+      pullIndicator.classList.remove('visible', 'refreshing');
+    }
+    pullStartY = 0;
+    pullDistance = 0;
+    activePullToRefreshCleanup = null;
+  };
+
+  return activePullToRefreshCleanup;
+}
+
+export function installResponsiveSidebarSwipe() {
+  if (activeSidebarSwipeCleanup) return activeSidebarSwipeCleanup;
+
+  let touchStartX = 0;
+  let touchStartY = 0;
+
+  const onTouchStart = (e) => {
+    if (e.touches && e.touches.length === 1) {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }
+  };
+
+  const onTouchEnd = (e) => {
+    if (!e.changedTouches || e.changedTouches.length !== 1) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = touchEndY - touchStartY;
+
+    const sidebar = document.querySelector('.app-sidebar');
+
+    if (Math.abs(deltaX) > 75 && Math.abs(deltaY) < 40) {
+      if (deltaX > 0 && touchStartX < 35) {
+        if (sidebar && !sidebar.classList.contains('sidebar-open')) {
+          sidebar.classList.add('sidebar-open');
+          if (typeof closeAllNoteCardMenus === 'function') closeAllNoteCardMenus();
         }
-      });
-    };
+      } else if (deltaX < 0) {
+        if (sidebar && sidebar.classList.contains('sidebar-open')) {
+          sidebar.classList.remove('sidebar-open');
+        }
+      }
+    }
+  };
 
-    window.visualViewport.addEventListener('resize', handleViewportResize);
-    window.visualViewport.addEventListener('scroll', handleViewportResize);
+  document.addEventListener('touchstart', onTouchStart, { passive: true });
+  document.addEventListener('touchend', onTouchEnd, { passive: true });
+
+  activeSidebarSwipeCleanup = () => {
+    document.removeEventListener('touchstart', onTouchStart);
+    document.removeEventListener('touchend', onTouchEnd);
+    touchStartX = 0;
+    touchStartY = 0;
+    activeSidebarSwipeCleanup = null;
+  };
+
+  return activeSidebarSwipeCleanup;
+}
+
+export function syncGestureState(state) {
+  const current = state || (typeof getResponsiveState === 'function' ? getResponsiveState() : null);
+  if (!current) return;
+
+  const isCardSwipeEligible = current.layoutMode === 'phone' && current.hasTouch;
+  const isPullRefreshEligible = current.layoutMode === 'phone' && current.hasTouch;
+  const isSidebarSwipeEligible = current.hasTouch && (current.layoutMode === 'phone' || current.layoutMode === 'tablet-portrait');
+
+  if (isCardSwipeEligible) {
+    if (!activeCardSwipeCleanup) installPhoneCardSwipeGestures();
+  } else if (activeCardSwipeCleanup) {
+    activeCardSwipeCleanup();
+  }
+
+  if (isPullRefreshEligible) {
+    if (!activePullToRefreshCleanup) installPhonePullToRefresh();
+  } else if (activePullToRefreshCleanup) {
+    activePullToRefreshCleanup();
+  }
+
+  if (isSidebarSwipeEligible) {
+    if (!activeSidebarSwipeCleanup) installResponsiveSidebarSwipe();
+  } else if (activeSidebarSwipeCleanup) {
+    activeSidebarSwipeCleanup();
+  }
+}
+
+export function initResponsiveGestures() {
+  if (typeof document === 'undefined') return;
+
+  syncGestureState();
+
+  if (!responsiveGesturesUnsubscribe) {
+    responsiveGesturesUnsubscribe = subscribeToResponsiveState((newState) => {
+      syncGestureState(newState);
+    });
+  }
+}
+
+export function destroyResponsiveGestures() {
+  if (activeCardSwipeCleanup) activeCardSwipeCleanup();
+  if (activePullToRefreshCleanup) activePullToRefreshCleanup();
+  if (activeSidebarSwipeCleanup) activeSidebarSwipeCleanup();
+  if (responsiveGesturesUnsubscribe) {
+    responsiveGesturesUnsubscribe();
+    responsiveGesturesUnsubscribe = null;
   }
 }
 
@@ -1510,6 +1672,7 @@ const STARTER_NOTES = [
 
 const getEl = id => typeof document !== 'undefined' ? document.getElementById(id) : null;
 const queryEl = sel => typeof document !== 'undefined' ? document.querySelector(sel) : null;
+const URL_REGEX = /(https?:\/\/[^\s\n\r]+)/g;
 
 const searchInput = getEl('search-input');
 const searchClear = getEl('search-clear');
@@ -1578,6 +1741,12 @@ let sidebarFoldersList = null;
 let sidebarProductivity = null;
 let sidebarArchive = null;
 let sidebarDeleted = null;
+let settingsMod = null;
+let productivityMod = null;
+let cardLifecycleUnsubscribe = null;
+let isCardLifecycleInitialized = false;
+let lastCardLayoutMode = null;
+const activeDeckSlideIndexes = new Map();
 let creatorFolderInput = null;
 let creatorFolderField = null;
 let creatorFolderTrigger = null;
@@ -2332,7 +2501,7 @@ function syncModalInputs(note) {
 // ==========================================================================
 
 if (typeof document !== 'undefined') {
-  document.addEventListener('DOMContentLoaded', () => {
+  const initApp = () => {
     initSettingsCloudSync(null); // Load local preferences initially
     initSearch();
     loadSettings();
@@ -2358,6 +2527,9 @@ if (typeof document !== 'undefined') {
     creatorText?.addEventListener('keydown', handleTextareaTabKey);
     modalText?.addEventListener('keydown', handleTextareaTabKey);
 
+    creatorText?.addEventListener('input', autoGrowTextarea);
+    modalText?.addEventListener('input', autoGrowTextarea);
+
     // Start background checks for note reminders
     setInterval(checkReminders, 10000);
 
@@ -2374,7 +2546,13 @@ if (typeof document !== 'undefined') {
     if (typeof window !== 'undefined' && typeof window.__dismissSplash === 'function') {
       window.__dismissSplash();
     }
-  });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+  } else {
+    initApp();
+  }
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
@@ -2695,6 +2873,42 @@ function initData() {
   saveToLocalStorage();
 }
 
+// cardLifecycleUnsubscribe declared at top level
+// lastCardLayoutMode declared at top level
+// isCardLifecycleInitialized declared at top level
+
+export function initResponsiveCardLifecycle() {
+  if (isCardLifecycleInitialized) {
+    return;
+  }
+
+  const initialState = typeof getResponsiveState === 'function' ? getResponsiveState() : null;
+  lastCardLayoutMode = initialState ? initialState.layoutMode : null;
+  isCardLifecycleInitialized = true;
+
+  if (typeof subscribeToResponsiveState === 'function') {
+    cardLifecycleUnsubscribe = subscribeToResponsiveState((state) => {
+      if (!state || !state.layoutMode) return;
+      if (state.layoutMode !== lastCardLayoutMode) {
+        lastCardLayoutMode = state.layoutMode;
+        if (typeof renderNotes === 'function') {
+          renderNotes();
+        }
+      }
+    });
+  }
+}
+
+export function destroyResponsiveCardLifecycle() {
+  if (typeof cardLifecycleUnsubscribe === 'function') {
+    cardLifecycleUnsubscribe();
+    cardLifecycleUnsubscribe = null;
+  }
+  lastCardLayoutMode = null;
+  isCardLifecycleInitialized = false;
+}
+
+
 function setupEventHandlers() {
   configureToastProvider({
     getSettings: () => appSettings,
@@ -2704,38 +2918,16 @@ function setupEventHandlers() {
   });
   configureNavigation({ triggerHaptic });
   initNavigation();
+  initResponsiveState();
+  initResponsiveSidebarState({ closeAllNoteCardMenus });
+  initResponsiveGestures();
+  initResponsiveCardLifecycle();
   initializePwa({ showToast, subscribeToVersionUpdates });
-  // Toggle sidebar drawer on mobile / pin layout on desktop
-  const menuBtn = document.querySelector('.menu-btn');
-  const sidebar = document.querySelector('.app-sidebar');
-  if (window.innerWidth <= 900) {
-    document.body.classList.remove('sidebar-pinned');
-  } else {
-    document.body.classList.add('sidebar-pinned');
-  }
-  if (menuBtn && sidebar) {
-    menuBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (window.innerWidth <= 900) {
-        sidebar.classList.toggle('sidebar-open');
-        document.body.classList.remove('sidebar-pinned');
-      } else {
-        document.body.classList.toggle('sidebar-pinned');
-      }
-      closeAllNoteCardMenus();
-    });
-  }
 
   document.getElementById('folder-drawer-close')?.addEventListener('click', closeFolderDrawer);
   folderDrawer?.querySelector('.folder-drawer-backdrop')?.addEventListener('click', closeFolderDrawer);
 
-  // Close sidebar drawer on mobile when clicking outside
   document.addEventListener('click', (e) => {
-    if (sidebar && sidebar.classList.contains('sidebar-open')) {
-      if (!sidebar.contains(e.target) && e.target !== menuBtn && !menuBtn.contains(e.target)) {
-        sidebar.classList.remove('sidebar-open');
-      }
-    }
     if (!e.target.closest('.note-card')) {
       collapseExpandedTouchCards();
     }
@@ -2743,40 +2935,6 @@ function setupEventHandlers() {
       closeAllNoteCardMenus();
     }
   });
-
-  // Mobile swipe gestures to toggle sidebar
-  let touchStartX = 0;
-  let touchStartY = 0;
-  
-  document.addEventListener('touchstart', (e) => {
-    if (window.innerWidth > 900) return;
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
-  }, { passive: true });
-
-  document.addEventListener('touchend', (e) => {
-    if (window.innerWidth > 900) return;
-    const touchEndX = e.changedTouches[0].clientX;
-    const touchEndY = e.changedTouches[0].clientY;
-    const deltaX = touchEndX - touchStartX;
-    const deltaY = touchEndY - touchStartY;
-
-    // Must be a horizontal swipe (deltaX must be significant, and deltaY relatively small)
-    if (Math.abs(deltaX) > 75 && Math.abs(deltaY) < 40) {
-      if (deltaX > 0 && touchStartX < 35) {
-        // Swipe right from the left edge of the screen (< 35px) to open the sidebar
-        if (sidebar && !sidebar.classList.contains('sidebar-open')) {
-          sidebar.classList.add('sidebar-open');
-          closeAllNoteCardMenus();
-        }
-      } else if (deltaX < 0) {
-        // Swipe left anywhere to close the sidebar
-        if (sidebar && sidebar.classList.contains('sidebar-open')) {
-          sidebar.classList.remove('sidebar-open');
-        }
-      }
-    }
-  }, { passive: true });
 
   themeBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -5107,6 +5265,7 @@ function closeAllNoteCardMenus() {
   document.querySelectorAll('.note-card-menu.open').forEach(menu => {
     menu.classList.remove('open');
     menu.classList.remove('theme-picker-open');
+    menu._trigger?.setAttribute?.('aria-expanded', 'false');
   });
   document.querySelectorAll('.note-card.menu-open').forEach(card => {
     card.classList.remove('menu-open');
@@ -5913,6 +6072,7 @@ function fallbackToFileReader(file, onCompressComplete, onError) {
 // ==========================================================================
 
 function initCanvasDrawEngine() {
+  if (!sketchCanvas || typeof sketchCanvas.getContext !== 'function') return;
   canvasCtx = sketchCanvas.getContext('2d');
 
   // Mouse Draw Event Listeners
@@ -6081,6 +6241,7 @@ function renderNotes() {
   renderAppView();
   if (window.lucide) { lucide.createIcons(); }
 }
+if (typeof window !== 'undefined') window.renderNotes = renderNotes;
 
 function renderNotesPage() {
   updatePageActionBar();
@@ -6139,36 +6300,49 @@ function renderNotesPage() {
   const pinnedList = filteredNotes.filter(n => n.pinned);
   const othersList = filteredNotes.filter(n => !n.pinned);
 
-  renderGrid(pinnedGrid, pinnedList);
-  renderGrid(othersGrid, othersList);
+  const pGrid = pinnedGrid || getEl('pinned-grid');
+  const oGrid = othersGrid || getEl('others-grid');
+  const pSection = pinnedSection || getEl('pinned-section');
+  const oSection = othersSection || getEl('others-section');
+  const oTitle = othersSectionTitle || getEl('others-section-title');
+  const eState = emptyState || getEl('empty-state');
+
+  if (pGrid) renderGrid(pGrid, pinnedList);
+  if (oGrid) renderGrid(oGrid, othersList);
 
   // Section Headers
-  pinnedSection.style.display = pinnedList.length > 0 ? 'flex' : 'none';
+  if (pSection) pSection.style.display = pinnedList.length > 0 ? 'flex' : 'none';
 
-  if (othersList.length > 0) {
-    othersSection.style.display = 'flex';
-    othersSectionTitle.style.display = pinnedList.length > 0 ? 'block' : 'none';
-  } else {
-    othersSection.style.display = 'none';
+  if (oSection) {
+    if (othersList.length > 0) {
+      oSection.style.display = 'flex';
+      if (oTitle) oTitle.style.display = pinnedList.length > 0 ? 'block' : 'none';
+    } else {
+      oSection.style.display = 'none';
+    }
   }
 
   // Handle Empty State
-  if (filteredNotes.length === 0) {
-    emptyState.style.display = 'flex';
-    let emptyCopy = 'Notes you add appear here';
-    if (activePage === 'archive') {
-      emptyCopy = 'Archived notes appear here';
-    } else if (activePage === 'deleted') {
-      emptyCopy = 'Deleted notes appear here until you restore or remove them forever';
-    } else if (activePage === 'favorites') {
-      emptyCopy = 'Notes you favorite appear here';
-    } else if (selectedTagFilter) {
-      emptyCopy = `No notes tagged #${selectedTagFilter}`;
+  if (eState) {
+    if (filteredNotes.length === 0) {
+      eState.style.display = 'flex';
+      let emptyCopy = 'Notes you add appear here';
+      if (activePage === 'archive') {
+        emptyCopy = 'Archived notes appear here';
+      } else if (activePage === 'deleted') {
+        emptyCopy = 'Deleted notes appear here until you restore or remove them forever';
+      } else if (activePage === 'favorites') {
+        emptyCopy = 'Notes you favorite appear here';
+      } else if (selectedTagFilter) {
+        emptyCopy = `No notes tagged #${selectedTagFilter}`;
+      }
+      const textEl = eState.querySelector('.empty-text');
+      if (textEl) {
+        textEl.textContent = query !== '' ? 'No matching notes found' : emptyCopy;
+      }
+    } else {
+      eState.style.display = 'none';
     }
-    emptyState.querySelector('.empty-text').textContent =
-      query !== '' ? 'No matching notes found' : emptyCopy;
-  } else {
-    emptyState.style.display = 'none';
   }
 
   // Sidebar tag listing update
@@ -6394,7 +6568,7 @@ function getTaskPreviewSchedule(note, dateKey = '') {
   return primaryReminder ? formatReminderDate(primaryReminder) : '';
 }
 
-const activeDeckSlideIndexes = new Map();
+// activeDeckSlideIndexes declared at top-level module scope
 
 function getAllUrlsInText(text = '') {
   if (!text) return [];
@@ -7346,241 +7520,104 @@ export function renderNoteMediaDeck(note, slides) {
   return hub;
 }
 
-export function createNoteCardElement(note) {
-  const card = document.createElement('div');
-  const noteKind = getVisualNoteType(note);
-  card.className = 'note-card';
-  applyNoteAppearance(card, note);
-  card.setAttribute('data-note-kind', noteKind);
-  if (note.image || note.videoId) card.setAttribute('data-has-image', 'true');
-  card.setAttribute('data-id', note.id);
+export function toggleNoteCardPin(note, event, {
+  closeMenu = false,
+  updateTimestamp = false,
+  showFeedback = false
+} = {}) {
+  event?.stopPropagation?.();
+  if (!note || typeof note !== 'object') return false;
 
-  // === NEW SPINE UI (Desktop) ===
-  const spine = document.createElement('div');
-  spine.className = 'note-card-spine desktop-only';
-  
-  // Pin Button (Spine)
-  const spinePin = document.createElement('button');
-  spinePin.className = `spine-btn ${note.pinned ? 'active' : ''}`;
-  spinePin.innerHTML = '<i data-lucide="pin"></i>';
-  spinePin.title = note.pinned ? 'Unpin' : 'Pin';
-  spinePin.addEventListener('click', (e) => {
-    e.stopPropagation();
-    note.pinned = !note.pinned;
-    saveToLocalStorage();
-    renderNotes();
-  });
-  spine.appendChild(spinePin);
-
-  // Star Button (Spine)
-  const spineStar = document.createElement('button');
-  const isFavorite = note.favorite === true || note.starred === true;
-  spineStar.className = `spine-btn ${isFavorite ? 'active' : ''}`;
-  spineStar.innerHTML = '<i data-lucide="star"></i>';
-  spineStar.title = isFavorite ? 'Remove from Favorites' : 'Add to Favorites';
-  spineStar.setAttribute('aria-label', spineStar.title);
-  spineStar.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const nextFavoriteState = !(note.favorite === true || note.starred === true);
-    note.favorite = nextFavoriteState;
-    note.starred = nextFavoriteState;
-    note.updatedAt = Date.now();
-    saveToLocalStorage();
-    renderNotes();
-  });
-  spine.appendChild(spineStar);
-
-  // Theme Button (Spine)
-  const spineTheme = document.createElement('button');
-  spineTheme.className = 'spine-btn';
-  spineTheme.innerHTML = '<i data-lucide="palette"></i>';
-  spineTheme.title = 'Change Theme';
-  spineTheme.addEventListener('click', (e) => {
-    e.stopPropagation();
-    openThemePickerV2({ type: 'note', note });
-  });
-  spine.appendChild(spineTheme);
-
-  // More Button (Spine)
-  const spineMore = document.createElement('button');
-  spineMore.className = 'spine-btn note-card-menu-toggle-desktop';
-  spineMore.innerHTML = '<i data-lucide="more-vertical"></i>';
-  spineMore.title = 'More Actions';
-  // Note: the popup panel will be attached inside the classic mobile menu, but we can toggle it from here
-  spine.appendChild(spineMore);
-
-  card.appendChild(spine);
-
-  // === MAIN CONTENT WRAPPER ===
-  const mainContent = document.createElement('div');
-  mainContent.className = 'note-card-main';
-  card.appendChild(mainContent);
-
-  // === CLASSIC HEADER (Mobile) ===
-  const boardHeader = document.createElement('div');
-  boardHeader.className = 'note-board-header mobile-only';
-  const boardTitle = document.createElement('span');
-  boardTitle.className = 'note-board-title';
-  boardTitle.textContent = getFolderSummaryLabel(note, getVisualTypeLabel(noteKind));
-  const boardHeaderMeta = document.createElement('div');
-  boardHeaderMeta.className = 'note-board-meta';
-  if (note.pinned) {
-    const pinIndicator = document.createElement('span');
-    pinIndicator.className = 'note-pin-indicator-wrapper';
-    pinIndicator.innerHTML = `<svg viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zM9.8 4h4.4v8H9.8V4z" /></svg>`;
-    boardHeaderMeta.appendChild(pinIndicator);
+  note.pinned = !note.pinned;
+  if (updateTimestamp) note.updatedAt = Date.now();
+  saveToLocalStorage();
+  if (closeMenu) closeAllNoteCardMenus();
+  renderNotes();
+  if (showFeedback) {
+    showToast({
+      title: note.pinned ? '📌 Note Pinned' : 'Note Unpinned',
+      text: `"${note.title || 'Note'}" updated.`
+    });
   }
-  if (note.starred) {
-    const starIndicator = document.createElement('span');
-    starIndicator.className = 'note-star-indicator-wrapper';
-    starIndicator.innerHTML = '⭐';
-    starIndicator.style.fontSize = '12px';
-    boardHeaderMeta.appendChild(starIndicator);
+  return true;
+}
+
+export function toggleNoteCardFavorite(note, event) {
+  event?.stopPropagation?.();
+  if (!note || typeof note !== 'object') return false;
+
+  const nextFavoriteState = !(note.favorite === true || note.starred === true);
+  note.favorite = nextFavoriteState;
+  note.starred = nextFavoriteState;
+  note.updatedAt = Date.now();
+  saveToLocalStorage();
+  renderNotes();
+  return true;
+}
+
+export function openNoteCardTheme(note, event) {
+  event?.stopPropagation?.();
+  if (!note || typeof note !== 'object') return false;
+
+  openThemePickerV2({ type: 'note', note });
+  return true;
+}
+
+export function toggleNoteCardActionMenu(card, cardMenu, event) {
+  event?.stopPropagation?.();
+  if (!card || !cardMenu) return false;
+
+  const isOpen = cardMenu.classList.contains('open');
+  const trigger = event?.currentTarget || event?.target || cardMenu._trigger || null;
+  closeAllNoteCardMenus();
+  if (!isOpen) {
+    cardMenu.classList.add('open');
+    card.classList.add('menu-open');
+    cardMenu._trigger = trigger;
+    trigger?.setAttribute?.('aria-expanded', 'true');
+  } else {
+    trigger?.setAttribute?.('aria-expanded', 'false');
   }
-  const boardAccent = document.createElement('span');
-  boardAccent.className = 'note-board-accent';
-  boardAccent.textContent = getVisualTypeLabel(noteKind);
-  boardHeader.appendChild(boardTitle);
-  boardHeader.appendChild(boardHeaderMeta);
-  mainContent.appendChild(boardHeader);
+  return true;
+}
 
-  // === NEW TOPBAR (Desktop) ===
-  const topbar = document.createElement('div');
-  topbar.className = 'note-card-topbar desktop-only';
-  const topFolder = document.createElement('span');
-  topFolder.className = 'topbar-folder-badge';
-  topFolder.innerHTML = `<span>📂</span> ${getFolderSummaryLabel(note, 'Inbox')}`;
-  const topType = document.createElement('span');
-  topType.className = 'topbar-type-badge';
-  topType.textContent = getVisualTypeLabel(noteKind);
-  topbar.appendChild(topFolder);
-  topbar.appendChild(topType);
-  mainContent.appendChild(topbar);
+export function toggleNoteCardArchive(note, event) {
+  event?.stopPropagation?.();
+  if (!note || typeof note !== 'object') return false;
 
-  const surface = document.createElement('div');
-  surface.className = 'note-surface';
-  mainContent.appendChild(surface);
+  if (note.deleted) {
+    restoreDeletedNote(note.id);
+  } else if (note.archived) {
+    restoreArchivedNote(note.id);
+  } else {
+    archiveNote(note.id);
+  }
+  return true;
+}
 
-  const cardMenu = document.createElement('div');
-  cardMenu.className = 'note-card-menu';
+export function deleteNoteCard(note, event, { showFeedback = false } = {}) {
+  event?.stopPropagation?.();
+  if (!note || typeof note !== 'object') return false;
 
-  const menuToggle = document.createElement('button');
-  menuToggle.className = 'icon-btn note-card-menu-toggle';
-  menuToggle.setAttribute('aria-label', 'More note actions');
-  menuToggle.innerHTML = `
-    <svg viewBox="0 0 24 24">
-      <path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
-    </svg>
-  `;
-  cardMenu.appendChild(menuToggle);
+  if (note.deleted) {
+    deleteNotePermanently(note.id);
+  } else {
+    trashNote(note.id);
+    if (showFeedback) {
+      showToast({
+        title: '🗑️ Note Moved to Trash',
+        text: `"${note.title || 'Note'}" can be restored from Trash.`
+      });
+    }
+  }
+  return true;
+}
 
+export function buildNoteCardActionPanel(note) {
   const menuPanelEl = document.createElement('div');
   menuPanelEl.className = 'note-card-menu-panel';
-  cardMenu.appendChild(menuPanelEl);
-  boardHeaderMeta.appendChild(boardAccent);
-  card.appendChild(cardMenu);
+  menuPanelEl.setAttribute('role', 'menu');
 
-  // 1. Title (if not empty)
-  const titleVal = note.title || '';
-  if (titleVal.trim() !== '') {
-    const titleEl = document.createElement('h4');
-    titleEl.className = 'note-title';
-    titleEl.textContent = cleanTitleTags(titleVal);
-    surface.appendChild(titleEl);
-  }
-
-  // 2. Text / Checklist Preview Body
-  const previewBody = document.createElement('div');
-  previewBody.className = 'note-card-preview-body';
-  surface.appendChild(previewBody);
-
-  const originalNoteType = note.type;
-  note.type = noteKind === 'checklist'
-    ? 'checklist'
-    : (noteKind === 'recipe' ? 'recipe' : 'text');
-  let contentEl;
-  try {
-    contentEl = renderNoteContent(note, {
-      cleanTextTags,
-      currentEditingNoteId: () => currentEditingNoteId,
-      modalText: () => modalText,
-      renderNotes,
-      renderTextWithLinksFromApp: (text) => renderTextWithLinks(text, URL_REGEX),
-      saveToLocalStorage,
-      syncModalInputs,
-      urlRegex: URL_REGEX,
-      appSettings: () => appSettings
-    });
-  } finally {
-    note.type = originalNoteType;
-  }
-  if (contentEl) {
-    previewBody.appendChild(contentEl);
-  }
-
-  // 3. Tags
-  const tags = extractHashtags(`${note.title} ${note.text}`);
-  if (tags.length > 0 || note.reminder) {
-    const tagList = document.createElement('div');
-    tagList.className = 'note-tags-list';
-
-    if (note.reminder) {
-      const chip = document.createElement('span');
-      chip.className = 'reminder-chip';
-      chip.innerHTML = `
-        <svg class="reminder-chip-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
-        <span>${formatReminderDate(note.reminder)}</span>
-        <span class="reminder-chip-delete" title="Delete reminder">✕</span>
-      `;
-      chip.querySelector('.reminder-chip-delete').addEventListener('click', (e) => {
-        e.stopPropagation();
-        note.reminder = null;
-        note.reminderTriggered = false;
-        saveToLocalStorage();
-        renderNotes();
-      });
-      chip.addEventListener('click', (e) => {
-        if (e.target.classList.contains('reminder-chip-delete')) return;
-        e.stopPropagation();
-        openEditModal(note);
-      });
-      tagList.appendChild(chip);
-    }
-
-    tags.forEach(tag => {
-      const badge = document.createElement('span');
-      badge.className = 'tag-badge';
-      badge.textContent = `#${tag}`;
-      badge.addEventListener('click', (e) => {
-        e.stopPropagation();
-        setActivePage('notes');
-        selectedTagFilter = tag;
-        selectedFolderFilter = null;
-        document.querySelectorAll('.sidebar-item').forEach(el => {
-          const lbl = el.querySelector('.sidebar-label');
-          if (lbl && lbl.textContent === `#${tag}`) {
-            el.classList.add('active');
-          } else {
-            el.classList.remove('active');
-          }
-        });
-        renderAppView();
-      });
-      tagList.appendChild(badge);
-    });
-    previewBody.appendChild(tagList);
-  }
-
-  // 4. Media Hub - Purpose-built slide deck rendered flush in normal document flow
-  const bottomRegion = document.createElement('div');
-  bottomRegion.className = 'note-card-bottom-region';
-  const slides = buildNoteMediaDeck(note, noteKind);
-  const mediaHub = renderNoteMediaDeck(note, slides);
-  if (mediaHub) {
-    bottomRegion.appendChild(mediaHub);
-  }
-
-  // 5. Overflow Actions Menu
   const colorBtn = document.createElement('button');
   colorBtn.className = 'note-card-menu-action';
   colorBtn.setAttribute('aria-label', 'Change note theme');
@@ -7588,10 +7625,7 @@ export function createNoteCardElement(note) {
     <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01l-.23-.25a.3.3 0 0 1-.03-.17c0-.09.06-.15.15-.15H15a6 6 0 0 0 6-6c0-4.97-4.03-9-9-9zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm4.5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>
     <span>Theme</span>
   `;
-  colorBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    openThemePickerV2({ type: 'note', note });
-  });
+  colorBtn.addEventListener('click', (e) => openNoteCardTheme(note, e));
   menuPanelEl.appendChild(colorBtn);
 
   if (getFirstUrlFromSharedText(note.title || '', note.text || '', note.recipeSourceUrl || '')) {
@@ -7649,13 +7683,7 @@ export function createNoteCardElement(note) {
       </svg>
       <span>${note.pinned ? 'Unpin' : 'Pin'}</span>
     `;
-    pinBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      note.pinned = !note.pinned;
-      saveToLocalStorage();
-      closeAllNoteCardMenus();
-      renderNotes();
-    });
+    pinBtn.addEventListener('click', (e) => toggleNoteCardPin(note, e, { closeMenu: true }));
     menuPanelEl.appendChild(pinBtn);
   }
 
@@ -7667,30 +7695,21 @@ export function createNoteCardElement(note) {
       <svg viewBox="0 0 24 24"><path d="M12 5V2L7 7l5 5V9c3.31 0 6 2.69 6 6a6 6 0 0 1-6 6 6 6 0 0 1-5.65-4H4.26A8 8 0 0 0 12 23a8 8 0 0 0 0-16Z"/></svg>
       <span>Restore</span>
     `;
-    archiveBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      restoreDeletedNote(note.id);
-    });
+    archiveBtn.addEventListener('click', (e) => toggleNoteCardArchive(note, e));
   } else if (note.archived) {
     archiveBtn.setAttribute('aria-label', 'Restore from archive');
     archiveBtn.innerHTML = `
       <svg viewBox="0 0 24 24"><path d="M12 5V2L7 7l5 5V9c3.31 0 6 2.69 6 6a6 6 0 0 1-6 6 6 6 0 0 1-5.65-4H4.26A8 8 0 0 0 12 23a8 8 0 0 0 0-16Z"/></svg>
       <span>Restore</span>
     `;
-    archiveBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      restoreArchivedNote(note.id);
-    });
+    archiveBtn.addEventListener('click', (e) => toggleNoteCardArchive(note, e));
   } else {
     archiveBtn.setAttribute('aria-label', 'Archive note');
     archiveBtn.innerHTML = `
       <svg viewBox="0 0 24 24"><path d="M20.54 5.23 19.15 3.55A2 2 0 0 0 17.61 3H6.39a2 2 0 0 0-1.54.55L3.46 5.23A2 2 0 0 0 3 6.5V19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.5a2 2 0 0 0-.46-1.27ZM6.24 5h11.52l.81 1H5.43l.81-1ZM12 17l-4-4h2.5v-3h3v3H16l-4 4Z"/></svg>
       <span>Archive</span>
     `;
-    archiveBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      archiveNote(note.id);
-    });
+    archiveBtn.addEventListener('click', (e) => toggleNoteCardArchive(note, e));
   }
   menuPanelEl.appendChild(archiveBtn);
 
@@ -7701,37 +7720,305 @@ export function createNoteCardElement(note) {
     <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
     <span>${note.deleted ? 'Delete Forever' : 'Move to Trash'}</span>
   `;
-  deleteBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (note.deleted) {
-      deleteNotePermanently(note.id);
-    } else {
-      trashNote(note.id);
-    }
-  });
+  deleteBtn.addEventListener('click', (e) => deleteNoteCard(note, e));
   menuPanelEl.appendChild(deleteBtn);
 
-  menuToggle.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const isOpen = cardMenu.classList.contains('open');
-    closeAllNoteCardMenus();
-    if (!isOpen) {
-      cardMenu.classList.add('open');
-      card.classList.add('menu-open');
-    }
+  Array.from(menuPanelEl.children || []).forEach(action => {
+    action.setAttribute?.('role', 'menuitem');
   });
 
-  spineMore.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const isOpen = cardMenu.classList.contains('open');
+  return menuPanelEl;
+}
+
+export function buildSpineCardActions(note) {
+  const spine = document.createElement('div');
+  spine.className = 'note-card-spine';
+
+  // Pin Button (Spine)
+  const spinePin = document.createElement('button');
+  spinePin.className = `spine-btn ${note.pinned ? 'active' : ''}`;
+  spinePin.innerHTML = '<i data-lucide="pin"></i>';
+  spinePin.title = note.pinned ? 'Unpin' : 'Pin';
+  spinePin.setAttribute('aria-label', spinePin.title);
+  spinePin.addEventListener('click', (e) => toggleNoteCardPin(note, e));
+  spine.appendChild(spinePin);
+
+  // Star Button (Spine)
+  const spineStar = document.createElement('button');
+  const isFavorite = note.favorite === true || note.starred === true;
+  spineStar.className = `spine-btn ${isFavorite ? 'active' : ''}`;
+  spineStar.innerHTML = '<i data-lucide="star"></i>';
+  spineStar.title = isFavorite ? 'Remove from Favorites' : 'Add to Favorites';
+  spineStar.setAttribute('aria-label', spineStar.title);
+  spineStar.addEventListener('click', (e) => toggleNoteCardFavorite(note, e));
+  spine.appendChild(spineStar);
+
+  // Theme Button (Spine)
+  const spineTheme = document.createElement('button');
+  spineTheme.className = 'spine-btn';
+  spineTheme.innerHTML = '<i data-lucide="palette"></i>';
+  spineTheme.title = 'Change Theme';
+  spineTheme.setAttribute('aria-label', spineTheme.title);
+  spineTheme.addEventListener('click', (e) => openNoteCardTheme(note, e));
+  spine.appendChild(spineTheme);
+
+  // More Button (Spine)
+  const spineMore = document.createElement('button');
+  spineMore.className = 'spine-btn note-card-menu-toggle-desktop';
+  spineMore.innerHTML = '<i data-lucide="more-vertical"></i>';
+  spineMore.title = 'More Actions';
+  spineMore.setAttribute('aria-label', spineMore.title);
+  spine.appendChild(spineMore);
+
+  return spine;
+}
+
+export function buildCompactPhoneCardActions(note, card) {
+  const cardMenu = document.createElement('div');
+  cardMenu.className = 'note-card-menu';
+
+  const menuToggle = document.createElement('button');
+  menuToggle.className = 'icon-btn note-card-menu-toggle';
+  menuToggle.setAttribute('aria-label', 'More note actions');
+  menuToggle.setAttribute('aria-haspopup', 'menu');
+  menuToggle.setAttribute('aria-expanded', 'false');
+  menuToggle.innerHTML = `
+    <svg viewBox="0 0 24 24">
+      <path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
+    </svg>
+  `;
+  if (card) {
+    menuToggle.addEventListener('click', (e) => toggleNoteCardActionMenu(card, cardMenu, e));
+  }
+  cardMenu.appendChild(menuToggle);
+
+  const menuPanelEl = buildNoteCardActionPanel(note);
+  const panelId = `note-card-menu-${String(note?.id || 'note').replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+  menuPanelEl.setAttribute('id', panelId);
+  menuToggle.setAttribute('aria-controls', panelId);
+  cardMenu._trigger = menuToggle;
+  cardMenu.appendChild(menuPanelEl);
+
+  cardMenu.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || !cardMenu.classList.contains('open')) return;
+    event.preventDefault?.();
+    event.stopPropagation?.();
     closeAllNoteCardMenus();
-    if (!isOpen) {
-      cardMenu.classList.add('open');
-      card.classList.add('menu-open');
-    }
+    menuToggle.focus?.();
   });
 
-  // 6. Footer (in normal document flow, 6px below hub, 8px top padding)
+  return { cardMenu, menuToggle, menuPanelEl };
+}
+
+export function createNoteCardElement(note) {
+  const card = document.createElement('div');
+  const noteKind = getVisualNoteType(note);
+  const responsiveState = typeof getResponsiveState === 'function' ? getResponsiveState() : { layoutMode: 'desktop' };
+  const layoutMode = responsiveState ? responsiveState.layoutMode : 'desktop';
+  const isPhone = layoutMode === 'phone';
+
+  card.className = 'note-card';
+  applyNoteAppearance(card, note);
+  card.setAttribute('data-note-kind', noteKind);
+  card.setAttribute('data-layout-mode', layoutMode);
+  if (note.image || note.videoId) card.setAttribute('data-has-image', 'true');
+  card.setAttribute('data-id', note.id);
+
+  // === ACTION TREES BASED ON CENTRALIZED RESPONSIVE LAYOUT MODE ===
+  if (isPhone) {
+    // Phone layout: render compact More toggle + menu panel, NO action spine
+    const { cardMenu } = buildCompactPhoneCardActions(note, card);
+    card.appendChild(cardMenu);
+  } else {
+    // Desktop & Tablet modes: render 4-button action spine + action panel (without phone toggle)
+    const cardMenu = document.createElement('div');
+    cardMenu.className = 'note-card-menu';
+    const menuPanelEl = buildNoteCardActionPanel(note);
+    const panelId = `note-card-menu-${String(note?.id || 'note').replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+    menuPanelEl.setAttribute('id', panelId);
+    cardMenu.appendChild(menuPanelEl);
+
+    const spine = buildSpineCardActions(note);
+    card.appendChild(spine);
+
+    const spineMore = spine.querySelector('.note-card-menu-toggle-desktop');
+    if (spineMore) {
+      spineMore.setAttribute('aria-haspopup', 'menu');
+      spineMore.setAttribute('aria-expanded', 'false');
+      spineMore.setAttribute('aria-controls', panelId);
+      cardMenu._trigger = spineMore;
+      spineMore.addEventListener('click', (e) => toggleNoteCardActionMenu(card, cardMenu, e));
+    }
+    cardMenu.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || !cardMenu.classList.contains('open')) return;
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      closeAllNoteCardMenus();
+      spineMore?.focus?.();
+    });
+    card.appendChild(cardMenu);
+  }
+
+  // === MAIN CONTENT WRAPPER ===
+  const mainContent = document.createElement('div');
+  mainContent.className = 'note-card-main';
+  card.appendChild(mainContent);
+
+  // === CLASSIC HEADER (Phone layout) ===
+  const boardHeader = document.createElement('div');
+  boardHeader.className = 'note-board-header mobile-only';
+  const boardTitle = document.createElement('span');
+  boardTitle.className = 'note-board-title';
+  boardTitle.textContent = getFolderSummaryLabel(note, getVisualTypeLabel(noteKind));
+  const boardHeaderMeta = document.createElement('div');
+  boardHeaderMeta.className = 'note-board-meta';
+  if (note.pinned) {
+    const pinIndicator = document.createElement('span');
+    pinIndicator.className = 'note-pin-indicator-wrapper';
+    pinIndicator.innerHTML = `<svg viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zM9.8 4h4.4v8H9.8V4z" /></svg>`;
+    boardHeaderMeta.appendChild(pinIndicator);
+  }
+  if (note.starred) {
+    const starIndicator = document.createElement('span');
+    starIndicator.className = 'note-star-indicator-wrapper';
+    starIndicator.innerHTML = '⭐';
+    starIndicator.style.fontSize = '12px';
+    boardHeaderMeta.appendChild(starIndicator);
+  }
+  const boardAccent = document.createElement('span');
+  boardAccent.className = 'note-board-accent';
+  boardAccent.textContent = getVisualTypeLabel(noteKind);
+  boardHeader.appendChild(boardTitle);
+  boardHeader.appendChild(boardHeaderMeta);
+  boardHeaderMeta.appendChild(boardAccent);
+  mainContent.appendChild(boardHeader);
+
+  // === TOPBAR (Desktop & Tablet) ===
+  const topbar = document.createElement('div');
+  topbar.className = 'note-card-topbar desktop-only';
+  const topFolder = document.createElement('span');
+  topFolder.className = 'topbar-folder-badge';
+  topFolder.innerHTML = `<span>📂</span> ${getFolderSummaryLabel(note, 'Inbox')}`;
+  const topType = document.createElement('span');
+  topType.className = 'topbar-type-badge';
+  topType.textContent = getVisualTypeLabel(noteKind);
+  topbar.appendChild(topFolder);
+  topbar.appendChild(topType);
+  mainContent.appendChild(topbar);
+
+  const surface = document.createElement('div');
+  surface.className = 'note-surface';
+  mainContent.appendChild(surface);
+
+  // === 1. TITLE-FIRST PREVIEW PRIORITIZATION ===
+  const titleVal = note.title || '';
+  const hasRealTitle = typeof titleVal === 'string' && titleVal.trim() !== '';
+  if (hasRealTitle) {
+    const titleEl = document.createElement('h4');
+    titleEl.className = 'note-title';
+    titleEl.textContent = cleanTitleTags(titleVal);
+    surface.appendChild(titleEl);
+  }
+
+  // === 2. TEXT / CHECKLIST PREVIEW BODY ===
+  const previewBody = document.createElement('div');
+  previewBody.className = 'note-card-preview-body';
+
+  const originalNoteType = note.type;
+  note.type = noteKind === 'checklist'
+    ? 'checklist'
+    : (noteKind === 'recipe' ? 'recipe' : 'text');
+  let contentEl;
+  try {
+    contentEl = renderNoteContent(note, {
+      cleanTextTags,
+      currentEditingNoteId: () => currentEditingNoteId,
+      modalText: () => modalText,
+      renderNotes,
+      renderTextWithLinksFromApp: (text) => renderTextWithLinks(text, URL_REGEX),
+      saveToLocalStorage,
+      syncModalInputs,
+      urlRegex: URL_REGEX,
+      appSettings: () => appSettings
+    });
+  } finally {
+    note.type = originalNoteType;
+  }
+  if (contentEl) {
+    previewBody.appendChild(contentEl);
+  }
+  surface.appendChild(previewBody);
+
+  // === 3. TAGS ===
+  const tags = extractHashtags(`${note.title || ''} ${note.text || ''}`);
+  if (tags.length > 0 || note.reminder) {
+    const tagList = document.createElement('div');
+    tagList.className = 'note-tags-list';
+
+    if (note.reminder) {
+      const chip = document.createElement('span');
+      chip.className = 'reminder-chip';
+      chip.innerHTML = `
+        <svg class="reminder-chip-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+        <span>${formatReminderDate(note.reminder)}</span>
+        <span class="reminder-chip-delete" title="Delete reminder">✕</span>
+      `;
+      chip.querySelector('.reminder-chip-delete').addEventListener('click', (e) => {
+        e.stopPropagation();
+        note.reminder = null;
+        note.reminderTriggered = false;
+        saveToLocalStorage();
+        renderNotes();
+      });
+      chip.addEventListener('click', (e) => {
+        if (e.target.classList.contains('reminder-chip-delete')) return;
+        e.stopPropagation();
+        openEditModal(note);
+      });
+      tagList.appendChild(chip);
+    }
+
+    tags.forEach(tag => {
+      const badge = document.createElement('span');
+      badge.className = 'tag-badge';
+      badge.textContent = `#${tag}`;
+      badge.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setActivePage('notes');
+        selectedTagFilter = tag;
+        selectedFolderFilter = null;
+        renderAppView();
+      });
+      tagList.appendChild(badge);
+    });
+    previewBody.appendChild(tagList);
+  }
+
+  // === 4. MEDIA HUB & DEDUPLICATION ===
+  const bottomRegion = document.createElement('div');
+  bottomRegion.className = 'note-card-bottom-region';
+  const slides = buildNoteMediaDeck(note, noteKind);
+  const mediaHub = renderNoteMediaDeck(note, slides);
+  if (mediaHub) {
+    bottomRegion.appendChild(mediaHub);
+  }
+
+  // Deduplicate images in previewBody against hubKeys extracted from note & slides
+  const hubKeys = extractHubMediaKeys(note, slides);
+  if (previewBody && contentEl) {
+    deduplicateBodyMedia(previewBody, hubKeys);
+    if (
+      typeof previewBody.textContent === 'string' &&
+      previewBody.textContent.trim() === '' &&
+      (!previewBody.children || previewBody.children.length === 0)
+    ) {
+      if (previewBody.parentNode === surface) {
+        surface.removeChild(previewBody);
+      }
+    }
+  }
+
+  // === 5. FOOTER ===
   const footer = document.createElement('div');
   footer.className = 'note-card-footer';
 
@@ -8554,7 +8841,7 @@ function handleRichListEditing(event) {
 /* ==========================================================================
    Upgraded Note Reminders & URL Parser Helpers
    ========================================================================== */
-const URL_REGEX = /(https?:\/\/[^\s\n\r]+)/g;
+// URL_REGEX is declared at top-level module scope
 
 function isNoteEffectivelyEmpty(title, text, image, audio, files = []) {
   return title === '' && text === '' && image === null && audio === null && normalizeNoteFiles(files).length === 0;
@@ -10394,7 +10681,7 @@ function updateSliderTrackFill(slider) {
 // Dynamic Imports & Module Lazy Loading Hooks
 // ─────────────────────────────────────────────────────────────
 
-let settingsMod;
+// settingsMod declared at top-level module scope
 async function loadSettingsModule() {
   if (!settingsMod) {
     settingsMod = await import('./settings.js');
@@ -10408,7 +10695,7 @@ export async function renderSettingsPage() {
   mod.renderSettingsPage();
 }
 
-let productivityMod;
+// productivityMod declared at top-level module scope
 async function loadProductivityModule() {
   if (!productivityMod) {
     productivityMod = await import('./productivity.js');
