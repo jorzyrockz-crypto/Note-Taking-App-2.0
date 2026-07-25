@@ -51,6 +51,7 @@ const {
   buildSpineCardActions,
   buildCompactPhoneCardActions,
   buildNoteCardActionPanel,
+  renderGrid,
   renderNotes,
   toggleNoteCardPin,
   toggleNoteCardFavorite,
@@ -2939,6 +2940,28 @@ assert.equal(stops, 2);
 // ============================================================================
 // PHASE 6A RESPONSIVE NOTE CARDS & DENSITY TESTS
 // ============================================================================
+
+test('Phase 6A - one incompatible saved note cannot prevent the remaining grid from rendering', () => {
+  setupMockDOM();
+  const grid = document.createElement('div');
+  const savedConsoleError = console.error;
+  console.error = () => {};
+
+  try {
+    renderGrid(grid, [
+      { id: 'legacy-bad-title', title: { legacy: true }, text: 'Still saved locally', type: 'text' },
+      { id: 'healthy-note', title: 'Healthy note', text: 'Visible content', type: 'text' }
+    ]);
+
+    assert.equal(grid.children.length, 2, 'Both the fallback card and healthy card must remain visible');
+    assert.ok(grid.children[0].classList.contains('note-card-fallback'), 'Incompatible note must receive a safe fallback card');
+    assert.equal(grid.children[0].getAttribute('data-id'), 'legacy-bad-title');
+    assert.equal(grid.children[1].getAttribute('data-id'), 'healthy-note');
+  } finally {
+    console.error = savedConsoleError;
+    cleanupGlobals();
+  }
+});
 
 test('Phase 6A - desktop and tablet cards do not contain phone menu toggle node', () => {
   const { win } = createMockEnvironment({ width: 1440, height: 900 });

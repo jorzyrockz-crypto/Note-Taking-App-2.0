@@ -7812,6 +7812,7 @@ export function buildCompactPhoneCardActions(note, card) {
 
 export function createNoteCardElement(note) {
   const card = document.createElement('div');
+  let cardMenu = null;
   const noteKind = getVisualNoteType(note);
   const responsiveState = typeof getResponsiveState === 'function' ? getResponsiveState() : { layoutMode: 'desktop' };
   const layoutMode = responsiveState ? responsiveState.layoutMode : 'desktop';
@@ -7827,11 +7828,11 @@ export function createNoteCardElement(note) {
   // === ACTION TREES BASED ON CENTRALIZED RESPONSIVE LAYOUT MODE ===
   if (isPhone) {
     // Phone layout: render compact More toggle + menu panel, NO action spine
-    const { cardMenu } = buildCompactPhoneCardActions(note, card);
+    ({ cardMenu } = buildCompactPhoneCardActions(note, card));
     card.appendChild(cardMenu);
   } else {
     // Desktop & Tablet modes: render 4-button action spine + action panel (without phone toggle)
-    const cardMenu = document.createElement('div');
+    cardMenu = document.createElement('div');
     cardMenu.className = 'note-card-menu';
     const menuPanelEl = buildNoteCardActionPanel(note);
     const panelId = `note-card-menu-${String(note?.id || 'note').replace(/[^a-zA-Z0-9_-]/g, '-')}`;
@@ -8144,9 +8145,53 @@ export function renderGrid(gridContainer, notesArray) {
   const validNotes = (notesArray || []).filter(note => note !== null && typeof note === 'object' && note.id);
 
   validNotes.forEach(note => {
-    gridContainer.appendChild(createNoteCardElement(note));
+    try {
+      gridContainer.appendChild(createNoteCardElement(note));
+    } catch (error) {
+      console.error(`Unable to render note card ${String(note.id)}:`, error);
+      gridContainer.appendChild(createNoteCardFallbackElement(note));
+    }
   });
   if (window.lucide) { lucide.createIcons(); }
+}
+
+function createNoteCardFallbackElement(note) {
+  const card = document.createElement('div');
+  card.className = 'note-card note-card-fallback';
+  card.setAttribute('data-id', String(note?.id || ''));
+  card.setAttribute('data-note-kind', 'text');
+
+  const mainContent = document.createElement('div');
+  mainContent.className = 'note-card-main';
+  const surface = document.createElement('div');
+  surface.className = 'note-surface';
+
+  const rawTitle = typeof note?.title === 'string' ? note.title.trim() : '';
+  const rawText = typeof note?.text === 'string' ? note.text.trim() : '';
+  const title = document.createElement('h4');
+  title.className = 'note-title';
+  title.textContent = rawTitle || 'Saved note';
+  surface.appendChild(title);
+
+  if (rawText) {
+    const preview = document.createElement('div');
+    preview.className = 'note-card-preview-body';
+    preview.textContent = rawText;
+    surface.appendChild(preview);
+  }
+
+  const footer = document.createElement('div');
+  footer.className = 'note-card-footer';
+  const stamp = document.createElement('div');
+  stamp.className = 'note-stamp classic-footer';
+  stamp.textContent = formatCardTimestamp(note?.updatedAt);
+  footer.appendChild(stamp);
+  surface.appendChild(footer);
+  mainContent.appendChild(surface);
+  card.appendChild(mainContent);
+
+  card.addEventListener('click', () => openEditModal(note));
+  return card;
 }
 
 // Helper to render lists inside note cards (separated & collapsible completed section)

@@ -14100,7 +14100,7 @@ body.dark-theme .mobile-sheet-opt-label {
   }
   
   .notes-grid:not(.list-view) .note-card {
-    height: 320px !important;
+    height: 288px !important;
   }
 
   /* Notebook Spine (Left Dock) - Inherits Note Theme Background */
@@ -14108,10 +14108,11 @@ body.dark-theme .mobile-sheet-opt-label {
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 52px;
-    flex-shrink: 0;
-    padding: 12px 0;
-    gap: 8px;
+    width: 42px;
+    flex: 0 0 42px;
+    align-self: stretch;
+    padding: 8px 0;
+    gap: 4px;
     background: var(--emoji-theme, var(--theme-pattern, none)) var(--bg-current-note, var(--note-color, var(--note-default)));
     background-size: var(--note-theme-pattern-size, 112px 112px);
     background-position: left top;
@@ -14128,8 +14129,8 @@ body.dark-theme .mobile-sheet-opt-label {
 
   /* High-Contrast Spine Buttons (Visible on Light, Dark, & Vibrant Themes) */
   .notes-grid .note-card-spine .spine-btn {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     background: transparent;
     border: none;
@@ -14184,8 +14185,8 @@ body.dark-theme .mobile-sheet-opt-label {
   }
 
   .notes-grid .note-card-spine .spine-btn svg {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     stroke-width: 2px;
     fill: none;
   }
@@ -14196,7 +14197,7 @@ body.dark-theme .mobile-sheet-opt-label {
 
   /* Spine Visual Divider */
   .notes-grid .note-card-spine .spine-divider {
-    width: 24px;
+    width: 20px;
     height: 1px;
     background: rgba(0, 0, 0, 0.08);
     margin: 2px 0;
@@ -15540,12 +15541,17 @@ body[data-layout="desktop"]:not(.sidebar-pinned) .main-content-area {
 
 /* --- 1. DESKTOP DENSITY (body[data-layout="desktop"]) --- */
 body[data-layout="desktop"] .notes-grid:not(.list-view) {
-  gap: 12px !important;
+  gap: 14px !important;
 }
 
 body[data-layout="desktop"] .notes-grid:not(.list-view) .note-card {
-  padding: 10px 12px !important;
+  height: 288px !important;
+  padding: 0 !important;
   border-radius: 12px !important;
+}
+
+body[data-layout="desktop"] .note-card-main {
+  padding: 10px 12px !important;
 }
 
 body[data-layout="desktop"] .note-card-spine {
@@ -15560,13 +15566,19 @@ body[data-layout="desktop"] .note-card .note-board-header {
 /* --- 2. TABLET DENSITY (body[data-layout="tablet-portrait"], body[data-layout="tablet-landscape"]) --- */
 body[data-layout="tablet-portrait"] .notes-grid:not(.list-view),
 body[data-layout="tablet-landscape"] .notes-grid:not(.list-view) {
-  gap: 10px !important;
+  gap: 12px !important;
 }
 
 body[data-layout="tablet-portrait"] .notes-grid:not(.list-view) .note-card,
 body[data-layout="tablet-landscape"] .notes-grid:not(.list-view) .note-card {
-  padding: 8px 10px !important;
+  height: 272px !important;
+  padding: 0 !important;
   border-radius: 12px !important;
+}
+
+body[data-layout="tablet-portrait"] .note-card-main,
+body[data-layout="tablet-landscape"] .note-card-main {
+  padding: 8px 10px !important;
 }
 
 body[data-layout="tablet-portrait"] .note-card-spine,
@@ -15579,6 +15591,74 @@ body[data-layout="tablet-landscape"] .note-card .note-card-menu-toggle,
 body[data-layout="tablet-portrait"] .note-card .note-board-header,
 body[data-layout="tablet-landscape"] .note-card .note-board-header {
   display: none !important;
+}
+
+/* --- FOOTER TYPE INDICATOR BADGES --- */
+.note-card-footer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+}
+
+.note-footer-type-indicators {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  line-height: 1 !important;
+}
+
+.note-type-indicator-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 18px !important;
+  height: 18px !important;
+  border-radius: 50% !important;
+  flex-shrink: 0 !important;
+}
+
+.note-footer-type-indicators .note-type-indicator-icon + .note-type-indicator-icon {
+  margin-left: -4px !important;
+}
+
+.note-type-indicator-icon svg {
+  width: 14px !important;
+  height: 14px !important;
+  stroke-width: 2px !important;
+}
+
+.note-type-indicator-icon[data-type="checklist"] { color: #16a34a !important; }
+body.dark-theme .note-type-indicator-icon[data-type="checklist"] { color: #4ade80 !important; }
+
+.note-type-indicator-icon[data-type="voice"] { color: #db2777 !important; }
+body.dark-theme .note-type-indicator-icon[data-type="voice"] { color: #f472b6 !important; }
+
+.note-type-indicator-icon[data-type="link"] { color: #0284c7 !important; }
+body.dark-theme .note-type-indicator-icon[data-type="link"] { color: #38bdf8 !important; }
+
+.note-type-indicator-icon[data-type="recipe"] { color: #ea580c !important; }
+body.dark-theme .note-type-indicator-icon[data-type="recipe"] { color: #fb923c !important; }
+
+.note-type-indicator-icon[data-type="visual"] { color: #9333ea !important; }
+body.dark-theme .note-type-indicator-icon[data-type="visual"] { color: #c084fc !important; }
+
+.note-type-indicator-icon[data-type="file"] { color: #0d9488 !important; }
+body.dark-theme .note-type-indicator-icon[data-type="file"] { color: #2dd4bf !important; }
+
+.note-type-indicator-icon[data-type="text"] { color: #e11d48 !important; }
+body.dark-theme .note-type-indicator-icon[data-type="text"] { color: #fb7185 !important; }
+
+.note-type-indicator-more {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  color: rgba(0, 0, 0, 0.6) !important;
+  margin-left: 2px !important;
+}
+
+body.dark-theme .note-type-indicator-more {
+  color: rgba(255, 255, 255, 0.7) !important;
 }
 
 /* --- 3. PHONE 2-COLUMN GRID & COMPACT ACTION TREE (body[data-layout="phone"]) --- */
