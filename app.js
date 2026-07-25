@@ -4865,9 +4865,12 @@ function getFolderIconSvg(iconName) {
     mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M8.5 21h7"/></svg>',
     'chef-hat': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 12h12"/><path d="M7 12a4 4 0 0 1-.7-7.94A5 5 0 0 1 16.9 5a3.5 3.5 0 0 1 .1 7"/><path d="M8 12v7"/><path d="M16 12v7"/><path d="M8 19h8"/></svg>',
     'check-square': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="m8.5 12 2.3 2.3 4.7-5.1"/></svg>',
+    'square-check-big': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="m8.5 12 2.3 2.3 4.7-5.1"/></svg>',
     image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><circle cx="9" cy="10" r="1.5"/><path d="m20.5 16-4.4-4.4a1 1 0 0 0-1.4 0L7 19.5"/></svg>',
     star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.47L20.75 9.3l-4.38 4.28 1.03 6.05L12 16.77l-5.4 2.86 1.03-6.05L3.25 9.3l6.05-.83L12 3Z"/></svg>',
-    folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v8A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5v-10Z"/></svg>'
+    folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v8A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5v-10Z"/></svg>',
+    'file-text': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>',
+    paperclip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57a4 4 0 1 1 5.66 5.66l-8.58 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>'
   };
   return icons[iconName] || icons.folder;
 }
@@ -4927,6 +4930,76 @@ function getVisualNoteType(note) {
   }
 
   return 'text';
+}
+
+export function getNoteTypeIndicators(note) {
+  if (!note) return ['text'];
+
+  const types = [];
+
+  const isChecklist = note.type === 'checklist' || (typeof note.text === 'string' && (/^\s*[-*]\s*\[[ xX]\]/m.test(note.text) || note.text.includes('checklist-container') || note.text.includes('checklist-item')));
+  if (isChecklist) types.push('checklist');
+
+  const isVoice = Boolean(note.audio || (Array.isArray(note.audioClips) && note.audioClips.length > 0) || note.type === 'voice' || note.type === 'audio');
+  if (isVoice) types.push('voice');
+
+  const isLink = Boolean(note.linkPreview || note.type === 'link' || note.type === 'bookmark' || (typeof note.text === 'string' && getFirstUrlFromSharedText(note.title || '', note.text || '')));
+  if (isLink) types.push('link');
+
+  const isRecipe = Boolean(note.recipeData || note.recipeSourceUrl || (typeof note.text === 'string' && note.text.includes('__RECIPE_DATA__')) || (note.title || '').toLowerCase().includes('recipe') || note.type === 'recipe');
+  if (isRecipe) types.push('recipe');
+
+  const isVisual = Boolean(note.image || note.type === 'visual' || note.type === 'image' || note.type === 'photo' || note.type === 'drawing' || note.type === 'sketch' || (typeof note.text === 'string' && (note.text.includes('<img') || note.text.includes('data:image/'))));
+  if (isVisual) types.push('visual');
+
+  const isFile = Boolean((Array.isArray(note.files) && note.files.length > 0) || (Array.isArray(note.fileAttachments) && note.fileAttachments.length > 0) || note.type === 'file' || note.type === 'files' || note.type === 'attachment');
+  if (isFile) types.push('file');
+
+  if (types.length === 0) {
+    types.push('text');
+  }
+
+  const CANONICAL_ORDER = ['checklist', 'voice', 'link', 'recipe', 'visual', 'file', 'text'];
+  const uniqueTypes = Array.from(new Set(types));
+  uniqueTypes.sort((a, b) => CANONICAL_ORDER.indexOf(a) - CANONICAL_ORDER.indexOf(b));
+
+  return uniqueTypes;
+}
+
+export function renderNoteTypeIndicatorsElement(note) {
+  const indicatorTypes = getNoteTypeIndicators(note);
+  const container = document.createElement('div');
+  container.className = 'note-footer-type-indicators';
+
+  const typeMetas = indicatorTypes.map(typeId => NOTE_TYPE_REGISTRY.find(item => item.id === typeId) || { id: typeId, label: typeId, icon: 'file-text' });
+  const typeLabels = typeMetas.map(m => m.label).join(', ');
+  container.setAttribute('aria-label', typeLabels);
+  container.setAttribute('title', typeLabels);
+
+  const displayCount = Math.min(typeMetas.length, 2);
+  for (let i = 0; i < displayCount; i++) {
+    const meta = typeMetas[i];
+    const iconSpan = document.createElement('span');
+    iconSpan.className = `note-type-indicator-icon note-type-indicator-${meta.id}`;
+    iconSpan.setAttribute('data-type', meta.id);
+    iconSpan.setAttribute('title', meta.label);
+    iconSpan.setAttribute('aria-label', meta.label);
+    iconSpan.innerHTML = getFolderIconSvg(meta.icon);
+    container.appendChild(iconSpan);
+  }
+
+  if (typeMetas.length > 2) {
+    const remainingCount = typeMetas.length - 2;
+    const remainingLabels = typeMetas.slice(2).map(m => m.label).join(', ');
+    const moreSpan = document.createElement('span');
+    moreSpan.className = 'note-type-indicator-more';
+    moreSpan.textContent = `+${remainingCount}`;
+    moreSpan.setAttribute('title', `+${remainingCount} more: ${remainingLabels}`);
+    moreSpan.setAttribute('aria-label', `+${remainingCount} more: ${remainingLabels}`);
+    container.appendChild(moreSpan);
+  }
+
+  return container;
 }
 
 export function renderFeedFilters() {
@@ -7900,11 +7973,7 @@ export function createNoteCardElement(note) {
   const topFolder = document.createElement('span');
   topFolder.className = 'topbar-folder-badge';
   topFolder.innerHTML = `<span>📂</span> ${getFolderSummaryLabel(note, 'Inbox')}`;
-  const topType = document.createElement('span');
-  topType.className = 'topbar-type-badge';
-  topType.textContent = getVisualTypeLabel(noteKind);
   topbar.appendChild(topFolder);
-  topbar.appendChild(topType);
   mainContent.appendChild(topbar);
 
   const surface = document.createElement('div');
@@ -8026,24 +8095,11 @@ export function createNoteCardElement(note) {
   const stamp = document.createElement('div');
   stamp.className = 'note-stamp classic-footer';
   stamp.textContent = formatCardTimestamp(note.updatedAt);
-  
-  const desktopTray = document.createElement('div');
-  desktopTray.className = 'note-badges-tray desktop-only';
-  if (note.fileAttachments && note.fileAttachments.length > 0) {
-    const attachBadge = document.createElement('span');
-    attachBadge.className = 'tray-badge attach-badge';
-    attachBadge.innerHTML = `📎 ${note.fileAttachments.length}`;
-    desktopTray.appendChild(attachBadge);
-  }
-  if (note.audio) {
-    const audioBadge = document.createElement('span');
-    audioBadge.className = 'tray-badge audio-badge';
-    audioBadge.innerHTML = `🎤 1`;
-    desktopTray.appendChild(audioBadge);
-  }
+
+  const typeIndicatorsEl = renderNoteTypeIndicatorsElement(note);
 
   footer.appendChild(stamp);
-  footer.appendChild(desktopTray);
+  footer.appendChild(typeIndicatorsEl);
   bottomRegion.appendChild(footer);
   surface.appendChild(bottomRegion);
 

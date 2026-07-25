@@ -48,6 +48,9 @@ const {
   initResponsiveCardLifecycle,
   destroyResponsiveCardLifecycle,
   createNoteCardElement,
+  getVisualNoteType,
+  getNoteTypeIndicators,
+  renderNoteTypeIndicatorsElement,
   buildSpineCardActions,
   buildCompactPhoneCardActions,
   buildNoteCardActionPanel,
@@ -3431,4 +3434,82 @@ test('Phase 6A - phone grid safety verified across representative device viewpor
   assert.ok(cssContent.includes('min-width: 0 !important;'), 'CSS enforces min-width: 0 on phone cards to prevent grid track expansion');
   assert.ok(cssContent.includes('box-sizing: border-box !important;'), 'CSS enforces border-box sizing');
   assert.ok(cssContent.includes('overflow-wrap: break-word !important;'), 'CSS enforces word wrap on note preview elements to prevent horizontal overflow');
+});
+
+test('Phase 6B - card density, spine geometry, and type indicators', () => {
+  const cssPath = path.join(process.cwd(), 'styles.css');
+  const cssContent = fs.readFileSync(cssPath, 'utf8').replace(/\r\n/g, '\n');
+
+  assert.ok(cssContent.includes('body[data-layout="desktop"] .notes-grid:not(.list-view) .note-card {\n  height: 288px !important;'), 'Desktop card height target 288px');
+  assert.ok(cssContent.includes('body[data-layout="desktop"] .notes-grid:not(.list-view) {\n  gap: 14px !important;'), 'Desktop gap 14px');
+  assert.ok(cssContent.includes('body[data-layout="tablet-portrait"] .notes-grid:not(.list-view) .note-card,\nbody[data-layout="tablet-landscape"] .notes-grid:not(.list-view) .note-card {\n  height: 272px !important;'), 'Tablet card height target 272px');
+  assert.ok(cssContent.includes('body[data-layout="tablet-portrait"] .notes-grid:not(.list-view),\nbody[data-layout="tablet-landscape"] .notes-grid:not(.list-view) {\n  gap: 12px !important;'), 'Tablet gap 12px');
+  assert.ok(cssContent.includes('width: 42px;'), 'Spine width 42px');
+  assert.ok(cssContent.includes('width: 32px;\n    height: 32px;'), 'Spine button 32px');
+
+  // Desktop & Tablet cards render spine, phone card does not
+  const desktopEnv = createMockEnvironment({ width: 1440, height: 900 });
+  setupMockDOM(desktopEnv.win);
+  initResponsiveState();
+  const desktopCard = createNoteCardElement({ id: 'card-desktop', title: 'Desktop', text: 'Body', type: 'text' });
+  assert.ok(findMockDescendant(desktopCard, el => el.classList?.contains('note-card-spine')), 'Desktop card must render spine');
+  cleanupGlobals();
+
+  const tabletEnv = createMockEnvironment({ width: 768, height: 1024, orientation: 'portrait' });
+  setupMockDOM(tabletEnv.win);
+  initResponsiveState();
+  const tabletCard = createNoteCardElement({ id: 'card-tablet', title: 'Tablet', text: 'Body', type: 'text' });
+  assert.ok(findMockDescendant(tabletCard, el => el.classList?.contains('note-card-spine')), 'Tablet card must render spine');
+  cleanupGlobals();
+
+  const phoneEnv = createMockEnvironment({ width: 390, height: 844 });
+  setupMockDOM(phoneEnv.win);
+  initResponsiveState();
+  const phoneCard = createNoteCardElement({ id: 'card-phone', title: 'Phone', text: 'Body', type: 'text' });
+  assert.equal(findMockDescendant(phoneCard, el => el.classList?.contains('note-card-spine')), null, 'Phone card must NOT render spine');
+  cleanupGlobals();
+
+  // Top-bar type text badge is absent
+  const topbarEnv = createMockEnvironment({ width: 1200, height: 800 });
+  setupMockDOM(topbarEnv.win);
+  initResponsiveState();
+  const cardWithTopbar = createNoteCardElement({ id: 'topbar-card', title: 'Topbar Test', text: 'Body', type: 'text' });
+  assert.equal(findMockDescendant(cardWithTopbar, el => el.classList?.contains('topbar-type-badge')), null, 'Topbar text type badge must be absent');
+  assert.ok(findMockDescendant(cardWithTopbar, el => el.classList?.contains('topbar-folder-badge')), 'Topbar folder badge must be present');
+  cleanupGlobals();
+
+  // Helper & footer indicator rendering
+  assert.deepEqual(getNoteTypeIndicators({ type: 'text', title: 'Plain', text: 'Hello' }), ['text']);
+
+  const noteMulti2 = { id: 'note-2', title: 'Multi 2', text: 'Recipe & voice', type: 'recipe', audio: 'mic.mp3' };
+  const indicatorsMulti2 = getNoteTypeIndicators(noteMulti2);
+  assert.ok(indicatorsMulti2.includes('voice'));
+  assert.ok(indicatorsMulti2.includes('recipe'));
+  assert.equal(indicatorsMulti2.length, 2);
+
+  const noteMulti4 = { id: 'note-3', title: 'Multi 4', text: 'Checklist task - [ ] todo', type: 'checklist', audio: 'mic.mp3', image: 'photo.jpg', files: [{ id: 1 }] };
+  const indicatorsMulti4 = getNoteTypeIndicators(noteMulti4);
+  assert.equal(indicatorsMulti4.length, 4);
+
+  const cardEnv = createMockEnvironment({ width: 1200, height: 800 });
+  setupMockDOM(cardEnv.win);
+  initResponsiveState();
+  const multi4Card = createNoteCardElement(noteMulti4);
+  const footerIndicators = findMockDescendant(multi4Card, el => el.classList?.contains('note-footer-type-indicators'));
+  assert.ok(footerIndicators, 'Footer indicators container must exist');
+  const indicatorIcons = (footerIndicators.children || []).filter(child => child.classList?.contains('note-type-indicator-icon'));
+  const indicatorMore = (footerIndicators.children || []).find(child => child.classList?.contains('note-type-indicator-more'));
+  assert.equal(indicatorIcons.length, 2, 'Footer shows at most 2 icons');
+  assert.ok(indicatorMore, 'Footer shows +N badge for remaining types');
+  assert.equal(indicatorMore.textContent, '+2');
+  cleanupGlobals();
+
+  // getVisualNoteType classification remains unchanged
+  assert.equal(getVisualNoteType({ type: 'recipe', recipeData: {} }), 'recipe');
+  assert.equal(getVisualNoteType({ audio: 'record.mp3' }), 'voice');
+  assert.equal(getVisualNoteType({ image: 'img.png' }), 'visual');
+  assert.equal(getVisualNoteType({ type: 'checklist' }), 'checklist');
+  assert.equal(getVisualNoteType({ linkPreview: {} }), 'link');
+  assert.equal(getVisualNoteType({ files: [{ name: 'doc.pdf' }] }), 'file');
+  assert.equal(getVisualNoteType({ text: 'Plain text note' }), 'text');
 });

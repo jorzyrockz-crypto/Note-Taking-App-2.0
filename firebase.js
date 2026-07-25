@@ -472,8 +472,9 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '3.3.1',
+        version: '3.3.2',
         changelog: [
+          'Refined Note-Card Density & Type Indicators (v3.3.2): Standardized desktop card height to 288px and tablet height to 272px with flush left notebook spine docking, added fixed 14px/12px grid gaps, isolated card padding to content wrapper, removed top-bar type text badge, and introduced compact footer multi-type indicator icons.',
           'Real-Browser Responsive Note Card Stabilization (v3.3.1): Validated two-column phone cards, compact More toggle, and 4-button desktop/tablet action spine across 14 viewports in Edge browser; eliminated module initialization ReferenceErrors and added non-blocking fallback rendering for malformed local notes.',
           'Adaptive Responsive Cards & Navigation (v3.3.0): Centralized device classification and responsive lifecycles, added two-column phone cards with compact actions, preserved tablet and desktop action spines, unified card actions and gestures, prioritized note titles, deduplicated media previews, and hardened rich-text and menu accessibility.',
           'User-Controlled PWA Updates (v3.2.6): Refactored service worker install handler to wait for user activation before taking control, enabling non-disruptive background updates and clean one-tap reload coordination.',
