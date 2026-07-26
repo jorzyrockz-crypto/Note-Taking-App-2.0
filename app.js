@@ -13141,13 +13141,14 @@ function initGlassToolbarExtensions(mode) {
 // Initialise both surfaces on DOMContentLoaded (safe no-op if not in glass mode)
 if (typeof document !== 'undefined') {
   document.addEventListener('DOMContentLoaded', () => {
-  // Small defer to ensure glass editor elements are in the DOM
-  setTimeout(() => {
-    initGlassToolbarExtensions('modal');
-    initMobilePhoneExperience();
-    initGlassEditorPasteChooser();
-  }, 0);
-});
+    // Small defer to ensure glass editor elements are in the DOM
+    setTimeout(() => {
+      initGlassToolbarExtensions('modal');
+      initMobilePhoneExperience();
+      initGlassEditorPasteChooser();
+    }, 0);
+  });
+}
 
 
 function openWholeNoteReminderScheduler(note, anchorEl) {
@@ -13180,7 +13181,9 @@ function closeGlassReminderPopover() {
   popover.classList.remove('visible');
   popover.setAttribute('aria-hidden', 'true');
 }
-window.closeGlassReminderPopover = closeGlassReminderPopover;
+if (typeof window !== 'undefined') {
+  window.closeGlassReminderPopover = closeGlassReminderPopover;
+}
 
 function openGlassReminderPopover(target, anchorEl, currentVal, onSave, onClear) {
   const popover = document.getElementById('glass-reminder-popover');
@@ -13200,54 +13203,55 @@ function openGlassReminderPopover(target, anchorEl, currentVal, onSave, onClear)
   requestAnimationFrame(() => input.focus());
 }
 
-document.getElementById('glass-reminder-close')?.addEventListener('click', () => {
-  closeGlassReminderPopover();
-});
-document.getElementById('glass-reminder-cancel')?.addEventListener('click', () => closeGlassReminderPopover());
+if (typeof document !== 'undefined') {
+  document.getElementById('glass-reminder-close')?.addEventListener('click', () => {
+    closeGlassReminderPopover();
+  });
+  document.getElementById('glass-reminder-cancel')?.addEventListener('click', () => closeGlassReminderPopover());
 
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('[data-close-editor-action]').forEach(button => button.addEventListener('click', () => {
-    const id = button.dataset.closeEditorAction;
-    setEditorActionModal(id, false);
-    if (id === 'modal-glass-link-popover') window.closeGlassLinkModal?.('modal');
-  }));
-  document.getElementById('voice-recording-start')?.addEventListener('click', () => startVoiceRecording(activeVoiceTarget || 'modal'));
-  document.getElementById('voice-recording-stop')?.addEventListener('click', () => stopVoiceRecording());
-  document.getElementById('voice-recording-pause')?.addEventListener('click', toggleVoiceRecordingPause);
-  document.getElementById('voice-recording-minimize')?.addEventListener('click', minimizeVoiceRecordingModal);
-  document.getElementById('voice-recording-expand')?.addEventListener('click', restoreVoiceRecordingModal);
-  document.getElementById('voice-recording-mini-pause')?.addEventListener('click', toggleVoiceRecordingPause);
-  document.getElementById('voice-recording-mini-stop')?.addEventListener('click', stopVoiceRecording);
-  document.getElementById('voice-recording-cancel')?.addEventListener('click', () => closeVoiceRecordingModal(true));
-  document.getElementById('voice-recording-close')?.addEventListener('click', () => closeVoiceRecordingModal(true));
-  document.querySelectorAll('.editor-action-overlay').forEach(overlay => overlay.addEventListener('mousedown', (event) => {
-    if (event.target !== overlay) return;
-    if (overlay.id === 'voice-recording-modal') closeVoiceRecordingModal(true);
-    else if (overlay.id === 'glass-reminder-popover') closeGlassReminderPopover();
-    else { setEditorActionModal(overlay.id, false); window.closeGlassLinkModal?.('modal'); }
-  }));
-});
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-close-editor-action]').forEach(button => button.addEventListener('click', () => {
+      const id = button.dataset.closeEditorAction;
+      setEditorActionModal(id, false);
+      if (id === 'modal-glass-link-popover') window.closeGlassLinkModal?.('modal');
+    }));
+    document.getElementById('voice-recording-start')?.addEventListener('click', () => startVoiceRecording(activeVoiceTarget || 'modal'));
+    document.getElementById('voice-recording-stop')?.addEventListener('click', () => stopVoiceRecording());
+    document.getElementById('voice-recording-pause')?.addEventListener('click', toggleVoiceRecordingPause);
+    document.getElementById('voice-recording-minimize')?.addEventListener('click', minimizeVoiceRecordingModal);
+    document.getElementById('voice-recording-expand')?.addEventListener('click', restoreVoiceRecordingModal);
+    document.getElementById('voice-recording-mini-pause')?.addEventListener('click', toggleVoiceRecordingPause);
+    document.getElementById('voice-recording-mini-stop')?.addEventListener('click', stopVoiceRecording);
+    document.getElementById('voice-recording-cancel')?.addEventListener('click', () => closeVoiceRecordingModal(true));
+    document.getElementById('voice-recording-close')?.addEventListener('click', () => closeVoiceRecordingModal(true));
+    document.querySelectorAll('.editor-action-overlay').forEach(overlay => overlay.addEventListener('mousedown', (event) => {
+      if (event.target !== overlay) return;
+      if (overlay.id === 'voice-recording-modal') closeVoiceRecordingModal(true);
+      else if (overlay.id === 'glass-reminder-popover') closeGlassReminderPopover();
+      else { setEditorActionModal(overlay.id, false); window.closeGlassLinkModal?.('modal'); }
+    }));
+  });
 
-document.getElementById('glass-reminder-save')?.addEventListener('click', () => {
-  const input = document.getElementById('glass-reminder-input');
-  if (!input.value) return;
-  const timeMs = new Date(input.value).getTime();
-  if (Number.isNaN(timeMs)) return;
-  if (currentReminderCallback) currentReminderCallback(timeMs);
-  closeGlassReminderPopover();
-  showToast({ title: '⏰ Reminder Set', text: 'Note reminder updated successfully.' });
-});
+  document.getElementById('glass-reminder-save')?.addEventListener('click', () => {
+    const input = document.getElementById('glass-reminder-input');
+    if (!input.value) return;
+    const timeMs = new Date(input.value).getTime();
+    if (Number.isNaN(timeMs)) return;
+    if (currentReminderCallback) currentReminderCallback(timeMs);
+    closeGlassReminderPopover();
+    showToast({ title: '⏰ Reminder Set', text: 'Note reminder updated successfully.' });
+  });
 
-document.getElementById('glass-reminder-clear')?.addEventListener('click', () => {
-  if (currentReminderClearCallback) currentReminderClearCallback();
-  closeGlassReminderPopover();
-  showToast({ title: 'Reminder Cleared', text: 'Note reminder removed.' });
-});
+  document.getElementById('glass-reminder-clear')?.addEventListener('click', () => {
+    if (currentReminderClearCallback) currentReminderClearCallback();
+    closeGlassReminderPopover();
+    showToast({ title: 'Reminder Cleared', text: 'Note reminder removed.' });
+  });
 
-// Close popover when clicking outside
-document.addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape') return;
-  if (document.getElementById('voice-recording-modal')?.classList.contains('visible')) closeVoiceRecordingModal(true);
-  else if (document.getElementById('glass-reminder-popover')?.classList.contains('visible')) closeGlassReminderPopover();
-}, true);
+  // Close popover when clicking outside
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (document.getElementById('voice-recording-modal')?.classList.contains('visible')) closeVoiceRecordingModal(true);
+    else if (document.getElementById('glass-reminder-popover')?.classList.contains('visible')) closeGlassReminderPopover();
+  }, true);
 }
