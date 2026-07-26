@@ -61,7 +61,14 @@ const {
   openNoteCardTheme,
   toggleNoteCardActionMenu,
   toggleNoteCardArchive,
-  deleteNoteCard
+  deleteNoteCard,
+  addCategory,
+  renameCategory,
+  deleteCategory,
+  moveCategory,
+  getAllFolders,
+  isCategoryLocked,
+  toggleCategoryLock
 } = await import('../app.js');
 const { initSync } = await import('../sync.js');
 
@@ -3473,7 +3480,7 @@ test('Phase 6B - card density, spine geometry, and type indicators', () => {
   const topbarEnv = createMockEnvironment({ width: 1200, height: 800 });
   setupMockDOM(topbarEnv.win);
   initResponsiveState();
-  const cardWithTopbar = createNoteCardElement({ id: 'topbar-card', title: 'Topbar Test', text: 'Body', type: 'text' });
+  const cardWithTopbar = createNoteCardElement({ id: 'topbar-card', title: 'Topbar Test', text: 'Body', type: 'text', folder: 'Home', folders: ['Home'] });
   assert.equal(findMockDescendant(cardWithTopbar, el => el.classList?.contains('topbar-type-badge')), null, 'Topbar text type badge must be absent');
   assert.ok(findMockDescendant(cardWithTopbar, el => el.classList?.contains('topbar-folder-badge')), 'Topbar folder badge must be present');
   cleanupGlobals();
@@ -3512,4 +3519,72 @@ test('Phase 6B - card density, spine geometry, and type indicators', () => {
   assert.equal(getVisualNoteType({ linkPreview: {} }), 'link');
   assert.equal(getVisualNoteType({ files: [{ name: 'doc.pdf' }] }), 'file');
   assert.equal(getVisualNoteType({ text: 'Plain text note' }), 'text');
+});
+
+test('Categories - production CRUD preserves notes and supports Uncategorized', () => {
+  setupMockDOM();
+  const originalNotes = [...notes];
+  const categoryName = 'Test Category Alpha';
+  const renamedCategory = 'Test Category Beta';
+  notes.length = 0;
+
+  assert.equal(addCategory(categoryName).ok, true);
+  assert.equal(addCategory(' test category alpha ').reason, 'duplicate');
+  assert.equal(toggleCategoryLock(categoryName).locked, true);
+  assert.equal(isCategoryLocked(categoryName), true);
+  assert.equal(renameCategory(categoryName, renamedCategory).reason, 'locked');
+  assert.equal(toggleCategoryLock(categoryName).locked, false);
+  const note = { id: 'category-note', title: 'Keep me', folder: categoryName, folders: [categoryName] };
+  const multiCategoryNote = {
+    id: 'multi-category-note',
+    title: 'Keep both assignments',
+    folder: categoryName,
+    folders: [categoryName, 'Home']
+  };
+  notes.push(note, multiCategoryNote);
+
+  assert.equal(renameCategory(categoryName, renamedCategory).ok, true);
+  assert.equal(note.folder, renamedCategory);
+  assert.deepEqual(note.folders, [renamedCategory]);
+  assert.deepEqual(multiCategoryNote.folders, [renamedCategory, 'Home']);
+  assert.equal(deleteCategory(renamedCategory).ok, true);
+  assert.equal(notes.includes(note), true, 'deleting a category never deletes its notes');
+  assert.equal(note.folder, null);
+  assert.deepEqual(note.folders, []);
+  assert.equal(multiCategoryNote.folder, 'Home');
+  assert.deepEqual(multiCategoryNote.folders, ['Home']);
+
+  notes.length = 0;
+  notes.push(...originalNotes);
+  localStorage.removeItem('paperuss_folders');
+});
+
+test('Categories - production reorder persists and card preview hides Uncategorized', () => {
+  setupMockDOM();
+  const first = 'Test Category First';
+  const second = 'Test Category Second';
+  assert.equal(addCategory(first).ok, true);
+  assert.equal(addCategory(second).ok, true);
+  const beforeIndex = getAllFolders().indexOf(second);
+  assert.ok(beforeIndex > 0);
+  assert.equal(moveCategory(second, 'up'), true);
+  assert.equal(getAllFolders().indexOf(second), beforeIndex - 1);
+
+  const card = createNoteCardElement({
+    id: 'uncategorized-card',
+    title: 'Uncategorized',
+    folder: null,
+    folders: [],
+    type: 'text',
+    createdAt: Date.now()
+  });
+  const containsCategoryPill = node => (
+    node?.classList?.contains?.('note-category-pill')
+    || (node?.children || []).some(containsCategoryPill)
+  );
+  assert.equal(Boolean(containsCategoryPill(card)), false);
+
+  deleteCategory(first);
+  deleteCategory(second);
+  localStorage.removeItem('paperuss_folders');
 });

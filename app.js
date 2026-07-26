@@ -579,15 +579,27 @@ const COLOR_PRESETS = [
 ];
 
 const DEFAULT_FOLDERS = [
-  { name: 'Inbox', icon: 'inbox', accent: '#4f86ff', soft: 'rgba(79, 134, 255, 0.16)' },
-  { name: 'Product Updates', icon: 'sparkles', accent: '#f97316', soft: 'rgba(249, 115, 22, 0.16)' },
-  { name: 'Inspiration Wall', icon: 'bookmark', accent: '#0ea5e9', soft: 'rgba(14, 165, 233, 0.16)' },
-  { name: 'Voice Memos', icon: 'mic', accent: '#ec4899', soft: 'rgba(236, 72, 153, 0.16)' },
-  { name: 'Kitchen Board', icon: 'chef-hat', accent: '#22c55e', soft: 'rgba(34, 197, 94, 0.16)' },
-  { name: 'Action Lists', icon: 'check-square', accent: '#8b5cf6', soft: 'rgba(139, 92, 246, 0.16)' },
-  { name: 'Moodboard', icon: 'image', accent: '#14b8a6', soft: 'rgba(20, 184, 166, 0.16)' },
-  { name: 'Welcome', icon: 'star', accent: '#f59e0b', soft: 'rgba(245, 158, 11, 0.18)' }
+  { name: 'Home', icon: 'house', accent: '#4f86ff', soft: 'rgba(79, 134, 255, 0.16)' },
+  { name: 'Work', icon: 'briefcase', accent: '#f97316', soft: 'rgba(249, 115, 22, 0.16)' },
+  { name: 'Personal', icon: 'user', accent: '#ec4899', soft: 'rgba(236, 72, 153, 0.16)' },
+  { name: 'Projects', icon: 'folder', accent: '#8b5cf6', soft: 'rgba(139, 92, 246, 0.16)' },
+  { name: 'Finances', icon: 'wallet', accent: '#16a34a', soft: 'rgba(22, 163, 74, 0.16)' }
 ];
+
+// These are starter categories only. Once seeded, they live in the same saved
+// list as user-created categories and are deliberately not system-protected.
+function ensureStarterCategories() {
+  if (localStorage.getItem(STORAGE_KEYS.categorySeedsApplied) === 'true') return;
+  const existing = new Set(customFolders.map(normalizeCategoryKey));
+  const missing = DEFAULT_FOLDERS
+    .map(folder => folder.name)
+    .filter(name => !existing.has(normalizeCategoryKey(name)));
+  if (missing.length) {
+    customFolders = sanitizeFolderList([...customFolders, ...missing]);
+    localStorage.setItem(STORAGE_KEYS.folders, JSON.stringify(customFolders));
+  }
+  localStorage.setItem(STORAGE_KEYS.categorySeedsApplied, 'true');
+}
 
 const FOLDER_ICON_FALLBACKS = [
   { accent: '#4f46e5', soft: 'rgba(79, 70, 229, 0.16)' },
@@ -1568,6 +1580,8 @@ export const STORAGE_KEYS = {
   customThemes: 'paperuss_custom_themes',
   notes: 'paperuss_notes',
   folders: 'paperuss_folders',
+  categoryLocks: 'paperuss_category_locks',
+  categorySeedsApplied: 'paperuss_category_seeds_applied_v1',
   theme: 'paperuss_theme',
   emojiThemeControls: 'paperuss_emoji_theme_controls',
   view: 'paperuss_view',
@@ -1986,6 +2000,20 @@ function enhanceShell() {
     sidebarMenu.appendChild(settingsItem);
   }
   sidebarSettings = document.getElementById('sidebar-settings');
+  if (sidebar && !document.getElementById('sidebar-categories')) {
+    const categoriesItem = document.createElement('button');
+    categoriesItem.type = 'button';
+    categoriesItem.className = 'sidebar-item';
+    categoriesItem.id = 'sidebar-categories';
+    categoriesItem.setAttribute('title', 'Categories');
+    categoriesItem.setAttribute('aria-label', 'Manage categories');
+    categoriesItem.innerHTML = `
+      <i class="sidebar-icon" data-lucide="folders" aria-hidden="true"></i>
+      <span class="sidebar-label">Categories</span>
+    `;
+    const allNotesItem = document.getElementById('sidebar-all-notes');
+    allNotesItem?.insertAdjacentElement('afterend', categoriesItem);
+  }
   sidebarFoldersList = document.getElementById('sidebar-folders-list');
 
   // Tags are now rendered on the dedicated Search page beneath the search bar
@@ -2034,16 +2062,37 @@ function enhanceShell() {
     folderDrawer.id = 'folder-drawer';
     folderDrawer.innerHTML = `
       <div class="folder-drawer-backdrop"></div>
-      <div class="folder-drawer-panel">
+      <section class="folder-drawer-panel" role="dialog" aria-modal="true" aria-labelledby="category-manager-title">
         <div class="folder-drawer-header">
           <div>
-            <div class="folder-drawer-title">Folder View</div>
-            <div class="folder-drawer-subtitle">Browse notes by group</div>
+            <div class="folder-drawer-title" id="category-manager-title">Categories</div>
+            <div class="folder-drawer-subtitle">Organize notes by their primary category</div>
           </div>
-          <button class="icon-btn folder-drawer-close" id="folder-drawer-close" aria-label="Close folder view">✕</button>
+          <div class="category-manager-header-actions">
+            <button class="category-add-button" id="category-manager-add" type="button" aria-label="Add category">
+              <i data-lucide="plus" aria-hidden="true"></i>
+              <span>New Category</span>
+            </button>
+            <button class="icon-btn folder-drawer-close" id="folder-drawer-close" type="button" aria-label="Close categories">✕</button>
+          </div>
         </div>
         <div class="folder-drawer-list" id="folder-drawer-list"></div>
-      </div>
+        <div class="category-dialog" id="category-dialog" hidden>
+          <div class="category-dialog-card" role="document">
+            <h3 id="category-dialog-title">Add Category</h3>
+            <p id="category-dialog-message" hidden></p>
+            <label class="category-dialog-field" id="category-dialog-field">
+              <span>Category name</span>
+              <input id="category-dialog-input" type="text" maxlength="50" autocomplete="off">
+            </label>
+            <p class="category-dialog-error" id="category-dialog-error" role="alert" hidden></p>
+            <div class="category-dialog-actions">
+              <button type="button" class="text-btn" id="category-dialog-cancel">Cancel</button>
+              <button type="button" class="text-btn save-btn" id="category-dialog-submit">Add</button>
+            </div>
+          </div>
+        </div>
+      </section>
     `;
     document.body.appendChild(folderDrawer);
   } else {
@@ -2051,6 +2100,9 @@ function enhanceShell() {
   }
 
   folderDrawerList = document.getElementById('folder-drawer-list');
+  document.getElementById('sidebar-categories')?.addEventListener('click', openFolderDrawer);
+  initCategoryManagerEvents();
+  initHeaderCategoryControls();
 }
 
 
@@ -2869,6 +2921,7 @@ function initData() {
 
   notes = loadedNotes;
   customFolders = sanitizeFolderList(loadedFolders);
+  ensureStarterCategories();
   notes.forEach(registerNoteFolders);
   saveToLocalStorage();
 }
@@ -2925,7 +2978,6 @@ function setupEventHandlers() {
   initializePwa({ showToast, subscribeToVersionUpdates });
 
   document.getElementById('folder-drawer-close')?.addEventListener('click', closeFolderDrawer);
-  folderDrawer?.querySelector('.folder-drawer-backdrop')?.addEventListener('click', closeFolderDrawer);
 
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.note-card')) {
@@ -3752,6 +3804,7 @@ function expandCreator() {
   requestAnimationFrame(() => {
     document.getElementById('creator-glass-editor').focus();
     syncCreatorFolderInput(true);
+    updateCategoryBreadcrumb('creator');
   });
 }
 
@@ -4039,7 +4092,7 @@ function renderPopoverCategories() {
       // Update breadcrumb category
       const activeFolders = getSelectedFolders(creatorFolders.length ? creatorFolders : decodeFolderSelection(creatorFolderInput?.value || ''));
       const primaryFolder = activeFolders[0] || 'Personal';
-      creatorBreadcrumb.textContent = `${primaryFolder} / Ideas`;
+      updateCategoryBreadcrumb('creator');
 
       saveCreatorNoteDraft();
     });
@@ -4118,7 +4171,7 @@ function renderModalPopoverCategories(note) {
       // Update modal breadcrumbs
       const modalBreadcrumb = document.getElementById('modal-breadcrumb');
       if (modalBreadcrumb) {
-        modalBreadcrumb.textContent = `${folders[0] || 'Personal'} / Ideas`;
+        updateCategoryBreadcrumb('modal', note);
       }
 
       debouncedSave();
@@ -4487,7 +4540,7 @@ function initModalAdvancedEditorHandlers() {
 
       const modalBreadcrumb = document.getElementById('modal-breadcrumb');
       if (modalBreadcrumb) {
-        modalBreadcrumb.textContent = `${folders[0] || 'Personal'} / Ideas`;
+        updateCategoryBreadcrumb('modal', note);
       }
 
       popoverCategoryInput.value = '';
@@ -4755,7 +4808,7 @@ function sanitizeFolderList(folderNames = []) {
         .map(sanitizeFolderName)
         .filter(Boolean)
     )
-  ).sort((a, b) => a.localeCompare(b));
+  );
 }
 
 function sanitizeFolderSelection(folderNames = []) {
@@ -4776,12 +4829,16 @@ function getNoteFolders(note = {}, fallbackFolder = 'Inbox') {
     note.folder
   ]);
   if (normalizedFolders.length > 0) return normalizedFolders;
+  if (Array.isArray(note.folders) && note.folders.length === 0 && note.folder == null) {
+    return [];
+  }
+  if (fallbackFolder == null) return [];
   const fallback = sanitizeFolderName(fallbackFolder) || 'Inbox';
   return [fallback];
 }
 
 function getPrimaryFolder(note = {}, fallbackFolder = 'Inbox') {
-  return getNoteFolders(note, fallbackFolder)[0] || 'Inbox';
+  return getNoteFolders(note, fallbackFolder)[0] || '';
 }
 
 function getFolderSummaryLabel(note = {}, fallbackFolder = 'Inbox') {
@@ -4792,10 +4849,9 @@ function getFolderSummaryLabel(note = {}, fallbackFolder = 'Inbox') {
 
 function setNoteFolders(note, folderNames = []) {
   if (!note) return note;
-  const folders = sanitizeFolderSelection(folderNames);
-  const normalizedFolders = folders.length > 0 ? folders : ['Inbox'];
+  const normalizedFolders = sanitizeFolderSelection(folderNames);
   note.folders = normalizedFolders;
-  note.folder = normalizedFolders[0];
+  note.folder = normalizedFolders[0] || null;
   return note;
 }
 
@@ -5063,12 +5119,229 @@ export function renderFeedFilters() {
   });
 }
 
-function getAllFolders() {
+export function getAllFolders() {
   return sanitizeFolderList([
-    ...DEFAULT_FOLDERS.map(folder => folder.name),
     ...customFolders,
     ...notes.flatMap(note => getNoteFolders(note))
   ]);
+}
+
+function normalizeCategoryKey(value) {
+  return sanitizeFolderName(value).toLocaleLowerCase();
+}
+
+function getLockedCategoryNames() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.categoryLocks) || '[]');
+    return new Set(sanitizeFolderList(Array.isArray(stored) ? stored : []));
+  } catch {
+    return new Set();
+  }
+}
+
+function saveLockedCategoryNames(lockedNames) {
+  localStorage.setItem(STORAGE_KEYS.categoryLocks, JSON.stringify([...lockedNames]));
+}
+
+export function isCategoryLocked(categoryName) {
+  return getLockedCategoryNames().has(sanitizeFolderName(categoryName));
+}
+
+export function toggleCategoryLock(categoryName) {
+  const name = sanitizeFolderName(categoryName);
+  if (!name) return { ok: false, reason: 'empty' };
+  const lockedNames = getLockedCategoryNames();
+  const locked = !lockedNames.has(name);
+  if (locked) lockedNames.add(name);
+  else lockedNames.delete(name);
+  saveLockedCategoryNames(lockedNames);
+  renderFolderDrawer();
+  return { ok: true, locked };
+}
+
+function persistCategoryState() {
+  localStorage.setItem(STORAGE_KEYS.folders, JSON.stringify(customFolders));
+  saveToLocalStorage();
+  renderSidebarFolders();
+  renderFolderSuggestions();
+  renderNotes();
+}
+
+export function addCategory(name) {
+  const categoryName = sanitizeFolderName(name);
+  if (!categoryName) return { ok: false, reason: 'empty' };
+  if (getAllFolders().some(folder => normalizeCategoryKey(folder) === normalizeCategoryKey(categoryName))) {
+    return { ok: false, reason: 'duplicate' };
+  }
+  customFolders.push(categoryName);
+  persistCategoryState();
+  return { ok: true, name: categoryName };
+}
+
+export function renameCategory(currentName, nextName) {
+  const existingName = sanitizeFolderName(currentName);
+  const categoryName = sanitizeFolderName(nextName);
+  if (!existingName || !categoryName) return { ok: false, reason: 'empty' };
+  if (isCategoryLocked(existingName)) return { ok: false, reason: 'locked' };
+  if (getAllFolders().some(folder => folder !== existingName && normalizeCategoryKey(folder) === normalizeCategoryKey(categoryName))) {
+    return { ok: false, reason: 'duplicate' };
+  }
+  notes.forEach(note => setNoteFolders(
+    note,
+    getNoteFolders(note, null).map(folder => folder === existingName ? categoryName : folder)
+  ));
+  customFolders = sanitizeFolderList(customFolders.map(folder => folder === existingName ? categoryName : folder));
+  const lockedNames = getLockedCategoryNames();
+  if (lockedNames.delete(existingName)) {
+    lockedNames.add(categoryName);
+    saveLockedCategoryNames(lockedNames);
+  }
+  if (selectedFolderFilter === existingName) selectedFolderFilter = categoryName;
+  persistCategoryState();
+  return { ok: true, name: categoryName };
+}
+
+export function deleteCategory(categoryName) {
+  const existingName = sanitizeFolderName(categoryName);
+  if (!existingName) return { ok: false, reason: 'empty' };
+  if (isCategoryLocked(existingName)) return { ok: false, reason: 'locked' };
+  notes.forEach(note => setNoteFolders(
+    note,
+    getNoteFolders(note, null).filter(folder => folder !== existingName)
+  ));
+  customFolders = customFolders.filter(folder => folder !== existingName);
+  const lockedNames = getLockedCategoryNames();
+  if (lockedNames.delete(existingName)) saveLockedCategoryNames(lockedNames);
+  if (selectedFolderFilter === existingName) selectedFolderFilter = null;
+  persistCategoryState();
+  return { ok: true };
+}
+
+export function moveCategory(categoryName, direction) {
+  const ordered = sanitizeFolderList(customFolders);
+  const index = ordered.indexOf(categoryName);
+  const target = direction === 'up' ? index - 1 : index + 1;
+  if (index < 0 || target < 0 || target >= ordered.length) return false;
+  [ordered[index], ordered[target]] = [ordered[target], ordered[index]];
+  customFolders = ordered;
+  persistCategoryState();
+  return true;
+}
+
+export function reorderCategory(categoryName, beforeCategoryName) {
+  if (categoryName === beforeCategoryName) return false;
+  const ordered = sanitizeFolderList(customFolders);
+  const fromIndex = ordered.indexOf(categoryName);
+  const targetIndex = ordered.indexOf(beforeCategoryName);
+  if (fromIndex < 0 || targetIndex < 0) return false;
+  const [moved] = ordered.splice(fromIndex, 1);
+  ordered.splice(targetIndex, 0, moved);
+  customFolders = ordered;
+  persistCategoryState();
+  return true;
+}
+
+let touchDraggedCategory = null;
+let touchDraggedRow = null;
+let touchDropRow = null;
+let categoryDragGhost = null;
+let categoryDragPointerId = null;
+
+function positionCategoryDragGhost(clientX, clientY) {
+  if (!categoryDragGhost) return;
+  categoryDragGhost.style.transform = `translate(${clientX - 28}px, ${clientY - 22}px)`;
+}
+
+function updateCategoryTouchDrag(event) {
+  if (!touchDraggedCategory || event.pointerId !== categoryDragPointerId) return;
+  event.preventDefault();
+  positionCategoryDragGhost(event.clientX, event.clientY);
+  const candidate = document.elementFromPoint?.(event.clientX, event.clientY)
+    ?.closest?.('.category-manager-row[data-category]');
+  if (!candidate || candidate === touchDropRow || candidate === touchDraggedRow) return;
+  touchDropRow?.classList.remove('drag-over');
+  touchDropRow = candidate;
+  touchDropRow.classList.add('drag-over');
+}
+
+function finishCategoryTouchDrag(event) {
+  if (!touchDraggedCategory || event.pointerId !== categoryDragPointerId) return;
+  event.preventDefault();
+  const sourceCategory = touchDraggedCategory;
+  const targetCategory = touchDropRow?.dataset?.category;
+  clearCategoryTouchDrag();
+  if (targetCategory && reorderCategory(sourceCategory, targetCategory)) renderFolderDrawer();
+}
+
+function clearCategoryTouchDrag() {
+  touchDraggedRow?.classList.remove('dragging');
+  touchDropRow?.classList.remove('drag-over');
+  touchDraggedCategory = null;
+  touchDraggedRow = null;
+  touchDropRow = null;
+  categoryDragPointerId = null;
+  categoryDragGhost?.remove?.();
+  categoryDragGhost = null;
+  document.removeEventListener('pointermove', updateCategoryTouchDrag, true);
+  document.removeEventListener('pointerup', finishCategoryTouchDrag, true);
+  document.removeEventListener('pointercancel', finishCategoryTouchDrag, true);
+}
+
+function attachCategoryDragBehavior(handle, row, categoryName) {
+  row.dataset.category = categoryName;
+  handle.setAttribute('aria-disabled', 'false');
+  handle.title = `Drag to reorder ${categoryName}`;
+
+  // Long-press is reserved for touch drag in the Category Manager. Prevent the
+  // browser's native context menu on this row without affecting the rest of
+  // the application.
+  const preventCategoryContextMenu = event => event.preventDefault();
+  handle.addEventListener('contextmenu', preventCategoryContextMenu);
+  row.addEventListener('contextmenu', preventCategoryContextMenu);
+
+  handle.draggable = true;
+  handle.addEventListener('keydown', event => {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    if (moveCategory(categoryName, event.key === 'ArrowUp' ? 'up' : 'down')) renderFolderDrawer();
+  });
+  handle.addEventListener('dragstart', event => {
+    event.dataTransfer?.setData('text/plain', categoryName);
+    event.dataTransfer && (event.dataTransfer.effectAllowed = 'move');
+    row.classList.add('dragging');
+  });
+  handle.addEventListener('dragend', () => row.classList.remove('dragging'));
+  row.addEventListener('dragover', event => {
+    event.preventDefault();
+    row.classList.add('drag-over');
+  });
+  row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+  row.addEventListener('drop', event => {
+    event.preventDefault();
+    row.classList.remove('drag-over');
+    const source = event.dataTransfer?.getData('text/plain');
+    if (source && reorderCategory(source, categoryName)) renderFolderDrawer();
+  });
+
+  handle.addEventListener('pointerdown', event => {
+    if (event.pointerType === 'mouse') return;
+    event.preventDefault();
+    clearCategoryTouchDrag();
+    touchDraggedCategory = categoryName;
+    touchDraggedRow = row;
+    categoryDragPointerId = event.pointerId;
+    row.classList.add('dragging');
+    handle.setPointerCapture?.(event.pointerId);
+    categoryDragGhost = row.cloneNode(true);
+    categoryDragGhost.classList.add('category-drag-ghost');
+    categoryDragGhost.removeAttribute?.('id');
+    categoryDragGhost.setAttribute?.('aria-hidden', 'true');
+    document.body.appendChild(categoryDragGhost);
+    positionCategoryDragGhost(event.clientX, event.clientY);
+    document.addEventListener('pointermove', updateCategoryTouchDrag, true);
+    document.addEventListener('pointerup', finishCategoryTouchDrag, true);
+    document.addEventListener('pointercancel', finishCategoryTouchDrag, true);
+  });
 }
 
 function renderSidebarFolders() {
@@ -5104,29 +5377,100 @@ function renderFolderDrawer() {
   if (!folderDrawerList) return;
   folderDrawerList.innerHTML = '';
 
+  const allItem = document.createElement('div');
+  allItem.className = `folder-drawer-item category-manager-row ${selectedFolderFilter ? '' : 'active'}`;
+  allItem.innerHTML = `
+    <span class="folder-drawer-item-icon"><i data-lucide="layers-3" aria-hidden="true"></i></span>
+    <span class="folder-drawer-item-content">
+      <span class="folder-drawer-item-title">All</span>
+      <span class="folder-drawer-item-meta">${notes.filter(isActiveNote).length} notes</span>
+    </span>
+    <span class="category-lock" title="All is always available"><i data-lucide="lock" aria-hidden="true"></i></span>
+  `;
+  folderDrawerList.appendChild(allItem);
+
   getAllFolders().forEach(folder => {
     const folderMeta = getFolderMeta(folder);
     const relatedNotes = notes.filter(note => noteHasFolder(note, folder) && isActiveNote(note));
-    const item = document.createElement('button');
-    item.className = `folder-drawer-item ${selectedFolderFilter === folder ? 'active' : ''}`;
-    item.innerHTML = `
+    const locked = isCategoryLocked(folder);
+    const item = document.createElement('div');
+    item.className = `folder-drawer-item category-manager-row ${selectedFolderFilter === folder ? 'active' : ''}`;
+    const grabHandle = document.createElement('button');
+    grabHandle.type = 'button';
+    grabHandle.className = 'icon-btn category-grab-handle';
+    grabHandle.setAttribute('aria-label', `Reorder ${folder}. Use arrow keys or drag.`);
+    grabHandle.innerHTML = '<i data-lucide="grip-vertical" aria-hidden="true"></i>';
+    attachCategoryDragBehavior(grabHandle, item, folder);
+    item.appendChild(grabHandle);
+    const selectButton = document.createElement('div');
+    selectButton.className = 'category-row-select';
+    selectButton.innerHTML = `
       <span class="folder-drawer-item-icon" style="--folder-accent: ${folderMeta.accent}; --folder-soft: ${folderMeta.soft};">${getFolderIconSvg(folderMeta.icon)}</span>
       <span class="folder-drawer-item-content">
-        <span class="folder-drawer-item-title">${folder}</span>
+        <span class="folder-drawer-item-title"></span>
         <span class="folder-drawer-item-meta">${relatedNotes.length} note${relatedNotes.length === 1 ? '' : 's'}</span>
       </span>
-      <span class="folder-drawer-item-trailing">${relatedNotes.slice(0, 2).map(note => getVisualTypeLabel(getVisualNoteType(note))).join(' · ') || 'Empty'}</span>
     `;
-    item.addEventListener('click', () => {
-      setActivePage('notes');
-      selectedFolderFilter = folder;
-      selectedTagFilter = null;
-      clearSidebarActiveStates();
-      collapseSidebarAfterSelection();
-      renderAppView();
-      closeFolderDrawer();
-    });
+    selectButton.querySelector('.folder-drawer-item-title').textContent = folder;
+    item.appendChild(selectButton);
+
+    const actions = document.createElement('span');
+    actions.className = 'category-row-actions';
+    if (locked) {
+      const lock = document.createElement('span');
+      lock.className = 'category-lock';
+      lock.title = 'Locked category';
+      lock.innerHTML = '<i data-lucide="lock" aria-hidden="true"></i>';
+      actions.appendChild(lock);
+    }
+    const menuWrap = document.createElement('span');
+      menuWrap.className = 'category-row-menu-wrap';
+      const moreButton = document.createElement('button');
+      moreButton.type = 'button';
+      moreButton.className = 'icon-btn';
+      moreButton.setAttribute('aria-label', `Manage ${folder}`);
+      moreButton.setAttribute('aria-expanded', 'false');
+      moreButton.innerHTML = '<i data-lucide="ellipsis" aria-hidden="true"></i>';
+      const menu = document.createElement('span');
+      menu.className = 'category-row-menu';
+      menu.hidden = true;
+      const lockButton = document.createElement('button');
+      lockButton.type = 'button';
+      lockButton.textContent = locked ? 'Unlock' : 'Lock';
+      lockButton.addEventListener('click', () => toggleCategoryLock(folder));
+      menu.appendChild(lockButton);
+      const renameButton = document.createElement('button');
+      renameButton.type = 'button';
+      renameButton.textContent = 'Rename';
+      renameButton.addEventListener('click', () => openCategoryDialog('rename', folder));
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'danger';
+      deleteButton.textContent = 'Delete';
+      deleteButton.addEventListener('click', () => openCategoryDialog('delete', folder));
+      renameButton.disabled = locked;
+      deleteButton.disabled = locked;
+      menu.append(renameButton, deleteButton);
+      moreButton.addEventListener('click', () => {
+        closeCategoryRowMenus(menuWrap);
+        menu.hidden = !menu.hidden;
+        moreButton.setAttribute('aria-expanded', menu.hidden ? 'false' : 'true');
+      });
+      menuWrap.append(moreButton, menu);
+    actions.appendChild(menuWrap);
+    item.appendChild(actions);
     folderDrawerList.appendChild(item);
+  });
+  if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+}
+
+function closeCategoryRowMenus(except = null) {
+  document.querySelectorAll('.category-row-menu-wrap').forEach(menuWrap => {
+    if (menuWrap === except) return;
+    const menu = menuWrap.querySelector('.category-row-menu');
+    const trigger = menuWrap.querySelector('[aria-expanded]');
+    if (menu) menu.hidden = true;
+    trigger?.setAttribute('aria-expanded', 'false');
   });
 }
 
@@ -5137,6 +5481,263 @@ function openFolderDrawer() {
 
 function closeFolderDrawer() {
   folderDrawer?.classList.remove('visible');
+  closeCategoryDialog();
+}
+
+let categoryDialogMode = null;
+let categoryDialogTarget = null;
+let categoryDialogReturnFocus = null;
+
+function openCategoryDialog(mode, categoryName = null) {
+  const dialog = document.getElementById('category-dialog');
+  const title = document.getElementById('category-dialog-title');
+  const message = document.getElementById('category-dialog-message');
+  const field = document.getElementById('category-dialog-field');
+  const input = document.getElementById('category-dialog-input');
+  const error = document.getElementById('category-dialog-error');
+  const submit = document.getElementById('category-dialog-submit');
+  if (!dialog || !title || !message || !field || !input || !error || !submit) return;
+
+  categoryDialogMode = mode;
+  categoryDialogTarget = categoryName;
+  categoryDialogReturnFocus = document.activeElement;
+  error.hidden = true;
+  error.textContent = '';
+  dialog.hidden = false;
+
+  if (mode === 'delete') {
+    title.textContent = 'Delete Category?';
+    message.hidden = false;
+    message.textContent = `Notes in “${categoryName}” will become Uncategorized. No notes will be deleted.`;
+    field.hidden = true;
+    submit.textContent = 'Remove';
+    submit.classList.add('danger');
+    submit.focus();
+  } else {
+    title.textContent = mode === 'rename' ? 'Rename Category' : 'Add Category';
+    message.hidden = true;
+    field.hidden = false;
+    input.value = mode === 'rename' ? categoryName : '';
+    submit.textContent = mode === 'rename' ? 'Save' : 'Add';
+    submit.classList.remove('danger');
+    requestAnimationFrame(() => {
+      input.focus();
+      input.select();
+    });
+  }
+}
+
+function closeCategoryDialog() {
+  const dialog = document.getElementById('category-dialog');
+  if (!dialog || dialog.hidden) return;
+  dialog.hidden = true;
+  categoryDialogMode = null;
+  categoryDialogTarget = null;
+  categoryDialogReturnFocus?.focus?.();
+  categoryDialogReturnFocus = null;
+}
+
+function submitCategoryDialog() {
+  const input = document.getElementById('category-dialog-input');
+  const error = document.getElementById('category-dialog-error');
+  if (!error) return;
+  const result = categoryDialogMode === 'delete'
+    ? deleteCategory(categoryDialogTarget)
+    : categoryDialogMode === 'rename'
+      ? renameCategory(categoryDialogTarget, input?.value)
+      : addCategory(input?.value);
+  if (!result?.ok) {
+    error.textContent = result?.reason === 'duplicate'
+      ? 'A category with this name already exists.'
+      : 'Enter a valid category name.';
+    error.hidden = false;
+    input?.focus();
+    return;
+  }
+  closeCategoryDialog();
+  renderFolderDrawer();
+}
+
+function initCategoryManagerEvents() {
+  const addButton = document.getElementById('category-manager-add');
+  if (!addButton || addButton.dataset.bound === 'true') return;
+  addButton.dataset.bound = 'true';
+  addButton.addEventListener('click', () => openCategoryDialog('add'));
+  document.getElementById('category-dialog-cancel')?.addEventListener('click', closeCategoryDialog);
+  document.getElementById('category-dialog-submit')?.addEventListener('click', submitCategoryDialog);
+  document.getElementById('category-dialog-input')?.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      submitCategoryDialog();
+    }
+  });
+  document.getElementById('category-dialog')?.addEventListener('click', event => {
+    if (event.target.id === 'category-dialog') closeCategoryDialog();
+  });
+  document.addEventListener('click', event => {
+    if (!event.target.closest('.category-row-menu-wrap')) closeCategoryRowMenus();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !document.getElementById('category-dialog')?.hidden) {
+      closeCategoryDialog();
+    }
+  });
+}
+
+function updateCategoryBreadcrumb(mode, note = null) {
+  const trigger = document.getElementById(mode === 'creator' ? 'creator-breadcrumb' : 'modal-breadcrumb');
+  const label = trigger?.querySelector('.breadcrumb-text');
+  if (!label) return;
+  const folders = mode === 'creator'
+    ? getSelectedFolders(creatorFolders.length ? creatorFolders : decodeFolderSelection(creatorFolderInput?.value || ''))
+    : getNoteFolders(note || notes.find(item => item.id === currentEditingNoteId), null);
+  const primaryFolder = folders[0] || '';
+  const folderMeta = primaryFolder ? getFolderMeta(primaryFolder) : null;
+  const categoryIcon = document.createElement('i');
+  categoryIcon.className = 'breadcrumb-category-icon';
+  categoryIcon.setAttribute('data-lucide', folderMeta?.icon || 'folder');
+  categoryIcon.setAttribute('aria-hidden', 'true');
+  if (folderMeta) {
+    categoryIcon.style.setProperty('--folder-accent', folderMeta.accent);
+    categoryIcon.style.setProperty('--folder-soft', folderMeta.soft);
+  }
+  trigger.querySelector('.breadcrumb-category-icon')?.replaceWith(categoryIcon);
+  label.textContent = folders.length > 1
+    ? `${folders[0]} +${folders.length - 1}`
+    : folders[0] || 'Uncategorized';
+  if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+}
+
+function closeHeaderCategoryMenus() {
+  ['creator', 'modal'].forEach(mode => {
+    const trigger = document.getElementById(`${mode}-breadcrumb`);
+    const menu = document.getElementById(`${mode}-header-category-menu`);
+    if (menu) menu.hidden = true;
+    trigger?.setAttribute('aria-expanded', 'false');
+  });
+}
+
+function renderHeaderCategoryMenu(mode) {
+  const menu = document.getElementById(`${mode}-header-category-menu`);
+  if (!menu) return;
+  const previousScrollTop = menu.querySelector('.header-category-list')?.scrollTop || 0;
+  menu.replaceChildren();
+  const note = mode === 'modal' ? notes.find(item => item.id === currentEditingNoteId) : null;
+  const currentFolders = mode === 'creator'
+    ? getSelectedFolders(creatorFolders.length ? creatorFolders : decodeFolderSelection(creatorFolderInput?.value || ''))
+    : getNoteFolders(note, null);
+
+  const mobileHeader = document.createElement('div');
+  mobileHeader.className = 'header-category-menu-header';
+  const mobileTitle = document.createElement('strong');
+  mobileTitle.textContent = 'Categories';
+  const mobileClose = document.createElement('button');
+  mobileClose.type = 'button';
+  mobileClose.className = 'icon-btn header-category-menu-close';
+  mobileClose.setAttribute('aria-label', 'Close categories');
+  mobileClose.innerHTML = '<i data-lucide="x" aria-hidden="true"></i>';
+  mobileClose.addEventListener('click', closeHeaderCategoryMenus);
+  mobileHeader.append(mobileTitle, mobileClose);
+  menu.appendChild(mobileHeader);
+
+  const categoryList = document.createElement('div');
+  categoryList.className = 'header-category-list';
+
+  const addOption = (name, icon, selected, onSelect, className = '', showCheckbox = true, folderMeta = null) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `header-category-option ${className}`.trim();
+    if (showCheckbox) {
+      button.setAttribute('role', 'option');
+      button.setAttribute('aria-selected', selected ? 'true' : 'false');
+    }
+    const checkboxIcon = showCheckbox
+      ? document.createElement('i')
+      : document.createElement('span');
+    if (showCheckbox) {
+      checkboxIcon.setAttribute('data-lucide', selected ? 'square-check-big' : 'square');
+      checkboxIcon.setAttribute('aria-hidden', 'true');
+      checkboxIcon.classList.add('category-checkbox-icon');
+    } else {
+      checkboxIcon.className = 'category-checkbox-spacer';
+    }
+    const iconElement = document.createElement('i');
+    iconElement.setAttribute('data-lucide', icon);
+    iconElement.setAttribute('aria-hidden', 'true');
+    iconElement.classList.add(showCheckbox ? 'category-folder-icon' : 'category-manage-icon');
+    if (folderMeta) {
+      iconElement.style.setProperty('--folder-accent', folderMeta.accent);
+      iconElement.style.setProperty('--folder-soft', folderMeta.soft);
+    }
+    const text = document.createElement('span');
+    text.textContent = name;
+    button.append(checkboxIcon, iconElement, text);
+    button.addEventListener('click', event => {
+      // A checked option re-renders the picker. Keep this click from reaching
+      // the document-level outside-click listener after its DOM node is gone.
+      event.stopPropagation();
+      onSelect();
+    });
+    return button;
+  };
+
+  const manageButton = addOption('Manage Category', 'settings-2', false, () => {
+    closeHeaderCategoryMenus();
+    openFolderDrawer();
+  }, 'manage-categories', false);
+  menu.appendChild(manageButton);
+
+  getAllFolders().forEach(folder => {
+    const selected = currentFolders.includes(folder);
+    const folderMeta = getFolderMeta(folder);
+    const option = addOption(folder, folderMeta.icon, selected, () => {
+      const nextFolders = selected
+        ? currentFolders.filter(selectedFolder => selectedFolder !== folder)
+        : [...currentFolders, folder];
+      if (mode === 'creator') {
+        setCreatorFolderValue(nextFolders, { preserveDraft: true });
+        updateCategoryBreadcrumb('creator');
+      } else if (note) {
+        setNoteFolders(note, nextFolders);
+        registerNoteFolders(note);
+        setModalFolderValue(nextFolders, { preserveDraft: true });
+        note.updatedAt = Date.now();
+        updateCategoryBreadcrumb('modal', note);
+        debouncedSave();
+        renderNotes();
+      }
+      renderHeaderCategoryMenu(mode);
+    }, '', true, folderMeta);
+    categoryList.appendChild(option);
+  });
+  menu.appendChild(categoryList);
+  categoryList.scrollTop = previousScrollTop;
+  if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+}
+
+function initHeaderCategoryControls() {
+  ['creator', 'modal'].forEach(mode => {
+    const trigger = document.getElementById(`${mode}-breadcrumb`);
+    const menu = document.getElementById(`${mode}-header-category-menu`);
+    if (!trigger || !menu || trigger.dataset.categoryBound === 'true') return;
+    trigger.dataset.categoryBound = 'true';
+    trigger.addEventListener('click', event => {
+      event.stopPropagation();
+      const willOpen = menu.hidden;
+      closeHeaderCategoryMenus();
+      if (willOpen) {
+        renderHeaderCategoryMenu(mode);
+        menu.hidden = false;
+        trigger.setAttribute('aria-expanded', 'true');
+        menu.querySelector('button')?.focus();
+      }
+    });
+  });
+  document.addEventListener('click', event => {
+    if (!event.target.closest('.header-category-control') && !event.target.closest('.header-category-menu')) {
+      closeHeaderCategoryMenus();
+    }
+  });
 }
 
 function renderFolderSuggestions() {
@@ -7943,7 +8544,9 @@ export function createNoteCardElement(note) {
   boardHeader.className = 'note-board-header mobile-only';
   const boardTitle = document.createElement('span');
   boardTitle.className = 'note-board-title';
-  boardTitle.textContent = getFolderSummaryLabel(note, getVisualTypeLabel(noteKind));
+  const primaryCategory = getPrimaryFolder(note, null);
+  boardTitle.textContent = primaryCategory;
+  boardTitle.hidden = !primaryCategory;
   const boardHeaderMeta = document.createElement('div');
   boardHeaderMeta.className = 'note-board-meta';
   if (note.pinned) {
@@ -7970,10 +8573,18 @@ export function createNoteCardElement(note) {
   // === TOPBAR (Desktop & Tablet) ===
   const topbar = document.createElement('div');
   topbar.className = 'note-card-topbar desktop-only';
-  const topFolder = document.createElement('span');
-  topFolder.className = 'topbar-folder-badge';
-  topFolder.innerHTML = `<span>📂</span> ${getFolderSummaryLabel(note, 'Inbox')}`;
-  topbar.appendChild(topFolder);
+  if (primaryCategory) {
+    const topFolder = document.createElement('span');
+    topFolder.className = 'topbar-folder-badge note-category-pill';
+    const categoryIcon = document.createElement('i');
+    categoryIcon.setAttribute('data-lucide', getFolderMeta(primaryCategory).icon);
+    categoryIcon.setAttribute('aria-hidden', 'true');
+    const categoryName = document.createElement('span');
+    categoryName.textContent = primaryCategory;
+    topFolder.appendChild(categoryIcon);
+    topFolder.appendChild(categoryName);
+    topbar.appendChild(topFolder);
+  }
   mainContent.appendChild(topbar);
 
   const surface = document.createElement('div');
@@ -8642,7 +9253,7 @@ function openEditModal(note, autoFocus = false) {
   const modalBreadcrumb = document.getElementById('modal-breadcrumb');
   if (modalBreadcrumb) {
     const folders = getNoteFolders(note);
-    modalBreadcrumb.textContent = `${folders[0] || 'Personal'} / Ideas`;
+    updateCategoryBreadcrumb('modal', note);
   }
 
   editModal.classList.add('visible');
