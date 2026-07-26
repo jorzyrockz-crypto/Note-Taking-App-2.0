@@ -3,9 +3,10 @@
  * Serves as the single JavaScript source of truth for current version and changelog metadata.
  */
 
-export const CURRENT_VERSION = '3.3.6';
+export const CURRENT_VERSION = '3.3.7';
 
 export const DEFAULT_CHANGELOG = [
+  'Reminder Scheduler Repair (v3.3.7): Unified reminder buttons on the glass scheduler, normalized reminder storage to ISO strings, hardened checklist item reminder saves, and handled notification permission denials without generic app-error notices.',
   'Editor, Reminder & Touch Refinements (v3.3.6): Added a sanitized context-aware paste menu for text, formatting, links, and images; removed duplicate reminder scheduler controls; restored vertical scrolling from Media Hub slides; fixed the tablet-landscape editor toolbar position; and simplified the productivity calendar header.',
   'Remove Productivity Hero Banner (v3.3.5): Removed the hero banner section from the productivity page to streamline the dashboard layout.',
   'Simplified Note Editing & Fluent Icons (v3.3.4): Streamlined the note editor into a cleaner document-first workspace, unified action dialogs and voice recording controls, added searchable Fluent note icons with offline caching, and refined search, navigation, and responsive behavior.',

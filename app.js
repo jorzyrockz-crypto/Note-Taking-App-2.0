@@ -2641,7 +2641,7 @@ if (typeof document !== 'undefined') {
 
     // Request browser notification permission (non-blocking, once)
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
+      Notification.requestPermission().catch(err => console.warn('Notification permission request failed:', err));
     }
 
     // Pre-load dynamic modules asynchronously in the background for instant transitions
@@ -3220,16 +3220,15 @@ function setupEventHandlers() {
       if (p !== creatorReminderPicker) p.classList.remove('visible');
     });
 
-    buildReminderPicker(creatorReminderPicker, creatorReminder, (dateTime) => {
-      creatorReminder = dateTime;
+    openGlassReminderPopover('creator', creatorReminderBtn, creatorReminder, (timeMs) => {
+      creatorReminder = normalizeReminderValue(timeMs);
       renderCreatorReminderChip();
-      creatorReminderPicker?.classList.remove('visible');
+      saveCreatorNoteDraft();
     }, () => {
       creatorReminder = null;
       renderCreatorReminderChip();
-      creatorReminderPicker?.classList.remove('visible');
+      saveCreatorNoteDraft();
     });
-    creatorReminderPicker?.classList.toggle('visible');
   });
 
   // Creator checklists convert trigger
@@ -4315,7 +4314,7 @@ function initAdvancedEditorHandlers() {
     if (!reminderInput.value) return;
     const timeMs = new Date(reminderInput.value).getTime();
     if (Number.isNaN(timeMs)) return;
-    creatorReminder = timeMs;
+    creatorReminder = normalizeReminderValue(timeMs);
     renderCreatorReminderChip();
 
     const reminderVal = new Date(timeMs).toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'});
@@ -4336,6 +4335,71 @@ function initAdvancedEditorHandlers() {
     if (previewVal) previewVal.textContent = 'None';
 
     saveCreatorNoteDraft();
+    showToast({ title: 'Reminder Cleared', text: 'Note reminder removed.' });
+  });
+
+
+  const getModalReminderNote = () => notes.find(n => n.id === currentEditingNoteId) || null;
+  const modalReminderInput = document.getElementById('modal-popover-reminder-input');
+  const updateModalReminderPreview = (note) => {
+    const previewVal = document.getElementById('modal-reminder-preview-val');
+    if (previewVal) {
+      previewVal.textContent = note?.reminder ? new Date(note.reminder).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'None';
+    }
+    if (modalReminderInput) modalReminderInput.value = toDatetimeLocalValue(note?.reminder);
+  };
+
+  document.getElementById('modal-reminder-compact-card')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const note = getModalReminderNote();
+    updateModalReminderPreview(note);
+    openGlassReminderPopover('modal', e.currentTarget, note?.reminder, (timeMs) => {
+      if (!note) return;
+      note.reminder = normalizeReminderValue(timeMs);
+      note.reminderTriggered = false;
+      note.updatedAt = Date.now();
+      updateModalReminderPreview(note);
+      renderModalReminderChip(note);
+      debouncedSave();
+      renderNotes();
+    }, () => {
+      if (!note) return;
+      note.reminder = null;
+      note.reminderTriggered = false;
+      note.updatedAt = Date.now();
+      updateModalReminderPreview(note);
+      renderModalReminderChip(note);
+      debouncedSave();
+      renderNotes();
+    });
+  });
+
+  document.getElementById('modal-popover-reminder-save-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const note = getModalReminderNote();
+    const reminder = normalizeReminderValue(modalReminderInput?.value);
+    if (!note || !reminder) return;
+    note.reminder = reminder;
+    note.reminderTriggered = false;
+    note.updatedAt = Date.now();
+    updateModalReminderPreview(note);
+    renderModalReminderChip(note);
+    debouncedSave();
+    renderNotes();
+    showToast({ title: 'Reminder Set', text: 'Note reminder updated successfully.' });
+  });
+
+  document.getElementById('modal-popover-reminder-clear-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const note = getModalReminderNote();
+    if (!note) return;
+    note.reminder = null;
+    note.reminderTriggered = false;
+    note.updatedAt = Date.now();
+    updateModalReminderPreview(note);
+    renderModalReminderChip(note);
+    debouncedSave();
+    renderNotes();
     showToast({ title: 'Reminder Cleared', text: 'Note reminder removed.' });
   });
 
@@ -10655,6 +10719,22 @@ function inferPreviewImageFromUrl(url, note) {
   return null;
 }
 
+
+function normalizeReminderValue(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+}
+
+function toDatetimeLocalValue(value) {
+  const normalized = normalizeReminderValue(value);
+  if (!normalized) return '';
+  const date = new Date(normalized);
+  const pad = n => n.toString().padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 function formatReminderDate(dateStr) {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -10766,7 +10846,7 @@ function buildReminderPicker(pickerContainer, currentReminder, onSave, onDelete)
   input.type = 'datetime-local';
   input.className = 'reminder-datetime-input';
   if (currentReminder) {
-    input.value = currentReminder.substring(0, 16);
+    input.value = toDatetimeLocalValue(currentReminder);
   }
   pickerContainer.appendChild(input);
 
@@ -10916,7 +10996,7 @@ function fireReminderNotification(note, bodyText) {
         const ms = parseInt(btn.dataset.snooze, 10);
         const n = notes.find(n => n.id === note.id);
         if (n) {
-          n.reminder = Date.now() + ms;
+          n.reminder = normalizeReminderValue(Date.now() + ms);
           n.reminderTriggered = false;
           n.lineReminderTriggered = {};
           saveToLocalStorage();
@@ -13006,18 +13086,21 @@ function initGlassContextToolbar(mode) {
   document.getElementById(`${mode}-ctx-reminder`)?.addEventListener('mousedown', (e) => {
     e.preventDefault();
     if (!selectedChecklistItem || mode !== 'modal') return;
-    const existingChip = selectedChecklistItem.querySelector('.checklist-inline-reminder');
+    const checklistItem = selectedChecklistItem;
+    const existingChip = checklistItem.querySelector('.checklist-inline-reminder');
     const currentReminder = existingChip?.dataset.reminder || null;
     openGlassReminderPopover('modal', e.currentTarget, currentReminder, (timeMs) => {
-      let chip = selectedChecklistItem.querySelector('.checklist-inline-reminder');
+      if (!checklistItem.isConnected) return;
+      let chip = checklistItem.querySelector('.checklist-inline-reminder');
       if (!chip) {
         chip = document.createElement('button');
         chip.type = 'button';
         chip.className = 'checklist-inline-reminder';
         chip.contentEditable = 'false';
-        selectedChecklistItem.appendChild(chip);
+        checklistItem.appendChild(chip);
       }
-      const reminder = new Date(timeMs).toISOString();
+      const reminder = normalizeReminderValue(timeMs);
+      if (!reminder) return;
       chip.dataset.reminder = reminder;
       chip.textContent = `Remind ${formatReminderDate(reminder)}`;
       chip.setAttribute('aria-label', `Edit reminder: ${formatReminderDate(reminder)}`);
@@ -13025,7 +13108,8 @@ function initGlassContextToolbar(mode) {
       commitGlassEditorChange(mode, { saveSelection: false });
       hideContextToolbar(toolbar);
     }, () => {
-      selectedChecklistItem.querySelector('.checklist-inline-reminder')?.remove();
+      if (!checklistItem.isConnected) return;
+      checklistItem.querySelector('.checklist-inline-reminder')?.remove();
       commitGlassEditorChange(mode, { saveSelection: false });
       hideContextToolbar(toolbar);
     });
@@ -13070,7 +13154,7 @@ function openWholeNoteReminderScheduler(note, anchorEl) {
   if (!note) return;
   openGlassReminderPopover('modal', anchorEl, note.reminder,
     (timeMs) => {
-      note.reminder = timeMs;
+      note.reminder = normalizeReminderValue(timeMs);
       note.reminderTriggered = false;
       saveToLocalStorage();
       renderNotes();
@@ -13107,13 +13191,7 @@ function openGlassReminderPopover(target, anchorEl, currentVal, onSave, onClear)
   currentReminderCallback = onSave;
   currentReminderClearCallback = onClear;
 
-  if (currentVal) {
-    const d = new Date(currentVal);
-    const pad = n => n.toString().padStart(2, '0');
-    input.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  } else {
-    input.value = '';
-  }
+  input.value = toDatetimeLocalValue(currentVal);
 
   // Clear any stale inline display value before restoring the modal overlay.
   popover.style.removeProperty('display');
