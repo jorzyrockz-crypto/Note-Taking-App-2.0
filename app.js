@@ -130,6 +130,7 @@ import {
 
 import { getRecipeImporterUnavailableMessage } from './recipe.js';
 import { parseMarkdown } from './note-types/shared.js';
+import { sanitizeRichTextHtml } from './note-types/text-note.js';
 
 let _savedWorkspaceScrollY = 0;
 
@@ -4205,25 +4206,6 @@ function renderModalPopoverColors(note) {
   });
 }
 
-function initModalPopoverReminder(note) {
-  const input = document.getElementById('modal-popover-reminder-input');
-  if (!input) return;
-
-  if (note.reminder) {
-    const date = new Date(note.reminder);
-    if (!Number.isNaN(date.getTime())) {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      input.value = `${year}-${month}-${day}T${hours}:${minutes}`;
-    }
-  } else {
-    input.value = '';
-  }
-}
-
 function initAdvancedEditorHandlers() {
   // Back button
   creatorBackBtn?.addEventListener('click', (e) => {
@@ -4562,43 +4544,6 @@ function initModalAdvancedEditorHandlers() {
     }
   });
 
-  // Modal Reminder popover set/clear
-  const reminderInput = document.getElementById('modal-popover-reminder-input');
-  const reminderSaveBtn = document.getElementById('modal-popover-reminder-save-btn');
-  const reminderClearBtn = document.getElementById('modal-popover-reminder-clear-btn');
-
-  reminderSaveBtn?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (!reminderInput.value) return;
-    const timeMs = new Date(reminderInput.value).getTime();
-    if (Number.isNaN(timeMs)) return;
-    const note = notes.find(n => n.id === currentEditingNoteId);
-    if (note) {
-      note.reminder = timeMs;
-      note.reminderTriggered = false;
-      note.updatedAt = Date.now();
-      renderModalReminderChip(note);
-      debouncedSave();
-      renderNotes();
-      showToast({ title: 'Reminder Set', text: 'Note reminder updated successfully.' });
-    }
-  });
-
-  reminderClearBtn?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const note = notes.find(n => n.id === currentEditingNoteId);
-    if (note) {
-      note.reminder = null;
-      note.reminderTriggered = false;
-      note.updatedAt = Date.now();
-      reminderInput.value = '';
-      renderModalReminderChip(note);
-      debouncedSave();
-      renderNotes();
-      showToast({ title: 'Reminder Cleared', text: 'Note reminder removed.' });
-    }
-  });
-
   // Favorite handler
   document.getElementById('modal-favorite')?.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -4692,15 +4637,6 @@ function initModalAdvancedEditorHandlers() {
     const note = notes.find(n => n.id === currentEditingNoteId);
     if (note) {
       openThemePickerV2({ type: 'modal', note });
-    }
-  });
-
-  // Compact reminder card toggle
-  document.getElementById('modal-reminder-compact-card')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const container = document.getElementById('modal-reminder-picker-container');
-    if (container) {
-      container.style.display = container.style.display === 'none' ? 'flex' : 'none';
     }
   });
 
@@ -6145,6 +6081,284 @@ function handleGlobalClipboardPaste(event) {
     triggerAutosave();
   }
   showToast({ title: 'Clipboard pasted', text: 'Text or link added to your draft note.' });
+}
+
+let activeEditorPasteMenu = null;
+
+async function readEditorClipboardPayload() {
+  const payload = { text: '', html: '', image: null };
+  if (typeof navigator === 'undefined' || !navigator.clipboard) return payload;
+
+  if (typeof navigator.clipboard.read === 'function') {
+    const items = await navigator.clipboard.read();
+    for (const item of items) {
+      const imageType = item.types.find(type => ['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(type));
+      if (!payload.image && imageType) {
+        payload.image = await item.getType(imageType);
+      }
+      if (!payload.html && item.types.includes('text/html')) {
+        payload.html = await (await item.getType('text/html')).text();
+      }
+      if (!payload.text && item.types.includes('text/plain')) {
+        payload.text = await (await item.getType('text/plain')).text();
+      }
+    }
+  } else if (typeof navigator.clipboard.readText === 'function') {
+    payload.text = await navigator.clipboard.readText();
+  }
+
+  return payload;
+}
+
+function sanitizeClipboardFormatting(container) {
+  sanitizeRichTextHtml(container);
+  const allowedTags = new Set([
+    'P', 'BR', 'DIV', 'SPAN', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'STRIKE',
+    'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'A',
+    'BLOCKQUOTE', 'CODE', 'PRE', 'INPUT'
+  ]);
+  const allowedClasses = new Set(['checklist-container', 'checklist-item']);
+
+  Array.from(container.querySelectorAll('*')).forEach(element => {
+    if (!allowedTags.has(element.tagName)) {
+      element.replaceWith(...element.childNodes);
+      return;
+    }
+
+    Array.from(element.attributes).forEach(attribute => {
+      const name = attribute.name.toLowerCase();
+      const isSafeLinkAttribute = element.tagName === 'A' && ['href', 'title'].includes(name);
+      const isSafeCheckboxAttribute = element.tagName === 'INPUT'
+        && ['type', 'checked', 'disabled'].includes(name)
+        && (element.getAttribute('type') || '').toLowerCase() === 'checkbox';
+      const isSafeClass = name === 'class'
+        && attribute.value.split(/\s+/).every(className => allowedClasses.has(className));
+      if (!isSafeLinkAttribute && !isSafeCheckboxAttribute && !isSafeClass) {
+        element.removeAttribute(attribute.name);
+      }
+    });
+
+    if (element.tagName === 'A') {
+      element.target = '_blank';
+      element.rel = 'noopener noreferrer';
+    }
+    if (element.tagName === 'INPUT') {
+      if ((element.getAttribute('type') || '').toLowerCase() !== 'checkbox') {
+        element.remove();
+      } else {
+        element.setAttribute('disabled', 'disabled');
+      }
+    }
+  });
+}
+
+function closeEditorPasteMenu() {
+  activeEditorPasteMenu?.remove();
+  activeEditorPasteMenu = null;
+}
+
+function setCaretAfterInsertedNode(node) {
+  if (!node || typeof window === 'undefined') return;
+  const range = document.createRange();
+  range.setStartAfter(node);
+  range.collapse(true);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+  saveGlassSelection();
+}
+
+function insertClipboardFragment(editor, { text = '', html = '', plainText = false } = {}) {
+  if (!editor) return false;
+  restoreGlassSelection('modal');
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return false;
+  const range = selection.getRangeAt(0);
+  if (!editor.contains(range.commonAncestorContainer)) return false;
+
+  const container = document.createElement('div');
+  if (plainText) {
+    const lines = String(text).replace(/\r\n?/g, '\n').split('\n');
+    lines.forEach((line, index) => {
+      if (index > 0) container.appendChild(document.createElement('br'));
+      container.appendChild(document.createTextNode(line));
+    });
+  } else {
+    container.innerHTML = html || escapeHtml(text).replace(/\r\n?|\n/g, '<br>');
+    sanitizeClipboardFormatting(container);
+  }
+
+  const fragment = document.createDocumentFragment();
+  while (container.firstChild) fragment.appendChild(container.firstChild);
+  const lastNode = fragment.lastChild;
+  if (!lastNode) return false;
+
+  range.deleteContents();
+  range.insertNode(fragment);
+  setCaretAfterInsertedNode(lastNode);
+  window.wireGlassChecklistEvents?.(editor);
+  commitGlassEditorChange('modal', { saveSelection: false });
+  return true;
+}
+
+function insertClipboardLink(editor, url) {
+  let safeUrl = '';
+  try {
+    const parsed = new URL(url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+    safeUrl = parsed.href;
+  } catch {
+    return false;
+  }
+
+  const anchor = document.createElement('a');
+  anchor.href = safeUrl;
+  anchor.target = '_blank';
+  anchor.rel = 'noopener noreferrer';
+  anchor.textContent = safeUrl;
+
+  restoreGlassSelection('modal');
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return false;
+  const range = selection.getRangeAt(0);
+  if (!editor.contains(range.commonAncestorContainer)) return false;
+  range.deleteContents();
+  range.insertNode(anchor);
+  setCaretAfterInsertedNode(anchor);
+  commitGlassEditorChange('modal', { saveSelection: false });
+
+  const note = notes.find(entry => entry.id === currentEditingNoteId);
+  if (note) {
+    fetchLinkPreviewMetadata(safeUrl)
+      .then(preview => {
+        applyLinkPreviewToNote(note, preview, safeUrl);
+        note.updatedAt = Date.now();
+        saveSingleNoteToLocalStorage(note);
+        renderSocialCapturePanel(note);
+        updateNoteCardUI(note.id);
+      })
+      .catch(error => console.warn('Pasted link preview unavailable:', error));
+  }
+  return true;
+}
+
+function createEditorPasteMenuButton(label, icon, onSelect) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'editor-paste-menu-item';
+  button.setAttribute('role', 'menuitem');
+  button.innerHTML = `<i data-lucide="${icon}" aria-hidden="true"></i><span>${label}</span>`;
+  button.addEventListener('click', async event => {
+    event.stopPropagation();
+    await onSelect();
+    closeEditorPasteMenu();
+  });
+  return button;
+}
+
+function positionEditorPasteMenu(menu, x, y) {
+  const margin = 10;
+  const width = menu.offsetWidth || 230;
+  const height = menu.offsetHeight || 220;
+  const left = Math.max(margin, Math.min(x, window.innerWidth - width - margin));
+  const top = Math.max(margin, Math.min(y, window.innerHeight - height - margin));
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+}
+
+async function openEditorPasteMenu(editor, x, y) {
+  closeEditorPasteMenu();
+  saveGlassSelection();
+
+  const menu = document.createElement('div');
+  menu.className = 'editor-paste-menu';
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', 'Paste options');
+  menu.innerHTML = '<div class="editor-paste-menu-status" role="status">Reading clipboard…</div>';
+  document.body.appendChild(menu);
+  activeEditorPasteMenu = menu;
+  positionEditorPasteMenu(menu, x, y);
+
+  let payload;
+  try {
+    payload = await readEditorClipboardPayload();
+  } catch (error) {
+    console.warn('Clipboard chooser access unavailable:', error);
+    if (activeEditorPasteMenu !== menu) return;
+    menu.innerHTML = `
+      <div class="editor-paste-menu-status">Clipboard access is unavailable.</div>
+      <div class="editor-paste-menu-shortcuts"><kbd>Ctrl/Cmd + V</kbd><span>Paste</span><kbd>Ctrl/Cmd + Shift + V</kbd><span>Plain text</span></div>
+    `;
+    positionEditorPasteMenu(menu, x, y);
+    return;
+  }
+
+  if (activeEditorPasteMenu !== menu) return;
+  menu.replaceChildren();
+  const text = payload.text || '';
+  const url = getFirstUrlInText(text);
+
+  if (text) {
+    menu.appendChild(createEditorPasteMenuButton('Paste as plain text', 'text', () => {
+      insertClipboardFragment(editor, { text, plainText: true });
+    }));
+  }
+  if (payload.html) {
+    menu.appendChild(createEditorPasteMenuButton('Paste with formatting', 'clipboard-paste', () => {
+      insertClipboardFragment(editor, { text, html: payload.html });
+    }));
+  }
+  if (url) {
+    menu.appendChild(createEditorPasteMenuButton('Paste link', 'link', () => {
+      if (!insertClipboardLink(editor, url)) {
+        showToast({ title: 'Invalid link', text: 'Only HTTP and HTTPS links can be pasted.' });
+      }
+    }));
+  }
+  if (payload.image) {
+    menu.appendChild(createEditorPasteMenuButton('Paste image', 'image-plus', () => {
+      const extension = payload.image.type.split('/')[1]?.replace('jpeg', 'jpg') || 'png';
+      const file = new File([payload.image], `clipboard-image-${Date.now()}.${extension}`, { type: payload.image.type || 'image/png' });
+      handleSelectedImageFile('modal', file);
+    }));
+  }
+
+  if (!menu.children.length) {
+    const empty = document.createElement('div');
+    empty.className = 'editor-paste-menu-status';
+    empty.textContent = 'No supported clipboard content.';
+    menu.appendChild(empty);
+  }
+
+  const shortcuts = document.createElement('div');
+  shortcuts.className = 'editor-paste-menu-shortcuts';
+  shortcuts.innerHTML = '<kbd>Ctrl/Cmd + V</kbd><span>Paste</span><kbd>Ctrl/Cmd + Shift + V</kbd><span>Plain text</span>';
+  menu.appendChild(shortcuts);
+  positionEditorPasteMenu(menu, x, y);
+  if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+  menu.querySelector('button')?.focus({ preventScroll: true });
+}
+
+function initGlassEditorPasteChooser() {
+  const editor = document.getElementById('modal-glass-editor');
+  if (!editor || editor.dataset.pasteChooserBound === 'true') return;
+  editor.dataset.pasteChooserBound = 'true';
+
+  editor.addEventListener('contextmenu', event => {
+    const selection = window.getSelection();
+    if (!selection?.isCollapsed || !editor.contains(selection.anchorNode)) return;
+    if (!navigator.clipboard || (typeof navigator.clipboard.read !== 'function' && typeof navigator.clipboard.readText !== 'function')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void openEditorPasteMenu(editor, event.clientX, event.clientY);
+  });
+
+  document.addEventListener('pointerdown', event => {
+    if (activeEditorPasteMenu && !activeEditorPasteMenu.contains(event.target)) closeEditorPasteMenu();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeEditorPasteMenu();
+  });
 }
 
 function getClipboardImageFile(event) {
@@ -9405,63 +9619,6 @@ function openEditModal(note, autoFocus = true) {
     renderNotes();
     modalColorPicker.classList.remove('visible');
   });
-
-  // Modal reminder popover click trigger
-  const modalReminderBtn = document.getElementById('modal-reminder-btn');
-  const modalReminderPicker = document.getElementById('modal-reminder-picker');
-
-  modalReminderBtn.onclick = (e) => {
-    e.stopPropagation();
-    document.querySelectorAll('.color-picker-bubble, .reminder-picker-bubble').forEach(p => {
-      if (p !== modalReminderPicker) p.classList.remove('visible');
-    });
-
-    const modalChecklistEditor = document.getElementById('modal-checklist-editor');
-    const activeChecklistIndex = modalChecklistEditor?.style.display !== 'none'
-      ? getActiveChecklistRowIndex(modalChecklistEditor)
-      : -1;
-    const activeChecklistLine = activeChecklistIndex >= 0
-      ? (note.text.split('\n')[activeChecklistIndex] || '')
-      : '';
-    const activeChecklistReminder = activeChecklistIndex >= 0
-      ? extractChecklistInlineReminder(activeChecklistLine.substring(6))
-      : '';
-
-    buildReminderPicker(modalReminderPicker, activeChecklistReminder || note.reminder, (dateTime) => {
-      if (activeChecklistIndex >= 0) {
-        note.text = applyInlineReminderToChecklistText(note.text, activeChecklistIndex, dateTime);
-        note.type = note.recipeData ? 'recipe' : getNoteType(note.text);
-        modalText.value = note.text;
-        debouncedSave();
-        renderNotes();
-        syncModalInputs(note);
-      } else {
-        note.reminder = dateTime;
-        note.reminderTriggered = false;
-        debouncedSave();
-        renderNotes();
-        renderModalReminderChip(note);
-      }
-      modalReminderPicker.classList.remove('visible');
-    }, () => {
-      if (activeChecklistIndex >= 0) {
-        note.text = applyInlineReminderToChecklistText(note.text, activeChecklistIndex, '');
-        note.type = note.recipeData ? 'recipe' : getNoteType(note.text);
-        modalText.value = note.text;
-        debouncedSave();
-        renderNotes();
-        syncModalInputs(note);
-      } else {
-        note.reminder = null;
-        note.reminderTriggered = false;
-        debouncedSave();
-        renderNotes();
-        renderModalReminderChip(note);
-      }
-      modalReminderPicker.classList.remove('visible');
-    });
-    modalReminderPicker.classList.toggle('visible');
-  };
 
   // Set date metadata subtitle
   const dateObj = new Date(note.createdAt || Date.now());
@@ -12904,6 +13061,7 @@ if (typeof document !== 'undefined') {
   setTimeout(() => {
     initGlassToolbarExtensions('modal');
     initMobilePhoneExperience();
+    initGlassEditorPasteChooser();
   }, 0);
 });
 
@@ -12936,6 +13094,7 @@ function closeGlassReminderPopover() {
   const popover = document.getElementById('glass-reminder-popover');
   if (!popover) return;
   popover.classList.remove('visible');
+  popover.setAttribute('aria-hidden', 'true');
 }
 window.closeGlassReminderPopover = closeGlassReminderPopover;
 
@@ -12969,16 +13128,6 @@ document.getElementById('glass-reminder-close')?.addEventListener('click', () =>
 document.getElementById('glass-reminder-cancel')?.addEventListener('click', () => closeGlassReminderPopover());
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('modal-note-reminder')?.addEventListener('click', (event) => {
-    const chip = event.target.closest('.whole-note-reminder');
-    if (!chip) return;
-    const note = notes.find(item => item.id === currentEditingNoteId);
-    if (!note) return;
-    event.preventDefault();
-    event.stopPropagation();
-    openWholeNoteReminderScheduler(note, chip);
-  });
-
   document.querySelectorAll('[data-close-editor-action]').forEach(button => button.addEventListener('click', () => {
     const id = button.dataset.closeEditorAction;
     setEditorActionModal(id, false);

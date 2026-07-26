@@ -3,9 +3,11 @@
  * Serves as the single JavaScript source of truth for current version and changelog metadata.
  */
 
-export const CURRENT_VERSION = '3.3.4';
+export const CURRENT_VERSION = '3.3.6';
 
 export const DEFAULT_CHANGELOG = [
+  'Editor, Reminder & Touch Refinements (v3.3.6): Added a sanitized context-aware paste menu for text, formatting, links, and images; removed duplicate reminder scheduler controls; restored vertical scrolling from Media Hub slides; fixed the tablet-landscape editor toolbar position; and simplified the productivity calendar header.',
+  'Remove Productivity Hero Banner (v3.3.5): Removed the hero banner section from the productivity page to streamline the dashboard layout.',
   'Simplified Note Editing & Fluent Icons (v3.3.4): Streamlined the note editor into a cleaner document-first workspace, unified action dialogs and voice recording controls, added searchable Fluent note icons with offline caching, and refined search, navigation, and responsive behavior.',
   'Expanded Desktop & Tablet Grid Spacing (v3.3.3): Increased desktop card grid gaps from 14px to 20px (+6px) and tablet grid gaps from 12px to 18px (+6px) for improved visual breathing room between card columns and rows.',
   'Refined Note-Card Density & Type Indicators (v3.3.2): Standardized desktop card height to 288px and tablet height to 272px with flush left notebook spine docking, added fixed 14px/12px grid gaps, isolated card padding to content wrapper, removed top-bar type text badge, and introduced compact footer multi-type indicator icons.',

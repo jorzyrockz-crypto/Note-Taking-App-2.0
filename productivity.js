@@ -115,18 +115,10 @@ export function ensureProductivityPage() {
     productivityPage.id = 'productivity-page';
     productivityPage.style.display = 'none';
     productivityPage.innerHTML = `
-      <div class="productivity-hero" id="productivity-hero">
-        <div class="productivity-hero-copy">
-          <div class="productivity-hero-date" id="productivity-hero-date"></div>
-          <h2 class="productivity-title">Productivity</h2>
-        </div>
-      </div>
-
       <div class="productivity-layout">
         <section class="productivity-panel productivity-calendar-panel">
           <div class="productivity-panel-header">
             <div>
-              <div class="productivity-panel-kicker">Calendar</div>
               <h3>Calendar</h3>
             </div>
             <div class="calendar-controls">
@@ -211,16 +203,7 @@ export function renderProductivityPage() {
 
   setActiveSidebarPage('productivity');
 
-  // Apply workspace-adaptive gradient
-  const heroEl = document.getElementById('productivity-hero');
-  if (heroEl) {
-    const [gradFrom, gradTo] = getHeroGradient().split(', ');
-    heroEl.style.background = `linear-gradient(120deg, ${gradFrom.trim()} 0%, ${gradTo.trim()} 100%)`;
-  }
 
-  // Live date eyebrow
-  const heroDate = document.getElementById('productivity-hero-date');
-  if (heroDate) heroDate.textContent = getTodayLabel();
 
   const reminderNotes = getReminderNotes();
   const taskNotes = getTaskNotes();
