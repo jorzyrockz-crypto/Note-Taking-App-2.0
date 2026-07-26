@@ -1,26 +1,93 @@
+import { sanitizeRichTextHtml } from './note-types/text-note.js';
+
 const win = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
 
 let showToastFn = () => {};
 let saveModalNoteDraftFn = () => {};
-let triggerAutosaveFn = () => {};
 
 let savedGlassRange = null;
 let savedGlassElement = null;
+
+const glassEditorAdapters = {
+  open: null,
+  save: null,
+  close: null,
+  flush: null
+};
+let activeGlassEditorSession = null;
+
+// The modal is the single Glass editing surface.
+const GLASS_SURFACE_IDS = Object.freeze({
+  modal: { title: 'modal-glass-title', editor: 'modal-glass-editor', workspace: 'modal-glass-workspace', toolbar: 'modal-glass-floating-toolbar' }
+});
+
+export function getGlassSurface(mode) {
+  const ids = GLASS_SURFACE_IDS[mode];
+  if (!ids || typeof document === 'undefined') return null;
+  return {
+    mode,
+    title: document.getElementById(ids.title),
+    editor: document.getElementById(ids.editor),
+    workspace: document.getElementById(ids.workspace),
+    toolbar: document.getElementById(ids.toolbar)
+  };
+}
+
+export function configureGlassEditorController(adapters = {}) {
+  for (const name of Object.keys(glassEditorAdapters)) {
+    glassEditorAdapters[name] = typeof adapters[name] === 'function' ? adapters[name] : null;
+  }
+}
+
+export function setActiveGlassEditorSession(note, kind = note?.isNewDraft ? 'new' : 'edit') {
+  activeGlassEditorSession = note
+    ? { noteId: note.id ?? null, kind, surface: 'modal' }
+    : null;
+}
+
+export function clearGlassEditorSession() {
+  activeGlassEditorSession = null;
+}
+
+export const glassEditorController = Object.freeze({
+  openNewNote(note, autoFocus = true) {
+    setActiveGlassEditorSession(note, 'new');
+    return glassEditorAdapters.open?.(note, autoFocus);
+  },
+  openExistingNote(note, autoFocus = true) {
+    setActiveGlassEditorSession(note, 'edit');
+    return glassEditorAdapters.open?.(note, autoFocus);
+  },
+  saveActiveNote() {
+    return glassEditorAdapters.save?.();
+  },
+  closeEditor() {
+    const result = glassEditorAdapters.close?.();
+    clearGlassEditorSession();
+    return result;
+  },
+  flushPendingSave() {
+    return glassEditorAdapters.flush?.();
+  },
+  getActiveSurface() {
+    return getGlassSurface('modal');
+  },
+  getSession() {
+    return activeGlassEditorSession ? { ...activeGlassEditorSession } : null;
+  }
+});
 
 export function saveGlassSelection() {
   if (typeof window === 'undefined') return;
   const sel = window.getSelection();
   if (sel.rangeCount > 0) {
     const node = sel.anchorNode;
-    const creatorEditor = document.getElementById('creator-glass-editor');
-    const creatorTitle = document.getElementById('creator-glass-title');
-    const modalEditor = document.getElementById('modal-glass-editor');
-    const modalTitle = document.getElementById('modal-glass-title');
+    const modalSurface = getGlassSurface('modal');
+    const modalEditor = modalSurface?.editor;
+    const modalTitle = modalSurface?.title;
     
     let activeEl = null;
-    if (creatorEditor?.contains(node)) activeEl = creatorEditor;
-    else if (creatorTitle?.contains(node)) activeEl = creatorTitle;
-    else if (modalEditor?.contains(node)) activeEl = modalEditor;
+    if (modalEditor?.contains(node)) activeEl = modalEditor;
     else if (modalTitle?.contains(node)) activeEl = modalTitle;
 
     if (activeEl) {
@@ -32,15 +99,7 @@ export function saveGlassSelection() {
 
 export function restoreGlassSelection(mode = null) {
   if (!savedGlassRange || !savedGlassElement || !document.body.contains(savedGlassElement)) {
-    let target = null;
-    if (mode === 'modal' || mode === 'creator') {
-      target = document.getElementById(`${mode}-glass-editor`);
-    } else {
-      const modalOpen = document.getElementById('edit-modal')?.classList.contains('visible');
-      target = modalOpen
-        ? document.getElementById('modal-glass-editor')
-        : document.getElementById('creator-glass-editor');
-    }
+    const target = getGlassSurface('modal')?.editor;
 
     if (target) {
       target.focus();
@@ -63,18 +122,47 @@ export function restoreGlassSelection(mode = null) {
 }
 
 function saveGlassEditorChanges(mode = null) {
-  if (mode === 'modal') {
-    saveModalNoteDraftFn();
-  } else if (mode === 'creator') {
-    triggerAutosaveFn();
-  } else {
-    if (savedGlassElement && (savedGlassElement.closest('#modal-glass-editor') !== null || savedGlassElement.id === 'modal-glass-editor')) {
-      saveModalNoteDraftFn();
-    } else {
-      triggerAutosaveFn();
-    }
-  }
+  saveModalNoteDraftFn();
 }
+
+/** Serialize saved Glass HTML through the same safety boundary as rich previews. */
+export function serializeGlassEditor(editor) {
+  if (!editor || typeof document === 'undefined') return '';
+  const container = document.createElement('div');
+  container.innerHTML = editor.innerHTML || '';
+  container.querySelectorAll('[data-grid-bound]').forEach(grid => grid.removeAttribute('data-grid-bound'));
+  container.querySelectorAll('p.glass-editor-new-line').forEach(line => {
+    if (!line.textContent.trim() && !line.querySelector(':not(br)')) line.remove();
+  });
+  sanitizeRichTextHtml(container, { preserveEditorControls: true });
+  return container.innerHTML.trim();
+}
+
+/** Load persisted rich content without allowing unsafe markup into the editor. */
+export function loadGlassEditorContent(editor, html, { plainText = false } = {}) {
+  if (!editor) return;
+  if (plainText) {
+    editor.textContent = html || '';
+  } else {
+    const container = document.createElement('div');
+    container.innerHTML = html || '';
+    sanitizeRichTextHtml(container, { preserveEditorControls: true });
+    editor.innerHTML = container.innerHTML;
+  }
+  win.wireGlassChecklistEvents?.(editor);
+  wireGlassImageGrids(editor, editor.id.startsWith('modal-') ? 'modal' : 'creator');
+  wireGlassAttachmentBlocks(editor, editor.id.startsWith('modal-') ? 'modal' : 'creator');
+  win.updateGlassEmptyState?.(editor);
+}
+
+/** Route every programmatic mutation to the active editor's persistence path. */
+export function commitGlassEditorChange(mode, { saveSelection = true } = {}) {
+  const editor = getGlassSurface(mode)?.editor;
+  if (editor) win.updateGlassEmptyState?.(editor);
+  if (saveSelection) saveGlassSelection();
+  saveGlassEditorChanges(mode);
+}
+win.commitGlassEditorChange = commitGlassEditorChange;
 
 function stripFontSizesInSelection() {
   const sel = window.getSelection();
@@ -236,9 +324,6 @@ win.applyGlassHighlight = function(color) {
   saveGlassSelection();
   saveGlassEditorChanges();
   
-  // Hide both popups
-  const creatorPopup = document.getElementById('creator-glass-color-popup');
-  if (creatorPopup) creatorPopup.style.display = 'none';
   const modalPopup = document.getElementById('modal-glass-color-popup');
   if (modalPopup) modalPopup.style.display = 'none';
 };
@@ -253,9 +338,6 @@ win.applyGlassTextColor = function(color) {
   saveGlassSelection();
   saveGlassEditorChanges();
   
-  // Hide both popups
-  const creatorPopup = document.getElementById('creator-glass-color-popup');
-  if (creatorPopup) creatorPopup.style.display = 'none';
   const modalPopup = document.getElementById('modal-glass-color-popup');
   if (modalPopup) modalPopup.style.display = 'none';
 };
@@ -291,7 +373,7 @@ win.wireGlassChecklistEvents = function(container) {
           if (isModal) {
             saveModalNoteDraftFn();
           } else {
-            triggerAutosaveFn();
+            saveModalNoteDraftFn();
           }
         });
         checkbox._listenerBound = true;
@@ -308,7 +390,7 @@ win.wireGlassChecklistEvents = function(container) {
           if (isModal) {
             saveModalNoteDraftFn();
           } else {
-            triggerAutosaveFn();
+            saveModalNoteDraftFn();
           }
         });
         delBtn._listenerBound = true;
@@ -523,7 +605,7 @@ function initGlassDrag(el) {
       if (isModal) {
         saveModalNoteDraftFn();
       } else {
-        triggerAutosaveFn();
+        saveModalNoteDraftFn();
       }
     });
     handle._dragBound = true;
@@ -535,7 +617,7 @@ win.toggleGlassLinkPopover = function(mode, anchorBtn = null) {
   const popover = document.getElementById(`${mode}-glass-link-popover`);
   if (!popover) return;
   const input = document.getElementById(`${mode}-glass-link-input`);
-  const isOpening = popover.style.display !== 'flex';
+  const isOpening = !popover.classList.contains('visible');
   
   if (anchorBtn) {
     anchorBtn.setAttribute('aria-expanded', isOpening ? 'true' : 'false');
@@ -543,33 +625,15 @@ win.toggleGlassLinkPopover = function(mode, anchorBtn = null) {
   }
 
   if (!isOpening) {
-    popover.style.display = 'none';
+    popover.classList.remove('visible');
+    popover.setAttribute('aria-hidden', 'true');
   } else {
     // Dismiss color popup if open
     const colorPopup = document.getElementById(`${mode}-glass-color-popup`);
     if (colorPopup) colorPopup.style.display = 'none';
     
-    popover.style.display = 'flex';
-    
-    // Dynamically position it relative to the anchor button or context toolbar
-    if (anchorBtn) {
-      const btnRect = anchorBtn.getBoundingClientRect();
-      const popupH = popover.offsetHeight || 50;
-      const margin = 8;
-      
-      let top = btnRect.top - popupH - margin;
-      if (top < margin) {
-        top = btnRect.bottom + margin; // Flip below if too close to top
-      }
-      
-      let left = btnRect.left + (btnRect.width / 2);
-      
-      popover.style.position = 'fixed';
-      popover.style.top = `${top}px`;
-      popover.style.left = `${left}px`;
-      popover.style.bottom = 'auto'; // override CSS
-      popover.style.transform = 'translateX(-50%)'; // center horizontally over the point
-    }
+    popover.classList.add('visible');
+    popover.setAttribute('aria-hidden', 'false');
     
     restoreGlassSelection(mode);
     const sel = window.getSelection();
@@ -596,7 +660,8 @@ win.submitGlassLink = function(mode) {
   if (!popover || !input) return;
   
   const rawUrl = input.value.trim();
-  popover.style.display = 'none';
+  popover.classList.remove('visible');
+  popover.setAttribute('aria-hidden', 'true');
   
   restoreGlassSelection(mode);
   if (!rawUrl) {
@@ -611,6 +676,12 @@ win.submitGlassLink = function(mode) {
   }
   saveGlassSelection();
   saveGlassEditorChanges(mode);
+};
+
+win.closeGlassLinkModal = function(mode = 'modal') {
+  const modal = document.getElementById(`${mode}-glass-link-popover`);
+  modal?.classList.remove('visible');
+  modal?.setAttribute('aria-hidden', 'true');
 };
 
 const GLASS_URL_PATTERN = /((https?:\/\/|www\.)[^\s<]+| [a-zA-Z0-9-]+\.(com|net|org|io|dev|app|co)(\/[^\s<]*)?)/gi;
@@ -729,6 +800,213 @@ function compressGlassImage(img, file) {
   return { dataUrl, width, qualityReduced };
 }
 
+function focusAfterImageGrid(grid) {
+  let next = grid.nextElementSibling;
+  if (!next || !next.classList.contains('glass-image-grid-following-line')) {
+    next = document.createElement('p');
+    next.className = 'glass-image-grid-following-line';
+    next.appendChild(document.createElement('br'));
+    grid.insertAdjacentElement('afterend', next);
+  }
+  next.focus();
+  const range = document.createRange();
+  range.selectNodeContents(next);
+  range.collapse(true);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function wireGlassImageGrid(grid, mode) {
+  if (!grid || grid._glassGridBound) return;
+  // Listener state is runtime-only. A data-* marker would be serialized into
+  // the note and incorrectly suppress rebinding after a reload.
+  grid.removeAttribute('data-grid-bound');
+  grid._glassGridBound = true;
+  grid.addEventListener('click', (event) => {
+    const tile = event.target.closest('.glass-image-grid-tile');
+    if (!tile) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const tiles = [...grid.querySelectorAll('.glass-image-grid-tile')];
+    const index = tiles.indexOf(tile);
+    const photos = tiles.map((item, itemIndex) => {
+      const image = item.querySelector('img');
+      return {
+        src: image?.src || '',
+        name: image?.alt || `Photo ${itemIndex + 1}`,
+        onDelete: () => {
+          item.remove();
+          if (!grid.querySelector('.glass-image-grid-tile')) grid.remove();
+          commitGlassEditorChange(mode, { saveSelection: false });
+        },
+        onReorder: (fromIndex, toIndex) => {
+          const currentTiles = [...grid.querySelectorAll('.glass-image-grid-tile')];
+          const source = currentTiles[fromIndex];
+          const target = currentTiles[toIndex];
+          if (!source || !target || source === target) return;
+          grid.insertBefore(source, fromIndex < toIndex ? target.nextSibling : target);
+          commitGlassEditorChange(mode, { saveSelection: false });
+        }
+      };
+    });
+    window.openPhotoLightbox?.(index, photos, tile);
+  });
+}
+
+function wireGlassImageGrids(container, mode) {
+  container?.querySelectorAll('.glass-image-grid').forEach(grid => wireGlassImageGrid(grid, mode));
+}
+
+function insertImageIntoGlassGrid(editor, src, mode) {
+  const selection = window.getSelection();
+  const selectionElement = selection?.anchorNode?.nodeType === Node.ELEMENT_NODE
+    ? selection.anchorNode
+    : selection?.anchorNode?.parentElement;
+  const selectedGrid = selectionElement?.closest?.('.glass-image-grid');
+  const precedingGrid = selectionElement?.closest?.('.glass-image-grid-following-line')?.previousElementSibling;
+  const grid = selectedGrid || (precedingGrid?.matches('.glass-image-grid') ? precedingGrid : null) || document.createElement('div');
+  if (!selectedGrid && !precedingGrid?.matches('.glass-image-grid')) {
+    grid.className = 'glass-image-grid';
+    grid.contentEditable = 'false';
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    if (range && editor.contains(range.commonAncestorContainer)) {
+      range.deleteContents();
+      range.insertNode(grid);
+    } else {
+      editor.appendChild(grid);
+    }
+  }
+  const tile = document.createElement('button');
+  tile.type = 'button';
+  tile.className = 'glass-image-grid-tile';
+  tile.contentEditable = 'false';
+  const image = document.createElement('img');
+  image.src = src;
+  image.alt = 'Inserted photo';
+  image.decoding = 'async';
+  tile.appendChild(image);
+  grid.appendChild(tile);
+  wireGlassImageGrid(grid, mode);
+  focusAfterImageGrid(grid);
+}
+
+function focusAfterGlassAttachment(block) {
+  const paragraph = document.createElement('p');
+  paragraph.className = 'glass-attachment-following-line';
+  paragraph.appendChild(document.createElement('br'));
+  block.insertAdjacentElement('afterend', paragraph);
+  paragraph.focus();
+  const range = document.createRange();
+  range.selectNodeContents(paragraph);
+  range.collapse(true);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function createGlassAttachmentBlock(attachment, kind) {
+  const block = document.createElement('div');
+  block.className = `glass-attachment-block glass-attachment-block--${kind}`;
+  block.contentEditable = 'false';
+  block.dataset.attachmentKind = kind;
+  block.dataset.attachmentId = String(attachment.id);
+
+  const icon = document.createElement('span');
+  icon.className = 'glass-attachment-icon';
+  icon.textContent = kind === 'audio' ? 'AUDIO' : (String(attachment.name || 'FILE').split('.').pop() || 'FILE').slice(0, 4).toUpperCase();
+  const copy = document.createElement('span');
+  copy.className = 'glass-attachment-copy';
+  const name = document.createElement('strong');
+  name.textContent = attachment.name || (kind === 'audio' ? 'Voice note' : 'Attachment');
+  const meta = document.createElement('small');
+  meta.textContent = kind === 'audio' ? (attachment.duration || 'Voice recording') : (attachment.size ? `${Math.max(1, Math.round(attachment.size / 1024))} KB` : 'File attachment');
+  copy.append(name, meta);
+  const action = document.createElement('button');
+  action.type = 'button';
+  action.className = 'glass-attachment-action';
+  action.dataset.glassAttachmentAction = kind === 'audio' ? 'play' : 'download';
+  action.setAttribute('aria-label', kind === 'audio' ? 'Play voice note' : 'Download attachment');
+  action.textContent = kind === 'audio' ? 'Play' : 'Download';
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'glass-attachment-remove';
+  remove.dataset.glassAttachmentAction = 'remove';
+  remove.setAttribute('aria-label', 'Remove attachment');
+  remove.textContent = '×';
+  block.append(icon, copy, action, remove);
+  return block;
+}
+
+export function insertGlassAttachmentBlock(editor, attachment, kind = 'file', mode = 'modal') {
+  if (!editor || !attachment?.id) return;
+  const block = createGlassAttachmentBlock(attachment, kind);
+  const selection = window.getSelection();
+  const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+  if (range && editor.contains(range.commonAncestorContainer)) {
+    range.deleteContents();
+    range.insertNode(block);
+  } else {
+    editor.appendChild(block);
+  }
+  wireGlassAttachmentBlocks(editor, mode);
+  focusAfterGlassAttachment(block);
+}
+
+function wireGlassAttachmentBlocks(container, mode) {
+  container?.querySelectorAll('.glass-attachment-block').forEach(block => {
+    if (block._glassAttachmentBound) return;
+    block._glassAttachmentBound = true;
+    block.addEventListener('click', async event => {
+      const button = event.target.closest('[data-glass-attachment-action]');
+      if (!button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const kind = block.dataset.attachmentKind;
+      const id = block.dataset.attachmentId;
+      const action = button.dataset.glassAttachmentAction;
+      if (action === 'remove') {
+        await win.removeGlassAttachment?.(kind, id);
+        const paragraph = document.createElement('p');
+        paragraph.className = 'glass-attachment-following-line';
+        paragraph.appendChild(document.createElement('br'));
+        block.insertAdjacentElement('afterend', paragraph);
+        block.remove();
+        paragraph.focus();
+        const range = document.createRange();
+        range.selectNodeContents(paragraph);
+        range.collapse(true);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        commitGlassEditorChange(mode, { saveSelection: false });
+        return;
+      }
+      const src = await win.resolveGlassAttachmentSrc?.(kind, id);
+      if (!src) return;
+      if (action === 'play') {
+        const audio = block._glassAudio || new Audio(src);
+        block._glassAudio = audio;
+        if (audio.paused) {
+          await audio.play();
+          button.textContent = 'Pause';
+          block.classList.add('is-playing');
+        } else {
+          audio.pause();
+          button.textContent = 'Play';
+          block.classList.remove('is-playing');
+        }
+        audio.onended = () => { button.textContent = 'Play'; block.classList.remove('is-playing'); };
+      } else {
+        const link = document.createElement('a');
+        link.href = src;
+        link.download = block.querySelector('strong')?.textContent || 'attachment';
+        link.click();
+      }
+    });
+  });
+}
+
 win.handleGlassImage = function(input, mode) {
   const file = input.files[0];
   if (!file) return;
@@ -738,15 +1016,21 @@ win.handleGlassImage = function(input, mode) {
     img.onload = () => {
       const result = compressGlassImage(img, file);
       restoreGlassSelection();
-      document.execCommand('insertImage', false, result.dataUrl);
+      const replaceTarget = win[`_glassReplaceImg_${mode}`];
+      if (replaceTarget?.isConnected) {
+        replaceTarget.src = result.dataUrl;
+        delete win[`_glassReplaceImg_${mode}`];
+      } else {
+        const editor = document.getElementById(`${mode}-glass-editor`);
+        if (editor) insertImageIntoGlassGrid(editor, result.dataUrl, mode);
+      }
       const editor = document.getElementById(`${mode}-glass-editor`);
       if (editor) {
         editor.querySelectorAll('img').forEach(imageEl => {
           imageEl.decoding = 'async';
         });
       }
-      saveGlassSelection();
-      triggerAutosaveFn();
+      commitGlassEditorChange(mode);
       const finalKb = Math.round(estimateGlassBase64Bytes(result.dataUrl) / 1024);
       showToastFn({
         title: 'Image Added',
@@ -836,25 +1120,56 @@ win.execGlassFontSize = function(mode) {
 let autoHideTimers = {};
 let _glassListenersInitialized = false;
 
+function isAttachmentDeletionAttempt(editor, range, key) {
+  const blocks = [...editor.querySelectorAll('.glass-attachment-block')];
+  if (!blocks.length) return false;
+  if (!range.collapsed) return blocks.some(block => range.intersectsNode(block));
+
+  const adjacentBlock = (from, direction) => {
+    let node = from.nodeType === Node.ELEMENT_NODE ? from : from.parentElement;
+    while (node && node !== editor) {
+      const sibling = direction < 0 ? node.previousElementSibling : node.nextElementSibling;
+      if (sibling) return sibling;
+      node = node.parentElement;
+    }
+    return null;
+  };
+
+  if (range.startContainer.nodeType === Node.ELEMENT_NODE) {
+    const sibling = key === 'Backspace'
+      ? range.startContainer.childNodes[range.startOffset - 1]
+      : range.startContainer.childNodes[range.startOffset];
+    return sibling?.nodeType === Node.ELEMENT_NODE && sibling.classList.contains('glass-attachment-block');
+  }
+
+  if (key === 'Backspace' && range.startOffset === 0) {
+    return adjacentBlock(range.startContainer, -1)?.classList.contains('glass-attachment-block');
+  }
+  if (key === 'Delete' && range.startOffset === range.startContainer.textContent.length) {
+    return adjacentBlock(range.startContainer, 1)?.classList.contains('glass-attachment-block');
+  }
+  return false;
+}
+
 export function initModernGlassEditorListeners(callbacks = {}) {
   if (callbacks.showToast) showToastFn = callbacks.showToast;
   if (callbacks.saveModalNoteDraft) saveModalNoteDraftFn = callbacks.saveModalNoteDraft;
-  if (callbacks.triggerAutosave) triggerAutosaveFn = callbacks.triggerAutosave;
 
   if (_glassListenersInitialized) return;
   _glassListenersInitialized = true;
 
-  const ids = ['creator', 'modal'];
+  const ids = ['modal'];
   ids.forEach(mode => {
-    const title = document.getElementById(`${mode}-glass-title`);
-    const editor = document.getElementById(`${mode}-glass-editor`);
+    const surface = getGlassSurface(mode);
+    const title = surface?.title;
+    const editor = surface?.editor;
     
     if (title && editor) {
       // Empty state checks and autosave triggers
       title.addEventListener('input', () => {
         window.updateGlassEmptyState(title);
         if (mode === 'creator') {
-          triggerAutosaveFn();
+          saveModalNoteDraftFn();
         } else {
           saveModalNoteDraftFn();
         }
@@ -862,7 +1177,7 @@ export function initModernGlassEditorListeners(callbacks = {}) {
       editor.addEventListener('input', () => {
         window.updateGlassEmptyState(editor);
         if (mode === 'creator') {
-          triggerAutosaveFn();
+          saveModalNoteDraftFn();
         } else {
           saveModalNoteDraftFn();
         }
@@ -911,6 +1226,14 @@ export function initModernGlassEditorListeners(callbacks = {}) {
       
       // Toolbar auto-hide while typing
       editor.addEventListener('keydown', (e) => {
+        const currentSelection = window.getSelection();
+        const currentRange = currentSelection?.rangeCount ? currentSelection.getRangeAt(0) : null;
+        if ((e.key === 'Backspace' || e.key === 'Delete') && currentRange && isAttachmentDeletionAttempt(editor, currentRange, e.key)) {
+          e.preventDefault();
+          showToastFn({ title: 'Attachment protected', text: 'Use the attachment’s remove button to delete it.' });
+          return;
+        }
+
         if (e.key === 'Tab') {
           e.preventDefault();
           document.execCommand('insertHTML', false, '&#160;&#160;&#160;&#160;');
@@ -1090,18 +1413,15 @@ export function initModernGlassEditorListeners(callbacks = {}) {
       const node = sel.anchorNode;
       if (!node) return;
       
-      const creatorEditor = document.getElementById('creator-glass-editor');
-      const creatorTitle = document.getElementById('creator-glass-title');
       const modalEditor = document.getElementById('modal-glass-editor');
       const modalTitle = document.getElementById('modal-glass-title');
       
-      const isCreatorActive = creatorEditor?.contains(node) || creatorTitle?.contains(node);
       const isModalActive = modalEditor?.contains(node) || modalTitle?.contains(node);
-      if (!isCreatorActive && !isModalActive) return;
+      if (!isModalActive) return;
 
       saveGlassSelection();
 
-      const activeMode = isCreatorActive ? 'creator' : 'modal';
+      const activeMode = 'modal';
 
       const toolbarId = `${activeMode}-glass-floating-toolbar`;
       const toolbar = document.getElementById(toolbarId);
@@ -1156,8 +1476,9 @@ export function initModernGlassEditorListeners(callbacks = {}) {
     ids.forEach(mode => {
       const linkPopover = document.getElementById(`${mode}-glass-link-popover`);
       const linkBtn = document.querySelector(`#${mode}-glass-floating-toolbar button[title="Insert link"]`);
-      if (linkPopover && linkPopover.style.display === 'flex' && !linkPopover.contains(e.target) && !linkBtn?.contains(e.target)) {
-        linkPopover.style.display = 'none';
+      if (linkPopover && linkPopover.classList.contains('visible') && !linkPopover.contains(e.target) && !linkBtn?.contains(e.target)) {
+        linkPopover.classList.remove('visible');
+        linkPopover.setAttribute('aria-hidden', 'true');
         if (linkBtn) linkBtn.setAttribute('aria-expanded', 'false');
       }
       
@@ -1176,8 +1497,9 @@ export function initModernGlassEditorListeners(callbacks = {}) {
       ids.forEach(mode => {
         const linkPopover = document.getElementById(`${mode}-glass-link-popover`);
         const linkBtn = document.querySelector(`#${mode}-glass-floating-toolbar button[title="Insert link"]`);
-        if (linkPopover && linkPopover.style.display === 'flex') {
-          linkPopover.style.display = 'none';
+        if (linkPopover && linkPopover.classList.contains('visible')) {
+          linkPopover.classList.remove('visible');
+          linkPopover.setAttribute('aria-hidden', 'true');
           if (linkBtn) {
             linkBtn.setAttribute('aria-expanded', 'false');
             linkBtn.focus();

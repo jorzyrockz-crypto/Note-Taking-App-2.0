@@ -1,4 +1,4 @@
-const CACHE_NAME = 'paperuss-v155';
+const CACHE_NAME = 'paperuss-v156';
 // Files available at the same paths in both source and Vite production builds.
 // Hashed JS/CSS dependencies are cached on first controlled fetch below.
 const APP_ASSETS = [
@@ -37,6 +37,7 @@ self.addEventListener('activate', (event) => {
 });
 
 const SHARE_CACHE = 'paperuss-share-temp';
+const FLUENT_ICON_CACHE = 'paperuss-fluent-icons-v1';
 
 self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
@@ -47,6 +48,17 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (event.request.method !== 'GET') return;
+
+  // Fluent note icons are explicitly cached by the picker. Never cache every
+  // browsed icon here; return only a previously selected icon while offline.
+  if (requestUrl.hostname === 'cdn.jsdelivr.net' && requestUrl.pathname.startsWith('/npm/@fluentui/svg-icons@1.1.334/icons/')) {
+    event.respondWith(
+      caches.open(FLUENT_ICON_CACHE).then(cache =>
+        cache.match(event.request).then(cached => cached || fetch(event.request))
+      )
+    );
+    return;
+  }
 
   // Stale-while-revalidate for Google Fonts (CSS + font files)
   const url = new URL(event.request.url);

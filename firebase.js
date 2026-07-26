@@ -472,8 +472,9 @@ export function subscribeToVersionUpdates(callback) {
   } else {
     setTimeout(() => {
       callback({
-        version: '3.3.3',
+        version: '3.3.4',
         changelog: [
+          'Simplified Note Editing & Fluent Icons (v3.3.4): Streamlined the note editor into a cleaner document-first workspace, unified action dialogs and voice recording controls, added searchable Fluent note icons with offline caching, and refined search, navigation, and responsive behavior.',
           'Expanded Desktop & Tablet Grid Spacing (v3.3.3): Increased desktop card grid gaps from 14px to 20px (+6px) and tablet grid gaps from 12px to 18px (+6px) for improved visual breathing room between card columns and rows.',
           'Refined Note-Card Density & Type Indicators (v3.3.2): Standardized desktop card height to 288px and tablet height to 272px with flush left notebook spine docking, added fixed 14px/12px grid gaps, isolated card padding to content wrapper, removed top-bar type text badge, and introduced compact footer multi-type indicator icons.',
           'Real-Browser Responsive Note Card Stabilization (v3.3.1): Validated two-column phone cards, compact More toggle, and 4-button desktop/tablet action spine across 14 viewports in Edge browser; eliminated module initialization ReferenceErrors and added non-blocking fallback rendering for malformed local notes.',

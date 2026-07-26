@@ -1135,7 +1135,7 @@ test('Phase 2 - 11. Missing DOM or window safety', () => {
 // PRODUCTION DOM & NAVIGATION SURFACE CHARACTERIZATION TESTS
 // ============================================================================
 
-test('Production DOM inventory: Creation controls exist for Phone, Tablet, and Desktop in index.html', () => {
+test('Production DOM inventory: Creation controls exist for Phone and sidebar layouts in index.html', () => {
   const indexPath = path.join(process.cwd(), 'index.html');
   const html = fs.readFileSync(indexPath, 'utf8');
 
@@ -1148,11 +1148,7 @@ test('Production DOM inventory: Creation controls exist for Phone, Tablet, and D
   assert.match(html, /data-create-type="photo"/, 'Photo creation option should exist in bottom sheet');
   assert.match(html, /data-create-type="bookmark"/, 'Link creation option should exist in bottom sheet');
 
-  // Tablet creation controls
-  assert.match(html, /class="tablet-dock-create"/, 'Tablet dock create button should exist in index.html');
-  assert.match(html, /data-tablet-action="create"/, 'Tablet action create attribute should exist in index.html');
-
-  // Desktop creation controls
+  // The shared sidebar supplies creation on tablet and desktop.
   assert.match(html, /id="sidebar-new-note"/, 'Desktop sidebar new note button should exist in index.html');
 });
 
@@ -1162,17 +1158,15 @@ test('Production DOM inventory: Navigation surfaces exist in index.html', () => 
 
   assert.match(html, /class="app-sidebar"/, 'Sidebar surface should exist in index.html');
   assert.match(html, /class="mobile-bottom-dock"/, 'Mobile bottom dock surface should exist in index.html');
-  assert.match(html, /class="tablet-dock"/, 'Tablet dock surface should exist in index.html');
+  assert.match(html, /class="icon-btn menu-btn"/, 'Shared sidebar expansion control should exist in index.html');
 });
 
-test('Navigation helper synchronization: setActivePage updates mobile, tablet, and sidebar states and is reversible', () => {
+test('Navigation helper synchronization: setActivePage updates mobile and sidebar states and is reversible', () => {
   const {
     sidebarNotes,
     sidebarSearch,
     mobileNotes,
     mobileSearch,
-    tabletNotes,
-    tabletSearch,
     searchPage,
     notesFeed
   } = setupMockDOM();
@@ -1193,10 +1187,6 @@ test('Navigation helper synchronization: setActivePage updates mobile, tablet, a
     assert.equal(mobileSearch.classList.contains('active'), true, 'Mobile Search dock item should have active class');
     assert.equal(mobileNotes.classList.contains('active'), false, 'Mobile Notes dock item should no longer be active');
 
-    // Assert Tablet Dock production-observable effects
-    assert.equal(tabletSearch.classList.contains('active'), true, 'Tablet Search dock item should have active class');
-    assert.equal(tabletNotes.classList.contains('active'), false, 'Tablet Notes dock item should no longer be active');
-
     // Assert Page Containers production-observable effects
     assert.equal(searchPage.style.display, 'flex', 'Search page should be visible (display: flex)');
     assert.equal(notesFeed.style.display, 'none', 'Notes feed should be hidden (display: none)');
@@ -1213,10 +1203,6 @@ test('Navigation helper synchronization: setActivePage updates mobile, tablet, a
     // Assert Mobile Dock reversible state
     assert.equal(mobileNotes.classList.contains('active'), true, 'Mobile Notes dock item should be active again');
     assert.equal(mobileSearch.classList.contains('active'), false, 'Mobile Search dock item should no longer be active');
-
-    // Assert Tablet Dock reversible state
-    assert.equal(tabletNotes.classList.contains('active'), true, 'Tablet Notes dock item should be active again');
-    assert.equal(tabletSearch.classList.contains('active'), false, 'Tablet Search dock item should no longer be active');
 
     // Assert Page Containers reversible state
     assert.equal(notesFeed.style.display, '', 'Notes feed should be visible again');

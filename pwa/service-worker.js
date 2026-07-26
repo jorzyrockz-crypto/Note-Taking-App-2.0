@@ -80,6 +80,22 @@ export function handleServiceWorkerUpdate(waitingWorker, showToast) {
         return;
       }
     }
+
+    const banner = document.getElementById('app-update-banner');
+    if (banner) {
+      banner.hidden = false;
+      const updateNow = document.getElementById('app-update-now');
+      const updateLater = document.getElementById('app-update-later');
+      if (updateNow && !updateNow.dataset.swBound) {
+        updateNow.dataset.swBound = 'true';
+        updateNow.addEventListener('click', () => activateWaitingWorker(currentWaitingWorker));
+      }
+      if (updateLater && !updateLater.dataset.swBound) {
+        updateLater.dataset.swBound = 'true';
+        updateLater.addEventListener('click', () => { banner.hidden = true; });
+      }
+      return;
+    }
   }
 
   if (typeof showToast === 'function') {

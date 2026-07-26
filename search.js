@@ -729,6 +729,13 @@ export function openPhotoLightbox(photoIndex = 0, photosList = [], triggerElemen
   const modal = document.getElementById('photo-lightbox-modal');
   if (!modal) return;
 
+  // The app workspace creates its own stacking context. Reparenting the shared
+  // viewer to body ensures it can sit above the Glass Editor overlay as well as
+  // Search, regardless of transforms or containment on page-level ancestors.
+  if (modal.parentElement !== document.body) {
+    document.body.appendChild(modal);
+  }
+
   resetLightboxTransform();
   updateLightboxContent();
 
@@ -836,6 +843,40 @@ function updateLightboxContent() {
   if (noteTitleSpan) {
     noteTitleSpan.textContent = item.noteTitle || 'Open Source Note';
   }
+  renderLightboxReorderStrip();
+}
+
+function renderLightboxReorderStrip() {
+  const strip = document.getElementById('lightbox-reorder-strip');
+  if (!strip) return;
+  const canReorder = currentLightboxPhotos.length > 1 && currentLightboxPhotos.some(item => typeof item.onReorder === 'function');
+  strip.hidden = !canReorder;
+  strip.innerHTML = '';
+  if (!canReorder) return;
+  currentLightboxPhotos.forEach((item, index) => {
+    const tile = document.createElement('button');
+    tile.type = 'button';
+    tile.className = 'lightbox-reorder-tile';
+    tile.draggable = true;
+    tile.setAttribute('aria-label', `Drag photo ${index + 1} to reorder`);
+    tile.innerHTML = `<img src="${item.src || ''}" alt="">`;
+    tile.addEventListener('dragstart', event => event.dataTransfer?.setData('text/plain', String(index)));
+    tile.addEventListener('dragover', event => { event.preventDefault(); tile.classList.add('drag-over'); });
+    tile.addEventListener('dragleave', () => tile.classList.remove('drag-over'));
+    tile.addEventListener('drop', event => {
+      event.preventDefault();
+      tile.classList.remove('drag-over');
+      const from = Number(event.dataTransfer?.getData('text/plain'));
+      if (!Number.isInteger(from) || from === index) return;
+      const moved = currentLightboxPhotos[from];
+      moved?.onReorder?.(from, index);
+      currentLightboxPhotos.splice(from, 1);
+      currentLightboxPhotos.splice(index, 0, moved);
+      currentLightboxIndex = index;
+      updateLightboxContent();
+    });
+    strip.appendChild(tile);
+  });
 }
 
 export function initPhotoLightbox() {
@@ -887,6 +928,17 @@ export function initPhotoLightbox() {
     deleteBtn.addEventListener('click', () => {
       const item = currentLightboxPhotos[currentLightboxIndex];
       if (item) {
+        if (typeof item.onDelete === 'function') {
+          item.onDelete();
+          if (currentLightboxPhotos.length === 1) {
+            closePhotoLightbox();
+          } else {
+            currentLightboxPhotos.splice(currentLightboxIndex, 1);
+            currentLightboxIndex = Math.min(currentLightboxIndex, currentLightboxPhotos.length - 1);
+            updateLightboxContent();
+          }
+          return;
+        }
         closePhotoLightbox();
         deleteMediaItem(item);
       }
@@ -1290,10 +1342,10 @@ function renderPhotoFeed(container, photos) {
       </div>
     `;
 
-    const img = card.querySelector('.search-photo-img');
-    img.addEventListener('click', () => {
+    card.addEventListener('click', (event) => {
+      if (event.target.closest('.search-source-note-btn')) return;
       if (typeof window.openPhotoLightbox === 'function') {
-        window.openPhotoLightbox(index, photos);
+        window.openPhotoLightbox(index, photos, card);
       }
     });
 
@@ -1339,14 +1391,7 @@ function renderPhotoFeed(container, photos) {
       }
     ];
 
-    moreBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openActionMenu(moreBtn, photoActions, item);
-    });
-
-    attachTouchLongPress(card, () => {
-      openActionMenu(moreBtn, photoActions, item);
-    });
+    moreBtn.remove();
 
     container.appendChild(card);
   });

@@ -51,26 +51,13 @@ export function clearSidebarActiveStates() {
 }
 
 /**
- * Highlights active sidebar item and tablet dock button based on the active page ID.
+ * Highlights the active sidebar item based on the active page ID.
  * @param {string} pageId
  */
 export function setActiveSidebarPage(pageId) {
   if (typeof document === 'undefined') return;
 
   clearSidebarActiveStates();
-
-  // Update tablet dock active state
-  document.querySelectorAll('.tablet-dock-item[data-tablet-page]').forEach(item => {
-    const target = item.dataset.tabletPage;
-    const isNotesTab = target === 'notes' && pageId !== 'search' && pageId !== 'productivity';
-    const isActive = target === pageId || isNotesTab;
-    item.classList.toggle('active', isActive);
-    if (isActive) {
-      item.setAttribute('aria-current', 'page');
-    } else {
-      item.removeAttribute('aria-current');
-    }
-  });
 
   // Update sidebar item active state
   const elementIdMap = {

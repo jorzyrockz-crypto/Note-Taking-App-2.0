@@ -142,21 +142,6 @@ export function initNavigation() {
     setActivePage('settings');
   });
 
-  // Bind Tablet Dock Navigation Items
-  document.querySelectorAll('[data-tablet-page]').forEach(button => {
-    button.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const targetPage = button.dataset.tabletPage;
-      if (targetPage === 'search') {
-        setActivePage('search');
-      } else if (targetPage === 'productivity') {
-        setActivePage('productivity');
-      } else {
-        setActivePage('notes');
-      }
-    });
-  });
-
   // Bind Mobile Bottom Dock Items
   const dockItems = document.querySelectorAll('.mobile-bottom-dock .mobile-dock-item[data-target-page]');
   dockItems.forEach(item => {

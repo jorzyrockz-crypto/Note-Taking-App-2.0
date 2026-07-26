@@ -120,7 +120,6 @@ export function ensureProductivityPage() {
           <div class="productivity-hero-date" id="productivity-hero-date"></div>
           <h2 class="productivity-title">Productivity</h2>
         </div>
-        <div class="productivity-summary" id="productivity-summary"></div>
       </div>
 
       <div class="productivity-layout">

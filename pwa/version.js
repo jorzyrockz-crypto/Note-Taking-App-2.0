@@ -3,9 +3,10 @@
  * Serves as the single JavaScript source of truth for current version and changelog metadata.
  */
 
-export const CURRENT_VERSION = '3.3.3';
+export const CURRENT_VERSION = '3.3.4';
 
 export const DEFAULT_CHANGELOG = [
+  'Simplified Note Editing & Fluent Icons (v3.3.4): Streamlined the note editor into a cleaner document-first workspace, unified action dialogs and voice recording controls, added searchable Fluent note icons with offline caching, and refined search, navigation, and responsive behavior.',
   'Expanded Desktop & Tablet Grid Spacing (v3.3.3): Increased desktop card grid gaps from 14px to 20px (+6px) and tablet grid gaps from 12px to 18px (+6px) for improved visual breathing room between card columns and rows.',
   'Refined Note-Card Density & Type Indicators (v3.3.2): Standardized desktop card height to 288px and tablet height to 272px with flush left notebook spine docking, added fixed 14px/12px grid gaps, isolated card padding to content wrapper, removed top-bar type text badge, and introduced compact footer multi-type indicator icons.',
   'Real-Browser Responsive Note Card Stabilization (v3.3.1): Validated two-column phone cards, compact More toggle, and 4-button desktop/tablet action spine across 14 viewports in Edge browser; eliminated module initialization ReferenceErrors and added non-blocking fallback rendering for malformed local notes.',
@@ -147,7 +148,10 @@ export function resetVersionStateForTesting() {
 export function initVersionAndChangelog(options = {}) {
   if (typeof document === 'undefined') return;
 
-  const changelogList = document.querySelector('.changelog-list');
+  const changelogList = document.getElementById('whats-new-changelog');
+  if (changelogList && changelogList.children.length === 0) {
+    changelogList.innerHTML = DEFAULT_CHANGELOG.map(item => `<li>${escapeHtml(item)}</li>`).join('');
+  }
   renderCollapsibleChangelog(changelogList);
 
   const versionLabel = document.querySelector('.version-label');
@@ -156,6 +160,33 @@ export function initVersionAndChangelog(options = {}) {
   }
 
   const appUpdateBtn = document.getElementById('app-update-btn');
+  const whatsNewBtn = document.getElementById('whats-new-btn');
+  const whatsNewModal = document.getElementById('whats-new-modal');
+  const unreadDot = document.querySelector('.version-unread-dot');
+  const markVersionSeen = () => {
+    try { localStorage.setItem('paperuss_last_seen_version', CURRENT_VERSION); } catch (e) {}
+    if (unreadDot) unreadDot.hidden = true;
+  };
+  const refreshUnreadState = () => {
+    try { if (unreadDot) unreadDot.hidden = localStorage.getItem('paperuss_last_seen_version') === CURRENT_VERSION; } catch (e) {}
+  };
+  refreshUnreadState();
+
+  if (whatsNewBtn && !whatsNewBtn.dataset.versionBound) {
+    whatsNewBtn.dataset.versionBound = 'true';
+    whatsNewBtn.addEventListener('click', () => {
+      whatsNewModal?.classList.add('visible');
+      whatsNewModal?.setAttribute('aria-hidden', 'false');
+      markVersionSeen();
+    });
+    const closeReleaseNotes = () => {
+      whatsNewModal?.classList.remove('visible');
+      whatsNewModal?.setAttribute('aria-hidden', 'true');
+    };
+    document.getElementById('whats-new-close')?.addEventListener('click', closeReleaseNotes);
+    document.getElementById('whats-new-done')?.addEventListener('click', closeReleaseNotes);
+    whatsNewModal?.addEventListener('mousedown', event => { if (event.target === whatsNewModal) closeReleaseNotes(); });
+  }
 
   if (typeof options.subscribeToVersionUpdates === 'function' && !versionSubscribed) {
     versionSubscribed = true;
@@ -164,7 +195,7 @@ export function initVersionAndChangelog(options = {}) {
       const serverVersion = serverConfig?.version || CURRENT_VERSION;
       const serverChangelog = serverConfig?.changelog || DEFAULT_CHANGELOG;
 
-      const liveChangelogList = document.querySelector('.changelog-list');
+      const liveChangelogList = document.getElementById('whats-new-changelog');
       if (liveChangelogList && serverChangelog.length > 0) {
         liveChangelogList.innerHTML = serverChangelog.map(item => `<li>${escapeHtml(item)}</li>`).join('');
         renderCollapsibleChangelog(liveChangelogList);

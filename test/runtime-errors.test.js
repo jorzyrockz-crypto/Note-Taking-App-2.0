@@ -27,7 +27,7 @@ if (typeof globalThis.localStorage === 'undefined') {
 import { syncNoteToCloudWithQueue, saveSingleNoteToLocalStorage } from '../sync.js';
 import { getRecipeImporterUnavailableMessage } from '../recipe.js';
 import { parseMarkdown } from '../note-types/shared.js';
-import { revealInlineCreator } from '../app.js';
+import { getReminderNotificationText, revealInlineCreator } from '../app.js';
 
 test('syncNoteToCloudWithQueue is exported as an async function', () => {
   assert.equal(typeof syncNoteToCloudWithQueue, 'function');
@@ -53,4 +53,16 @@ test('parseMarkdown is exported and parses text markdown correctly', () => {
 
 test('saveSingleNoteToLocalStorage is callable without ReferenceError', () => {
   assert.equal(typeof saveSingleNoteToLocalStorage, 'function');
+});
+
+test('reminder notifications convert stored rich text to readable plain text', () => {
+  const note = {
+    text: '<h3>Voice Notes &amp; Scheduled Reminders</h3><p>Play the recording.</p>'
+  };
+
+  assert.equal(
+    getReminderNotificationText(note),
+    'Voice Notes & Scheduled Reminders Play the recording.'
+  );
+  assert.equal(getReminderNotificationText({ text: '<p><br></p>' }), 'You have a scheduled reminder.');
 });

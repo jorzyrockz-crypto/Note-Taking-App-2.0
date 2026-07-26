@@ -1051,7 +1051,8 @@ body.dark-theme .search-source-note-btn {
 .photo-lightbox-modal {
   position: fixed;
   inset: 0;
-  z-index: 10000;
+  /* Must sit above the near-full-screen Glass Editor on compact viewports. */
+  z-index: 200000;
   background: rgba(10, 15, 29, 0.92);
   backdrop-filter: blur(16px);
   display: flex;
@@ -1448,8 +1449,9 @@ body.dark-theme .search-source-note-btn {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  aspect-ratio: 4 / 3;
-  min-height: 145px;
+  /* 20% taller than the original 4:3 card, while retaining its width. */
+  aspect-ratio: 10 / 9;
+  min-height: 174px;
   padding: 12px 14px;
   border-radius: 14px;
   background: var(--note-default, #ffffff);

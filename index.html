@@ -153,12 +153,14 @@
           <div class="profile-divider"></div>
           <div class="profile-version-section">
             <div class="version-header">
-              <span class="version-label">Version 3.3.3</span>
-              <button class="update-btn" id="app-update-btn" type="button">Update</button>
+              <span class="version-label">Version 3.3.4</span>
+              <button class="profile-whats-new-btn" id="whats-new-btn" type="button">What's new <span class="version-unread-dot" aria-hidden="true" hidden></span></button>
+              <button class="update-btn" id="app-update-btn" type="button" hidden>Update</button>
             </div>
             <div class="changelog-container">
               <div class="changelog-title">What's New</div>
               <ul class="changelog-list">
+          <li><strong>Simplified Note Editing &amp; Fluent Icons (v3.3.4):</strong> Streamlined the note editor into a cleaner document-first workspace, unified action dialogs and voice recording controls, added searchable Fluent note icons with offline caching, and refined search, navigation, and responsive behavior.</li>
           <li><strong>Expanded Desktop &amp; Tablet Grid Spacing (v3.3.3):</strong> Increased desktop card grid gaps from 14px to 20px (+6px) and tablet grid gaps from 12px to 18px (+6px) for improved visual breathing room between card columns and rows.</li>
           <li><strong>Refined Note-Card Density &amp; Type Indicators (v3.3.2):</strong> Standardized desktop card height to 288px and tablet height to 272px with flush left notebook spine docking, added fixed 14px/12px grid gaps, isolated card padding to content wrapper, removed top-bar type text badge, and introduced compact footer multi-type indicator icons.</li>
           <li><strong>Real-Browser Responsive Note Card Stabilization (v3.3.1):</strong> Validated two-column phone cards, compact More toggle, and 4-button desktop/tablet action spine across 14 viewports in Edge browser; eliminated module initialization ReferenceErrors and added non-blocking fallback rendering for malformed local notes.</li>
@@ -368,13 +370,6 @@
             <!-- Scrollable Workspace Container -->
             <div class="editor-scroll-container">
               <div class="editor-metadata" id="creator-metadata" style="display: none;">Today • 12:00 PM</div>
-              
-              <!-- Glass Editor Workspace -->
-              <div class="glass-editor-workspace" id="creator-glass-workspace" style="display: none;">
-                <div id="creator-glass-title" class="note-title-field" contenteditable="true" data-placeholder="Title"></div>
-                <div id="creator-glass-timestamp" class="note-timestamp"></div>
-                <div id="creator-glass-editor" class="note-content-field" contenteditable="true" data-placeholder="Start writing..."></div>
-              </div>
               
               <!-- Creator active reminder chips -->
               <div class="creator-chips-container" id="creator-chips-container" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;"></div>
@@ -594,180 +589,6 @@
               <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
             </button>
           </div>
-          <!-- Glass Editor Floating formatting toolbar (Phase 1: simplified to core tools + Add button) -->
-          <div class="glass-floating-toolbar" id="creator-glass-floating-toolbar" style="display: none;">
-            <!-- Core Formatting: Bold -->
-            <button class="toolbar-btn" data-cmd="bold" onmousedown="event.preventDefault(); execGlassCmd('bold')" title="Bold (Ctrl+B)">
-              <svg viewBox="0 0 24 24"><path d="M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-3v-3zm3.5 9H10v-3h3.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5z"/></svg>
-            </button>
-            <!-- Core Formatting: Italic -->
-            <button class="toolbar-btn" data-cmd="italic" onmousedown="event.preventDefault(); execGlassCmd('italic')" title="Italic (Ctrl+I)">
-              <svg viewBox="0 0 24 24"><path d="M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z"/></svg>
-            </button>
-            <!-- Core Formatting: Underline -->
-            <button class="toolbar-btn" data-cmd="underline" onmousedown="event.preventDefault(); execGlassCmd('underline')" title="Underline (Ctrl+U)">
-              <svg viewBox="0 0 24 24"><path d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z"/></svg>
-            </button>
-            <div class="toolbar-divider"></div>
-            <!-- Core Formatting: Heading cycle -->
-            <button class="toolbar-btn" id="creator-glass-heading-btn" onmousedown="event.preventDefault(); execGlassHeading('creator')" title="Heading style">
-              <span class="btn-text" id="creator-glass-heading-label">H</span>
-            </button>
-            <div class="toolbar-divider"></div>
-            <!-- Core Formatting: Bullet list -->
-            <button class="toolbar-btn" data-cmd="insertUnorderedList" onmousedown="event.preventDefault(); execGlassCmd('insertUnorderedList')" title="Bulleted list">
-              <svg viewBox="0 0 24 24"><path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"/></svg>
-            </button>
-            <!-- Core Formatting: Numbered list -->
-            <button class="toolbar-btn" data-cmd="insertOrderedList" onmousedown="event.preventDefault(); execGlassCmd('insertOrderedList')" title="Numbered list">
-              <svg viewBox="0 0 24 24"><path d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z"/></svg>
-            </button>
-            <!-- Core Formatting: Checklist -->
-            <button class="toolbar-btn" onmousedown="event.preventDefault(); addGlassChecklist('creator')" title="Add checklist item">
-              <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-            </button>
-            <!-- Core Formatting: Link -->
-            <button class="toolbar-btn" onmousedown="event.preventDefault(); toggleGlassLinkPopover('creator', this)" title="Insert link">
-              <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
-            </button>
-            <div class="toolbar-divider"></div>
-            <!-- Phase 2: Add (+) button — opens content insertion menu -->
-            <button class="toolbar-btn glass-add-btn" id="creator-glass-add-btn" onmousedown="event.preventDefault(); toggleGlassAddMenu('creator')" title="Insert content">
-              <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-            </button>
-            <!-- Hidden file inputs (preserved from original, required by JS handlers) -->
-            <input type="file" id="creator-glass-img-upload" accept="image/*" style="display:none" onchange="handleGlassImage(this, 'creator')">
-            <input type="file" id="creator-glass-camera-upload" accept="image/*" capture="environment" style="display:none" onchange="handleGlassImage(this, 'creator')">
-          </div>
-
-          <!-- Phase 2: Content Insertion Menu (Add Menu) for creator glass editor -->
-          <div class="glass-add-menu" id="creator-add-menu" aria-hidden="true">
-            <button class="glass-add-menu-item" id="creator-add-image" onclick="event.preventDefault(); event.stopPropagation(); closeGlassAddMenu('creator'); document.getElementById('creator-glass-img-upload').click()" title="Add Image">
-              <span class="glass-add-menu-icon">
-                <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
-              </span>
-              <span class="glass-add-menu-label">Image</span>
-            </button>
-            <button class="glass-add-menu-item" id="creator-add-camera" onclick="event.preventDefault(); event.stopPropagation(); closeGlassAddMenu('creator'); document.getElementById('creator-glass-camera-upload').click()" title="Take Photo">
-              <span class="glass-add-menu-icon">
-                <svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/><path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
-              </span>
-              <span class="glass-add-menu-label">Camera</span>
-            </button>
-            <button class="glass-add-menu-item" id="creator-add-voice" onclick="event.preventDefault(); event.stopPropagation(); closeGlassAddMenu('creator'); toggleVoiceRecording('creator')" title="Voice Recording">
-              <span class="glass-add-menu-icon">
-                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
-              </span>
-              <span class="glass-add-menu-label">Voice Recording</span>
-            </button>
-            <button type="button" class="glass-add-menu-item" id="creator-add-reminder" onclick="event.stopPropagation(); closeGlassAddMenu('creator')" title="Set Reminder">
-              <span class="glass-add-menu-icon">
-                <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
-              </span>
-              <span class="glass-add-menu-label">Scheduler</span>
-            </button>
-            <button class="glass-add-menu-item" id="creator-add-file" onclick="event.preventDefault(); event.stopPropagation(); closeGlassAddMenu('creator'); document.getElementById('creator-file-input')?.click()" title="Attach File">
-              <span class="glass-add-menu-icon">
-                <svg viewBox="0 0 24 24"><path d="M16.5 6.5v10a4.5 4.5 0 0 1-9 0v-11a3 3 0 0 1 6 0v10.5a1.5 1.5 0 0 1-3 0V7h-2v9a3.5 3.5 0 0 0 7 0V5.5a5 5 0 0 0-10 0v11a6.5 6.5 0 0 0 13 0v-10h-2Z"/></svg>
-              </span>
-              <span class="glass-add-menu-label">Attachment</span>
-            </button>
-          </div>
-
-          <!-- Phase 3: Contextual Floating Toolbar for creator glass editor (NEW) -->
-          <div class="glass-context-toolbar" id="creator-context-toolbar" aria-hidden="true">
-            <!-- Text Selection Context -->
-            <div class="glass-ctx-group" id="creator-ctx-text">
-              <button class="glass-ctx-btn" onmousedown="event.preventDefault(); toggleGlassColorPopup('creator', this)" title="Highlight &amp; Text color">
-                <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-              </button>
-              <button class="glass-ctx-btn" id="creator-glass-size-btn" onmousedown="event.preventDefault(); execGlassFontSize('creator')" title="Text size">
-                <span class="btn-text" id="creator-glass-size-label">A↑</span>
-              </button>
-              <button class="glass-ctx-btn" onmousedown="event.preventDefault(); execGlassCmd('strikeThrough')" title="Strikethrough">
-                <span class="btn-text" style="text-decoration: line-through;">S</span>
-              </button>
-              <div class="glass-ctx-divider"></div>
-              <button class="glass-ctx-btn" onmousedown="event.preventDefault(); execGlassCmd('removeFormat')" title="Clear formatting">
-                <svg viewBox="0 0 24 24"><path d="M3.27 5L2 6.27l6.97 6.97L6.5 19h3l1.57-3.66L16.73 21 18 19.73 3.27 5zM6 5v.18L8.82 8h2.4l-.72 1.68 2.1 2.1L14.21 8H20V5H6z"/></svg>
-              </button>
-            </div>
-            <!-- Image Selection Context -->
-            <div class="glass-ctx-group" id="creator-ctx-image" style="display:none">
-              <button class="glass-ctx-btn" id="creator-ctx-replace-img" onmousedown="event.preventDefault()" title="Replace image">
-                <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
-              </button>
-              <button class="glass-ctx-btn" id="creator-ctx-resize-img" onmousedown="event.preventDefault()" title="Resize image">
-                <svg viewBox="0 0 24 24"><path d="M19 12h-2v3h-3v2h5v-5zM7 9h3V7H5v5h2V9zm14-6H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.99h18v14.02z"/></svg>
-              </button>
-              <button class="glass-ctx-btn" id="creator-ctx-caption-img" onmousedown="event.preventDefault()" title="Add caption">
-                <svg viewBox="0 0 24 24"><path d="M2.5 4v3h5v12h3V7h5V4h-13zm19 5h-9v3h3v7h3v-7h3V9z"/></svg>
-              </button>
-              <div class="glass-ctx-divider"></div>
-              <button class="glass-ctx-btn glass-ctx-btn--danger" id="creator-ctx-delete-img" onmousedown="event.preventDefault()" title="Delete image">
-                <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-              </button>
-            </div>
-            <!-- Link Selection Context -->
-            <div class="glass-ctx-group" id="creator-ctx-link" style="display:none">
-              <button class="glass-ctx-btn" id="creator-ctx-edit-link" onmousedown="event.preventDefault(); toggleGlassLinkPopover('creator', this)" title="Edit link">
-                <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-              </button>
-              <button class="glass-ctx-btn" id="creator-ctx-open-link" onmousedown="event.preventDefault()" title="Open link">
-                <svg viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
-              </button>
-              <div class="glass-ctx-divider"></div>
-              <button class="glass-ctx-btn glass-ctx-btn--danger" id="creator-ctx-remove-link" onmousedown="event.preventDefault(); execGlassCmd('unlink')" title="Remove link">
-                <svg viewBox="0 0 24 24"><path d="M17 7h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1 0 1.43-.98 2.63-2.31 2.98l1.46 1.46C20.88 15.61 22 13.95 22 12c0-2.76-2.24-5-5-5zm-1 4h-2.19l2 2H16v-2zM2 4.27l3.11 3.11A4.991 4.991 0 0 0 2 12c0 2.76 2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1 0-1.59 1.21-2.9 2.76-3.07L8.73 11H8v2h2.73l2 2H8v1.9h3.27l3.73 3.73 1.27-1.27L3.27 3 2 4.27z"/></svg>
-              </button>
-            </div>
-            <!-- Checklist Item Context -->
-            <div class="glass-ctx-group" id="creator-ctx-checklist" style="display:none">
-              <button class="glass-ctx-btn" id="creator-ctx-indent" onmousedown="event.preventDefault()" title="Indent">
-                <svg viewBox="0 0 24 24"><path d="M3 21h18v-2H3v2zM3 8v8l4-4-4-4zm8 9h10v-2H11v2zM3 3v2h18V3H3zm8 6h10V7H11v2zm0 4h10v-2H11v2z"/></svg>
-              </button>
-              <button class="glass-ctx-btn" id="creator-ctx-outdent" onmousedown="event.preventDefault()" title="Outdent">
-                <svg viewBox="0 0 24 24"><path d="M11 17h10v-2H11v2zm-8-5l4 4V8l-4 4zm0 9h18v-2H3v2zM3 3v2h18V3H3zm8 6h10V7H11v2zm0 4h10v-2H11v2z"/></svg>
-              </button>
-              <button class="glass-ctx-btn" id="creator-ctx-move-up" onmousedown="event.preventDefault()" title="Move up">
-                <svg viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6 1.41 1.41z"/></svg>
-              </button>
-              <button class="glass-ctx-btn" id="creator-ctx-move-down" onmousedown="event.preventDefault()" title="Move down">
-                <svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
-              </button>
-              <div class="glass-ctx-divider"></div>
-              <button class="glass-ctx-btn glass-ctx-btn--danger" id="creator-ctx-delete-item" onmousedown="event.preventDefault()" title="Delete item">
-                <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-              </button>
-            </div>
-          </div>
-
-          <div id="creator-glass-link-popover" class="glass-link-popover" onmousedown="event.preventDefault()">
-            <input type="text" id="creator-glass-link-input" placeholder="Paste or type link...">
-            <button type="button" onclick="submitGlassLink('creator')">Apply</button>
-          </div>
-
-          <div id="creator-glass-color-popup" class="color-popup" onmousedown="event.preventDefault()">
-            <div class="color-popup-section-title">Highlight</div>
-            <div class="color-swatches-row">
-              <div class="color-swatch" style="background:#FEF08A;" title="Yellow highlight" onmousedown="event.preventDefault(); applyGlassHighlight('#FEF08A')"></div>
-              <div class="color-swatch" style="background:#BBF7D0;" title="Green highlight" onmousedown="event.preventDefault(); applyGlassHighlight('#BBF7D0')"></div>
-              <div class="color-swatch" style="background:#BAE6FD;" title="Blue highlight" onmousedown="event.preventDefault(); applyGlassHighlight('#BAE6FD')"></div>
-              <div class="color-swatch" style="background:#FECDD3;" title="Rose highlight" onmousedown="event.preventDefault(); applyGlassHighlight('#FECDD3')"></div>
-              <div class="color-swatch" style="background:#DDD6FE;" title="Lavender highlight" onmousedown="event.preventDefault(); applyGlassHighlight('#DDD6FE')"></div>
-              <div class="color-swatch" style="background:transparent; border:1px solid rgba(0,0,0,0.15);" title="Clear highlight" onmousedown="event.preventDefault(); applyGlassHighlight(null)"></div>
-            </div>
-            <div style="height:1px; background:rgba(0,0,0,0.06); margin:4px 0;"></div>
-            <div class="color-popup-section-title">Text Color</div>
-            <div class="color-swatches-row">
-              <div class="color-swatch text-swatch" style="color:#ef4444;" title="Red text" onmousedown="event.preventDefault(); applyGlassTextColor('#ef4444')">A</div>
-              <div class="color-swatch text-swatch" style="color:#3b82f6;" title="Blue text" onmousedown="event.preventDefault(); applyGlassTextColor('#3b82f6')">A</div>
-              <div class="color-swatch text-swatch" style="color:#10b981;" title="Green text" onmousedown="event.preventDefault(); applyGlassTextColor('#10b981')">A</div>
-              <div class="color-swatch text-swatch" style="color:#f59e0b;" title="Orange text" onmousedown="event.preventDefault(); applyGlassTextColor('#f59e0b')">A</div>
-              <div class="color-swatch text-swatch" style="color:#8b5cf6;" title="Purple text" onmousedown="event.preventDefault(); applyGlassTextColor('#8b5cf6')">A</div>
-              <div class="color-swatch text-swatch" style="color:var(--text-primary);" title="Default text" onmousedown="event.preventDefault(); applyGlassTextColor(null)">A</div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -802,9 +623,7 @@
 
       <!-- Empty State -->
       <div class="empty-state" id="empty-state">
-        <svg class="empty-icon" viewBox="0 0 24 24">
-          <path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/>
-        </svg>
+        <img class="empty-logo" src="icons/icon-192.png" alt="" aria-hidden="true">
         <span class="empty-text">Notes you add appear here</span>
       </div>
 
@@ -924,6 +743,7 @@
           <svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
         </button>
       </div>
+      <div class="lightbox-reorder-strip" id="lightbox-reorder-strip" aria-label="Drag photos to reorder" hidden></div>
     </div>
 
     <!-- Shared Contextual Action Menu Popover -->
@@ -1499,8 +1319,11 @@
       <!-- Modal Header -->
       <div class="advanced-editor-header" id="modal-advanced-header">
         <div class="header-left-group">
-          <button class="icon-btn back-btn" id="modal-back-btn" aria-label="Go back and save">
+          <button class="icon-btn back-btn" id="modal-back-btn" aria-label="Go back and save" title="Go back and save">
             <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+          </button>
+          <button class="icon-btn editor-close-btn" id="modal-editor-close-btn" type="button" aria-label="Close editor" title="Close editor">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7l-1.4-1.4L9.2 12 2.9 5.7l1.4-1.4 6.3 6.3 6.3-6.3z"/></svg>
           </button>
           <div class="header-category-control">
             <button class="creator-breadcrumb header-category-trigger" id="modal-breadcrumb" type="button" aria-haspopup="listbox" aria-expanded="false">
@@ -1518,9 +1341,9 @@
           <button class="icon-btn" id="modal-redo-btn" aria-label="Redo" title="Redo">
             <svg viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
           </button>
-          <span class="autosave-status saved" id="modal-autosave-status">✓ Saved</span>
-          <button class="icon-btn" id="modal-share-btn" aria-label="Share note" title="Share Note">
-            <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>
+          <span class="autosave-status saved" id="modal-autosave-status" role="status" aria-label="Saved"></span>
+          <button class="icon-btn" id="modal-theme-launcher" aria-label="Change note theme" title="Change note theme">
+            <i data-lucide="palette" aria-hidden="true"></i>
           </button>
           <button class="icon-btn" id="modal-more-btn" aria-label="More options" title="More options">
             <svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
@@ -1532,14 +1355,6 @@
       <div class="editor-workspace-wrapper">
         <!-- Scrollable Workspace Container -->
         <div class="editor-scroll-container">
-          <!-- Image Banner slot inside Edit Modal -->
-          <div class="creator-image-banner modal-image-banner" id="modal-image-banner" style="display: none;">
-            <img id="modal-img-preview" src="" alt="Modal banner">
-            <button class="icon-btn remove-image-btn" id="modal-remove-img" aria-label="Remove image">
-              <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-            </button>
-          </div>
-
           <section class="social-capture-panel" id="modal-social-capture" hidden aria-live="polite">
             <div class="social-capture-heading">
               <span class="social-platform-badge" id="modal-social-platform">Social link</span>
@@ -1559,8 +1374,24 @@
 
           <!-- Glass Editor Workspace -->
           <div class="glass-editor-workspace" id="modal-glass-workspace" style="display: none;">
-            <div id="modal-glass-title" class="note-title-field" contenteditable="true" data-placeholder="Title"></div>
-            <div id="modal-glass-timestamp" class="note-timestamp"></div>
+            <!-- Part of the document scroll, never a sticky editor chrome. -->
+            <div class="modal-document-hero" id="modal-document-hero">
+              <div class="creator-image-banner modal-image-banner" id="modal-image-banner" style="display: none;">
+                <img id="modal-img-preview" src="" alt="Note banner">
+                <button class="icon-btn remove-image-btn" id="modal-remove-img" aria-label="Remove banner"><i data-lucide="x" aria-hidden="true"></i></button>
+              </div>
+              <button class="modal-banner-action" id="modal-banner-add-btn" type="button"><i data-lucide="image-plus" aria-hidden="true"></i><span>Add banner</span></button>
+            </div>
+            <div class="modal-note-title-row">
+              <button class="modal-note-icon" id="modal-note-icon-btn" type="button" aria-label="Add note icon" title="Add note icon">+</button>
+              <div class="modal-note-title-copy">
+                <div id="modal-glass-title" class="note-title-field" contenteditable="true" data-placeholder="Title"></div>
+                <div class="modal-note-metadata">
+                  <div id="modal-glass-timestamp" class="note-timestamp"></div>
+                  <div id="modal-note-reminder" class="modal-note-reminder"></div>
+                </div>
+              </div>
+            </div>
             <div id="modal-glass-editor" class="note-content-field" contenteditable="true" data-placeholder="Start writing..."></div>
           </div>
 
@@ -1570,13 +1401,13 @@
 
         <!-- Modal More Popover (Notion-style Properties Drawer / Mobile Bottom Sheet) -->
         <div class="editor-more-popover" id="modal-more-popover" style="display: none;">
-          <!-- General Section -->
-          <div class="popover-section" id="modal-popover-folder-section">
+          <!-- Hidden compatibility field: categories are managed from the header. -->
+          <div id="modal-popover-folder-section" hidden>
             <!-- Dynamic modal-folder-field kept hidden; chips below handle categories -->
           </div>
           <div class="popover-divider"></div>
           
-          <div class="popover-section">
+          <div class="popover-section" hidden>
             <div class="popover-section-title">Categories</div>
             <div class="popover-search-wrapper" style="margin-bottom: 6px;">
               <input type="text" id="modal-popover-category-search" placeholder="Search notebooks..." style="width: 100%; height: 30px; border-radius: 6px; border: 1px solid var(--border-light); background: transparent; padding: 0 8px; font-size: 12px; color: var(--text-primary); outline: none;">
@@ -1592,7 +1423,7 @@
           <div class="popover-divider"></div>
 
           <!-- Tags Section -->
-          <div class="popover-section">
+          <div class="popover-section" hidden>
             <div class="popover-section-title">Tags</div>
             <div class="popover-tags-container" id="modal-popover-tags-container" style="display: flex; flex-wrap: wrap; gap: 6px;">
               <!-- Tags listing area loaded dynamically -->
@@ -1600,20 +1431,9 @@
           </div>
           <div class="popover-divider"></div>
           
-          <!-- Appearance Section -->
           <div class="popover-section">
-            <div class="popover-section-title">Appearance</div>
             <div class="menu-options-section">
-              <button type="button" class="popover-menu-item" id="modal-theme-launcher" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                  <svg viewBox="0 0 24 24" class="menu-icon"><path d="M12 3a9 9 0 0 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01l-.23-.25a.3.3 0 0 1-.03-.17c0-.09.06-.15.15-.15H15a6 6 0 0 0 6-6c0-4.97-4.03-9-9-9z"/></svg>
-                  <span>Theme</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 4px;">
-                  <span id="modal-theme-preview-val" style="font-size: 12px; color: var(--text-muted);">None</span>
-                  <span style="font-size: 12px; color: var(--text-muted);">&gt;</span>
-                </div>
-              </button>
+              <span id="modal-theme-preview-val" hidden>None</span>
             </div>
             <!-- Hidden legacy bindings preserved -->
             <div style="display: none;">
@@ -1624,9 +1444,7 @@
           </div>
           <div class="popover-divider"></div>
           
-          <!-- Scheduling Section -->
           <div class="popover-section">
-            <div class="popover-section-title">Scheduling</div>
             <div class="menu-options-section">
               <!-- Compact Reminder Row -->
               <button type="button" class="popover-menu-item" id="modal-reminder-compact-card" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -1655,31 +1473,34 @@
                 <div id="modal-reminder-picker"></div>
               </div>
 
+              <button class="popover-menu-item" id="modal-share-btn" aria-label="Share note">
+                <i data-lucide="share-2" class="menu-icon" aria-hidden="true"></i>
+                <span class="menu-label">Share</span>
+              </button>
+
               <button class="popover-menu-item" id="modal-favorite" aria-label="Favorite note">
-                <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                <i data-lucide="star" class="menu-icon" aria-hidden="true"></i>
                 <span class="menu-label" id="modal-favorite-label">Favorite</span>
               </button>
 
               <button class="popover-menu-item" id="modal-pin" aria-label="Pin note">
-                <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zM9.8 4h4.4v8H9.8V4z"/></svg>
+                <i data-lucide="pin" class="menu-icon" aria-hidden="true"></i>
                 <span class="menu-label">Pin Note</span>
               </button>
             </div>
           </div>
           <div class="popover-divider"></div>
           
-          <!-- Organization Section -->
           <div class="popover-section menu-options-section">
-            <div class="popover-section-title">Organization</div>
             <button class="popover-menu-item" id="modal-archive" aria-label="Archive note">
               <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.2 3 17.5 3H6.5c-.7 0-1.38.21-1.65.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM6.24 5h11.52l.83 1H5.41l.83-1zM5 19V8h14v11H5zm3-5h8v-2H8v2z"/></svg>
               <span class="menu-label" id="modal-archive-label">Archive Note</span>
             </button>
-            <button class="popover-menu-item" id="modal-lock" aria-label="Lock note">
+            <button class="popover-menu-item is-unavailable" id="modal-lock" aria-label="Lock note" title="Coming soon" disabled hidden>
               <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>
               <span class="menu-label" id="modal-lock-label">Lock Note</span>
             </button>
-            <button class="popover-menu-item" id="modal-move" aria-label="Move note">
+            <button class="popover-menu-item is-unavailable" id="modal-move" aria-label="Move note" title="Coming soon" disabled hidden>
               <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M10 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/></svg>
               <span class="menu-label">Move Note</span>
             </button>
@@ -1694,9 +1515,7 @@
           </div>
           <div class="popover-divider"></div>
           
-          <!-- Danger Zone Section -->
           <div class="popover-section menu-options-section">
-            <div class="popover-section-title">Danger Zone</div>
             <button class="popover-menu-item danger-action" id="modal-delete" aria-label="Delete note">
               <svg viewBox="0 0 24 24" class="menu-icon"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
               <span class="menu-label">Delete Note</span>
@@ -1818,12 +1637,6 @@
           </span>
           <span class="glass-add-menu-label">Voice Recording</span>
         </button>
-        <button type="button" class="glass-add-menu-item" id="modal-add-reminder" onclick="event.stopPropagation(); closeGlassAddMenu('modal')" title="Set Reminder">
-          <span class="glass-add-menu-icon">
-            <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
-          </span>
-          <span class="glass-add-menu-label">Scheduler</span>
-        </button>
         <button class="glass-add-menu-item" id="modal-add-file" onclick="event.preventDefault(); event.stopPropagation(); closeGlassAddMenu('modal'); document.getElementById('modal-file-input')?.click()" title="Attach File">
           <span class="glass-add-menu-icon">
             <svg viewBox="0 0 24 24"><path d="M16.5 6.5v10a4.5 4.5 0 0 1-9 0v-11a3 3 0 0 1 6 0v10.5a1.5 1.5 0 0 1-3 0V7h-2v9a3.5 3.5 0 0 0 7 0V5.5a5 5 0 0 0-10 0v11a6.5 6.5 0 0 0 13 0v-10h-2Z"/></svg>
@@ -1893,6 +1706,9 @@
           <button class="glass-ctx-btn" id="modal-ctx-move-down" onmousedown="event.preventDefault()" title="Move down">
             <svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
           </button>
+          <button class="glass-ctx-btn" id="modal-ctx-reminder" onmousedown="event.preventDefault()" title="Set reminder for this checklist item">
+            <i data-lucide="bell" aria-hidden="true"></i>
+          </button>
           <div class="glass-ctx-divider"></div>
           <button class="glass-ctx-btn glass-ctx-btn--danger" id="modal-ctx-delete-item" onmousedown="event.preventDefault()" title="Delete item">
             <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
@@ -1900,10 +1716,7 @@
         </div>
       </div>
 
-      <div id="modal-glass-link-popover" class="glass-link-popover" onmousedown="event.preventDefault()">
-        <input type="text" id="modal-glass-link-input" placeholder="Paste or type link...">
-        <button type="button" onclick="submitGlassLink('modal')">Apply</button>
-      </div>
+      <!-- Link dialog is rendered at the document root so it can sit above the editor overlay. -->
 
       <div id="modal-glass-color-popup" class="color-popup" onmousedown="event.preventDefault()">
         <div class="color-popup-section-title">Highlight</div>
@@ -2137,30 +1950,6 @@
     </div><!-- /auth-card -->
   </div><!-- /auth-modal -->
 
-  <!-- Tablet-first navigation dock. It is hidden on desktop and phones. -->
-  <nav class="tablet-dock" id="tablet-dock" aria-label="Tablet navigation">
-    <button class="tablet-dock-item active" type="button" data-tablet-page="notes" aria-label="All notes">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm2 4v2h7V8H7Zm0 4v2h7v-2H7Z"/></svg>
-      <span>Notes</span>
-    </button>
-    <button class="tablet-dock-item" type="button" data-tablet-page="search" aria-label="Search notes">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20.5 19-4.3-4.3a7 7 0 1 0-1.5 1.5l4.3 4.3 1.5-1.5ZM5 10.5a5.5 5.5 0 1 1 11 0 5.5 5.5 0 0 1-11 0Z"/></svg>
-      <span>Search</span>
-    </button>
-    <button class="tablet-dock-create" type="button" data-tablet-action="create" aria-label="Create a new note">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg>
-      <span>New</span>
-    </button>
-    <button class="tablet-dock-item" type="button" data-tablet-page="productivity" aria-label="Open productivity">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2 4v3h3V7H7Zm0 5v5h3v-5H7Zm5-5v3h5V7h-5Zm0 5v2h5v-2h-5Zm0 4v1h5v-1h-5Z"/></svg>
-      <span>Today</span>
-    </button>
-    <button class="tablet-dock-item" type="button" data-tablet-action="menu" aria-label="Open notebooks and settings">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/></svg>
-      <span>Library</span>
-    </button>
-  </nav>
-
   <!-- Toast notification container -->
   <div class="toast-container" id="toast-container"></div>
 
@@ -2214,19 +2003,51 @@
   </script>
 
 
-  <!-- Glass Reminder Popover -->
-  <div id="glass-reminder-popover">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <span style="font-size: 14px; font-weight: 600; color: var(--text-primary);">Set Reminder</span>
-      <button id="glass-reminder-close" class="icon-btn" style="width: 24px; height: 24px; min-width: 24px;">
-        <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-      </button>
-    </div>
-    <input type="datetime-local" id="glass-reminder-input" style="width: 100%; height: 36px; border-radius: 8px; border: 1px solid var(--border-light); background: var(--surface); padding: 0 10px; font-size: 14px; color: var(--text-primary); font-family: var(--font-sans); outline: none;">
-    <div style="display: flex; gap: 8px; margin-top: 4px;">
-      <button id="glass-reminder-save" class="text-btn" style="flex: 1; height: 36px; background: var(--accent-color); color: white; border-radius: 8px;">Save</button>
-      <button id="glass-reminder-clear" class="text-btn danger-btn" style="flex: 1; height: 36px; border-radius: 8px;">Clear</button>
-    </div>
+  <!-- Centered editor action dialogs: consistent with the Categories dialog. -->
+  <div id="modal-glass-link-popover" class="editor-action-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="glass-link-modal-title">
+    <section class="editor-action-modal">
+      <header class="editor-action-header"><div><span class="editor-action-eyebrow">Editor</span><h2 id="glass-link-modal-title">Insert link</h2></div><button type="button" class="editor-action-close" data-close-editor-action="modal-glass-link-popover" aria-label="Close insert link dialog">×</button></header>
+      <p class="editor-action-description">Add a web address to the selected text.</p>
+      <label class="editor-action-field" for="modal-glass-link-input"><span>Link address</span><input type="url" id="modal-glass-link-input" placeholder="https://example.com" inputmode="url" autocomplete="url"></label>
+      <div class="editor-action-actions"><button type="button" class="editor-action-secondary" data-close-editor-action="modal-glass-link-popover">Cancel</button><button type="button" class="editor-action-primary" onclick="submitGlassLink('modal')">Insert link</button></div>
+    </section>
+  </div>
+
+  <div id="voice-recording-modal" class="editor-action-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="voice-recording-modal-title">
+    <section class="editor-action-modal voice-recording-modal-card">
+      <header class="editor-action-header"><div><span class="editor-action-eyebrow">Voice note</span><h2 id="voice-recording-modal-title">Voice recording</h2></div><button type="button" class="editor-action-close" id="voice-recording-close" aria-label="Close voice recording dialog">×</button></header>
+      <div class="voice-recording-modal-status"><span class="voice-recording-modal-dot" aria-hidden="true"></span><strong id="voice-recording-modal-state">Ready to record</strong><time id="voice-recording-modal-timer">0:00</time></div>
+      <p class="editor-action-description" id="voice-recording-modal-description">Record a voice clip and attach it to this note.</p>
+      <div class="voice-recording-modal-actions"><button type="button" class="editor-action-secondary" id="voice-recording-cancel">Cancel</button><button type="button" class="editor-action-secondary" id="voice-recording-minimize" hidden>Minimize</button><button type="button" class="editor-action-secondary" id="voice-recording-pause" hidden>Pause</button><button type="button" class="editor-action-primary" id="voice-recording-start">Start recording</button><button type="button" class="editor-action-primary" id="voice-recording-stop" hidden>Stop &amp; save</button></div>
+    </section>
+  </div>
+
+  <div id="voice-recording-mini" class="voice-recording-mini" role="status" aria-live="polite" aria-label="Voice recording controls" hidden>
+    <button type="button" class="voice-recording-mini-main" id="voice-recording-expand" aria-label="Expand voice recording controls"><span class="voice-recording-mini-dot" aria-hidden="true"></span><span><strong id="voice-recording-mini-state">Recording</strong><time id="voice-recording-mini-timer">0:00</time></span></button>
+    <button type="button" class="voice-recording-mini-action" id="voice-recording-mini-pause" aria-label="Pause recording">Ⅱ</button>
+    <button type="button" class="voice-recording-mini-action voice-recording-mini-stop" id="voice-recording-mini-stop" aria-label="Stop and save recording">■</button>
+  </div>
+
+  <div id="whats-new-modal" class="editor-action-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="whats-new-modal-title">
+    <section class="editor-action-modal whats-new-modal-card">
+      <header class="editor-action-header"><div><span class="editor-action-eyebrow">Paperuss updates</span><h2 id="whats-new-modal-title">What's new</h2></div><button type="button" class="editor-action-close" id="whats-new-close" aria-label="Close release notes">×</button></header>
+      <p class="whats-new-version" id="whats-new-version">Version 3.3.4</p>
+      <div class="whats-new-scroll"><ul class="changelog-list" id="whats-new-changelog"></ul></div>
+      <div class="editor-action-actions"><span class="editor-action-actions-spacer"></span><button type="button" class="editor-action-primary" id="whats-new-done">Done</button></div>
+    </section>
+  </div>
+
+  <div id="app-update-banner" class="app-update-banner" role="status" aria-live="polite" hidden>
+    <div><strong>Update ready</strong><span>A newer Paperuss version is available.</span></div><button type="button" id="app-update-later">Later</button><button type="button" id="app-update-now">Update now</button>
+  </div>
+
+  <div id="glass-reminder-popover" class="editor-action-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="glass-reminder-title">
+    <section class="editor-action-modal">
+      <header class="editor-action-header"><div><span class="editor-action-eyebrow">Note reminder</span><h2 id="glass-reminder-title">Schedule reminder</h2></div><button type="button" class="editor-action-close" id="glass-reminder-close" aria-label="Close scheduler dialog">×</button></header>
+      <p class="editor-action-description">Choose when Paperuss should remind you about this note.</p>
+      <label class="editor-action-field" for="glass-reminder-input"><span>Date and time</span><input type="datetime-local" id="glass-reminder-input"></label>
+      <div class="editor-action-actions"><button type="button" class="editor-action-secondary danger-btn" id="glass-reminder-clear">Clear</button><span class="editor-action-actions-spacer"></span><button type="button" class="editor-action-secondary" id="glass-reminder-cancel">Cancel</button><button type="button" class="editor-action-primary" id="glass-reminder-save">Save reminder</button></div>
+    </section>
   </div>
 
   <!-- Mobile Pull-To-Refresh Visual Indicator -->

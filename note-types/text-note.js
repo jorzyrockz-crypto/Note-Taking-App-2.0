@@ -18,9 +18,11 @@ export function isRichTextNote(note) {
  * Removes unsafe element tags, inline event handler attributes, unsafe URL protocols (javascript:, vbscript:, unsafe data:),
  * contenteditable, and disables preview checkboxes.
  * @param {HTMLElement} tempDiv
+ * @param {{ preserveEditorControls?: boolean }} options
  */
-export function sanitizeRichTextHtml(tempDiv) {
+export function sanitizeRichTextHtml(tempDiv, options = {}) {
   if (!tempDiv) return;
+  const { preserveEditorControls = false } = options;
 
   // 1. Remove prohibited/unsafe element tags
   const unsafeTags = ['script', 'style', 'iframe', 'object', 'embed', 'link', 'meta', 'base', 'form', 'foreignobject'];
@@ -70,12 +72,12 @@ export function sanitizeRichTextHtml(tempDiv) {
   const allElements = Array.from(tempDiv.querySelectorAll('*'));
   allElements.forEach(el => {
     // A. Remove contenteditable
-    if (typeof el.hasAttribute === 'function' && el.hasAttribute('contenteditable')) {
+    if (!preserveEditorControls && typeof el.hasAttribute === 'function' && el.hasAttribute('contenteditable')) {
       el.removeAttribute('contenteditable');
     }
 
     // B. Disable checkboxes
-    if (el.tagName === 'INPUT' && (el.getAttribute('type') || '').toLowerCase() === 'checkbox') {
+    if (!preserveEditorControls && el.tagName === 'INPUT' && (el.getAttribute('type') || '').toLowerCase() === 'checkbox') {
       el.setAttribute('disabled', 'disabled');
     }
 
